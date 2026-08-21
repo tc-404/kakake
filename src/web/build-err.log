@@ -1,0 +1,19 @@
+﻿   鈻?Next.js 15.5.20
+
+   Creating an optimized production build ...
+ 鉁?Compiled successfully in 2.3s
+   Skipping validation of types
+   Linting ...
+   Collecting page data ...
+   Generating static pages (0/9) ...
+node.exe : [TypeError: Cannot read properties of null (reading 'useRef')]
+所在位置 C:\Users\筱筱\AppData\Roaming\npm\pnpm.ps1:24 字符: 5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.mjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([TypeError: Can...ding 'useRef')]:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Error occurred prerendering page "/500". Read more: https://nextjs.org/docs/messages/prerender-error
+[TypeError: Cannot read properties of null (reading 'useRef')]
+Export encountered an error on /_error: /500, exiting the build.
+ 猕?Next.js build worker exited with code: 1 and signal: null
