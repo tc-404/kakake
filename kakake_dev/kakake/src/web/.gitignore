@@ -1,0 +1,5 @@
+# Next 产物目录（在本包内，供 pnpm 正确解析 react）
+.next/
+node_modules/
+*.tsbuildinfo
+next-env.d.ts

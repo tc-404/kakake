@@ -1,0 +1,11 @@
+{
+    "permissions": {
+        "allow": [
+            "Bash(cd)",
+            "Bash(git remote)",
+            "Bash(git diff)",
+            "Bash(ls)"
+        ],
+        "deny": []
+    }
+}
