@@ -1,0 +1,359 @@
+================================================================================
+  咔咔珂 Kakake · macOS 使用教程（从零到能聊天）
+  适用: macOS 11 Big Sur 及以上（Intel 与 Apple 芯片都可以）
+  启动脚本: 项目根目录 start.sh
+================================================================================
+
+【先说清楚三件事】
+  1) 咔咔珂本身不带 QQ 登录能力，它只是「机器人框架」。
+     真正登录 QQ 的是 NapCat 之类的协议端，咔咔珂通过 WebSocket 和它对接。
+  2) macOS 上用 ./start.sh 启动，和 Linux、Termux 共用同一份脚本。
+     mk 管理脚本不适用于 macOS（它面向 Linux 服务器和 Termux）。
+  3) 首次启动会自动做三件事，耗时较长（视网络 3-15 分钟）：
+     装后端依赖 → 构建前端界面 → 打包后端。之后再启动只要几秒。
+
+【本机需要什么】
+  · Node.js 20 或更高版本（推荐 22 LTS）
+  · 能联网、硬盘剩余空间 ≥ 2 GB
+  · 会用「终端」App（在 启动台 → 其他 → 终端）
+
+【先确认你的系统能装哪个 Node】
+  查系统版本：左上角  → 关于本机
+     macOS 13.5 及以上 → 可以装 Node 22 / 24，随便挑，推荐 22 LTS
+     macOS 11 ~ 13.4   → 装 Node 22 LTS（Node 24 起最低要求 macOS 13.5，装了跑不起来）
+     macOS 10.15 及更早 → 官方 Node 20+ 已不支持，只能考虑换机器或上服务器
+  查芯片类型（下载包要选对）：同一个窗口里看「芯片 / 处理器」
+     Apple M 系列 → 下载 ARM64 版
+     Intel        → 下载 x64 版
+
+--------------------------------------------------------------------------------
+第 1 步：安装 Node.js
+--------------------------------------------------------------------------------
+方式 A（推荐新手）官网安装包
+  1) 打开 https://nodejs.org/ ，下载 LTS 的 macOS Installer（.pkg）。
+  2) 双击安装，一路继续。
+  3) 打开「终端」，执行：
+       node -v
+       npm -v
+     能看到 v22.x.x 和 10.x.x 就行了。
+
+方式 B（会用命令行）Homebrew
+       brew install node@22
+       brew link --overwrite node@22
+
+方式 C（要在多个 Node 版本间切换）nvm
+       curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+       # 关掉终端重开，然后
+       nvm install 22
+       nvm use 22
+
+  ▸ zsh: command not found: node（装完还是找不到）
+    原因：PATH 里没有 Node 的目录，或者装完没重开终端。
+    解决：先关掉终端窗口重开。仍然不行分情况处理：
+          · 官网安装包：确认 /usr/local/bin/node 存在，
+            在 ~/.zshrc 末尾加一行 export PATH="/usr/local/bin:$PATH"
+          · Apple 芯片 + Homebrew：brew 装在 /opt/homebrew，需要初始化环境：
+            echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+            然后重开终端
+          · nvm：确认 ~/.zshrc 里有 nvm 的那几行（安装脚本会自动加）
+    改完执行 source ~/.zshrc 或直接重开终端。
+
+  ▸ 双击 .pkg 提示「无法打开，因为无法验证开发者」
+    原因：Gatekeeper 拦截。
+    解决：系统设置 → 隐私与安全性 → 下方「仍要打开」。
+          官网下载的包一般不会有这个提示，出现了先确认下载来源是不是 nodejs.org。
+
+  ▸ node -v 显示 v18 或更低
+    解决：本项目硬性要求 Node 20+，低于会直接退出并提示。装新版覆盖即可；
+          用 nvm 的话执行 nvm install 22 && nvm alias default 22。
+
+--------------------------------------------------------------------------------
+第 2 步：把项目放到合适的目录
+--------------------------------------------------------------------------------
+推荐放在家目录下，例如：
+
+       ~/kakake              也就是 /Users/你的用户名/kakake
+
+  ▸ 不要放在「桌面」或「文稿」里，如果你开了 iCloud 云盘同步
+    系统设置 → Apple 账户 → iCloud → iCloud 云盘 →「桌面与文稿文件夹」若是开着的，
+    node_modules 里几万个小文件会被反复同步，npm 期间容易报
+    EPERM / ENOENT / 文件被占用，还会白白吃掉 iCloud 空间。
+    最省事的做法就是放 ~/kakake。
+
+  ▸ 不要放在 exFAT / FAT32 的外置硬盘或 U 盘上
+    这类文件系统不支持可执行位与符号链接，npm 和前端构建会失败。
+    APFS / HFS+ 格式的外置盘没问题。
+
+  ▸ 路径里有中文可以，但有空格时命令要加引号，例如 cd "~/我的 项目/kakake"
+
+--------------------------------------------------------------------------------
+第 3 步：启动
+--------------------------------------------------------------------------------
+打开终端，逐条执行：
+
+       cd ~/kakake            # 换成你实际放的位置
+       chmod +x start.sh      # 只需做一次，给脚本可执行权限
+       ./start.sh
+
+  小技巧：在终端里输入 cd 空格，然后把 kakake 文件夹从 Finder 拖进终端窗口，
+  路径会自动填好，回车即可，不用手打。
+
+  可选参数（可叠加）：
+       ./start.sh force      强制重新构建前端界面（改了 src/web 的代码后用）
+       ./start.sh verbose    保留全部安装/构建日志，排查构建失败时用
+       ./start.sh nolock     Termux 专用，macOS 上写了也没作用
+
+  ▸ zsh: permission denied: ./start.sh
+    原因：没有可执行权限（从压缩包解出来常这样）。
+    解决：chmod +x start.sh    或者直接用  bash start.sh
+
+  ▸ zsh: no such file or directory: ./start.sh
+    原因：当前目录不对。
+    解决：pwd 看看在哪，ls 看看有没有 start.sh，再 cd 到正确目录。
+
+  ▸ bad interpreter: /usr/bin/env bash^M: no such file or directory
+    原因：文件被改成了 Windows 换行（CRLF）。
+    解决：sed -i '' 's/\r$//' start.sh
+          本仓库已用 .gitattributes 强制脚本为 LF，一般不会遇到；
+          在 Windows 上编辑过再拷回来才会出现。
+
+  ▸ 弹窗「是否允许 node 接受传入网络连接？」
+    点「允许」。选了「拒绝」的话，同一 WiFi 下的手机就访问不了控制台，
+    可以到 系统设置 → 网络 → 防火墙 → 选项 里改回来。
+
+  ▸ xcrun: error: invalid active developer path
+    原因：缺命令行开发工具（某些依赖或 git 会用到）。
+    解决：xcode-select --install ，装完重试。
+
+--------------------------------------------------------------------------------
+第 4 步：首次启动会看到什么
+--------------------------------------------------------------------------------
+正常流程的输出顺序大致是（带 [Kakake] 前缀的是启动脚本自己打的）：
+
+     [Kakake] Installing backend dependencies (npm install)...
+     ...（装依赖、构建前端、打包后端，默认安静模式只显示少量进度）
+     咔咔珂 Kakake v0.4.15 启动中...
+     运行环境: macOS 23.6.0 · arm64 · Node 22.20.0
+
+（「运行环境」里那个数字是内核版本，不是 macOS 版本号，属正常现象。）
+
+默认模式下，确实执行过安装/构建时，启动服务前会清一次屏，
+控制台从框架自己的日志开始。想保留全过程就加 verbose。
+
+最后几行是关键信息，长这样：
+
+     启动完成 · 后台控制台: http://127.0.0.1:8787（本机） /
+                            http://192.168.1.20:8787（局域网） /
+                            http://<服务器IP>:8787（外网）
+     登录密钥 (初始): Xk3!qm7Yv2#tRb9Ldz4A
+     快捷登录（本机）: http://127.0.0.1:8787/?key=Xk3!qm7Yv2#tRb9Ldz4A
+     快捷登录（同一 Wi-Fi 局域网）: http://192.168.1.20:8787/?key=...
+     会话：无互动 30 分钟退出 · 自登录起最长 3 小时 · 重启框架需重新登录
+
+这个终端窗口必须一直开着。关掉窗口或按 Ctrl+C = 关掉机器人。
+家用宽带的 Mac 没有真公网 IP，「外网」那条通常用不上，忽略即可。
+
+--------------------------------------------------------------------------------
+第 5 步：登录后台
+--------------------------------------------------------------------------------
+1) 按住 Command 点终端里的「快捷登录（本机）」链接，可以直接在浏览器打开，
+   会自动带着密钥登录。
+2) 或者手动打开 http://127.0.0.1:8787 ，粘贴「登录密钥」。
+3) 首次登录会要求同意协议，然后必须设置自己的密码。设过之后就用新密码登录，
+   日志里不再显示明文。
+
+密钥存放位置：data/auth-key.json
+  kind = initial 表示还没设过密码，custom 表示已经是你自己设的。
+
+  ▸ 忘记密码怎么办
+    Ctrl+C 停掉服务 → rm data/auth-key.json → 重新 ./start.sh，
+    启动时会生成新的初始密钥，看控制台输出。
+
+  ▸ 浏览器打开是空白页或一直转圈
+    先看控制台有没有「Web UI 未构建」的警告，有就 ./start.sh force。
+    再不行按 Command+Shift+R 强制刷新，清掉旧的前端缓存。
+
+  ▸ Safari 打不开就换 Chrome 或 Edge 试试
+    控制台用了较新的前端特性，太旧的 Safari 可能渲染不全。
+
+--------------------------------------------------------------------------------
+第 6 步：接上 QQ（让机器人真的能聊天）
+--------------------------------------------------------------------------------
+咔咔珂只是框架，还需要一个协议端负责登录 QQ，最常用的是 NapCat。
+macOS 上跑 NapCat 通常有两条路：Docker 版，或用 Shell 版配合 QQ 客户端。
+
+最简单的对接方式是「反向 WebSocket」：
+  · 咔咔后台 → 连接 → 添加 → OneBot「反向 WS」，监听端口填 6700
+  · NapCat 里添加一个 WebSocket 客户端，地址填 ws://127.0.0.1:6700
+  · 两边都启用，咔咔后台的连接卡片变成已连接就成了
+
+用 Docker 跑 NapCat 时地址不能填 127.0.0.1（那是容器自己），
+要填能从容器访问到宿主机的地址，macOS 上用 host.docker.internal：
+  NapCat 容器里的 WS 客户端地址 → ws://host.docker.internal:6700
+
+详细步骤、其他四种对接方式（正向 WS / HTTP 服务器 / HTTP SSE / HTTP 客户端）
+看同目录的 连接教程.txt。
+
+  ▸ 注意 8787 和 6700 是两个不同的东西
+    8787 = 咔咔自己的后台控制台端口（在 data/config.json 里配）
+    6700 = 反向 WS 的监听端口（在后台的连接里配）
+
+--------------------------------------------------------------------------------
+第 7 步：常见报错速查（macOS）
+--------------------------------------------------------------------------------
+【依赖安装类】
+
+  ▸ npm install exited with code 1 / ECONNRESET / ETIMEDOUT
+    原因：网络到 npm 源不通。
+    解决：脚本已默认把源切到 https://registry.npmmirror.com。仍失败可自己指定：
+            KAKAKE_NPM_REGISTRY=https://registry.npmjs.org ./start.sh
+          开着代理软件时试试关掉「系统代理」再装。
+
+  ▸ EACCES: permission denied ... /usr/local/lib/node_modules
+    原因：用 sudo 装过全局包，或 Node 目录权限被改乱了。
+    解决：本项目只在自己目录里装依赖，不需要 sudo。千万别用 sudo ./start.sh，
+          那会把 node_modules 的属主变成 root，之后普通用户读写都出问题。
+          已经这样了就：sudo chown -R $(whoami) ~/kakake
+
+  ▸ tsx not found after npm install. Delete node_modules and retry.
+    原因：依赖装了一半。
+    解决：rm -rf node_modules && ./start.sh
+
+  ▸ EMFILE: too many open files
+    原因：单进程可打开文件数上限太低（默认 256）。
+    解决：ulimit -n 4096 后再 ./start.sh（只对当前终端有效）。
+
+【构建类】
+
+  ▸ 前端构建报 JavaScript heap out of memory
+    解决：关掉占内存的程序重试，或临时放宽上限：
+            NODE_OPTIONS=--max-old-space-size=3072 ./start.sh force
+
+  ▸ packages/server/main.mjs missing; server build failed
+    原因：后端打包失败，真正的错误在上面几行。
+    解决：./start.sh verbose 重跑，看第一条报错。
+
+  ▸ 改了代码但界面没变化
+    解决：./start.sh force。彻底一点：rm -rf packages 再启动，
+          它会被完整重建（packages 是纯产物目录，删掉不丢数据）。
+
+【启动与端口类】
+
+  ▸ 端口 8787 已被占用：先停掉占用它的进程，或改 data/config.json 里的 port
+    查是谁占的：
+      lsof -nP -iTCP:8787 -sTCP:LISTEN
+    确认不是自己上次没关干净的咔咔后，再 kill 掉那个 PID，或换端口：
+    编辑 data/config.json 的 "port": 8787 → 例如 18787，重启。
+
+  ▸ 端口 5000 / 7000 莫名被占（如果你把 port 改成了这两个）
+    原因：macOS Monterey 起「隔空播放接收器」会占用 5000 和 7000。
+    解决：系统设置 → 通用 → 隔空播放与接力 → 关掉「隔空播放接收器」，
+          或者干脆换个端口。
+
+  ▸ 没有权限监听端口 xxx（EACCES）
+    原因：端口小于 1024，普通用户不能监听。
+    解决：改成 8787 / 18787 这类高位端口。
+
+  ▸ 监听地址 xxx 在本机不存在：改回 0.0.0.0 即可
+    原因：config.json 里的 host 写成了本机没有的 IP。
+
+  ▸ 同一 WiFi 的手机打不开控制台
+    逐条检查：config.json 里 host 是 0.0.0.0；防火墙弹窗当时点的是「允许」；
+    手机和 Mac 在同一网段（部分路由器开了 AP 隔离）。
+    Mac 的局域网 IP 可以用 ipconfig getifaddr en0 查（无线网卡通常是 en0）。
+
+  ▸ 合盖 / 睡眠后机器人掉线
+    原因：Mac 睡眠会挂起进程。
+    解决：用 caffeinate 保持不睡：
+            caffeinate -is ./start.sh
+          长期挂机建议接电源，并在 系统设置 → 锁定屏幕 里把「关闭显示器后」
+          的休眠时间设为「永不」。真要 7×24 就放 Linux 服务器
+          （见 03-Linux 使用教程.txt）。
+
+--------------------------------------------------------------------------------
+第 8 步：日常怎么用
+--------------------------------------------------------------------------------
+启动    cd ~/kakake && ./start.sh
+停止    在终端窗口里按 Ctrl+C
+重启    停掉再启一次；改了 data/config.json 必须重启才生效
+更新    覆盖新版源码后 ./start.sh force
+重置产物 rm -rf packages 再启动，会自动重建
+备份    只需备份 data 和 plugins 两个文件夹
+
+想关掉终端窗口后还能继续跑：
+       brew install tmux
+       tmux new -s kakake
+       cd ~/kakake && ./start.sh
+       # 按 Ctrl+B 松手再按 D 退出（进程继续跑）
+       tmux attach -t kakake      # 下次回来看日志
+
+开机自启（可选，用 launchd）：新建文件
+  ~/Library/LaunchAgents/com.kakake.bot.plist
+内容如下（把 /Users/你的用户名 和 node 路径换成实际的，
+node 路径用 which node 查）：
+
+  <?xml version="1.0" encoding="UTF-8"?>
+  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+  <plist version="1.0">
+  <dict>
+    <key>Label</key><string>com.kakake.bot</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/local/bin/node</string>
+      <string>/Users/你的用户名/kakake/scripts/bootstrap.mjs</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/你的用户名/kakake</string>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>StandardOutPath</key><string>/Users/你的用户名/kakake/log/launchd.out.log</string>
+    <key>StandardErrorPath</key><string>/Users/你的用户名/kakake/log/launchd.err.log</string>
+  </dict>
+  </plist>
+
+然后：
+       launchctl load ~/Library/LaunchAgents/com.kakake.bot.plist   # 启用
+       launchctl unload ~/Library/LaunchAgents/com.kakake.bot.plist # 关闭
+
+  ▸ 用 launchd 前请先手动成功启动过一次
+    首次启动要装依赖和构建，时间长、还可能需要你看报错，交给后台跑不好排查。
+
+--------------------------------------------------------------------------------
+附：目录与开关速查
+--------------------------------------------------------------------------------
+【目录】
+  data/             配置与运行数据（config.json、auth-key.json、connections.json…）
+  log/              运行日志
+  plugins/          安装的插件
+  plugins_two/      按账号隔离的插件运行副本
+  src/              源码（src/web 是前端源码）
+  packages/         构建产物（web + server），可整夹删除、自动重建
+  使用教程/         本教程与连接教程、插件开发教程
+
+【data/config.json 常改项】
+  "host": "0.0.0.0"       监听地址，一般不用改
+  "port": 8787            后台端口，冲突时改这里
+  "logLevel": "info"      排查问题可改 debug
+  "apiTimeoutMs": 120000  调用协议端接口的超时（毫秒）
+
+【环境变量开关（临时排查用，写在命令前面即可）】
+  KAKAKE_FORCE_WEB_BUILD=1    等价于 ./start.sh force
+  KAKAKE_VERBOSE_BOOT=1       等价于 ./start.sh verbose
+  KAKAKE_NPM_REGISTRY=...     指定 npm 源
+  KAKAKE_BOOTSTRAP_DRY_RUN=1  只检查依赖和构建，不真的启动服务
+  KAKAKE_NO_WEB=1             不托管 Web 控制台（只跑机器人后端）
+  KAKAKE_PUBLIC_HOST=...      手动指定对外 IP/域名
+  KAKAKE_DNS_RESULT_ORDER=ipv4first   出现 fetch failed 时可试，强制优先 IPv4
+  用法示例：KAKAKE_VERBOSE_BOOT=1 ./start.sh
+
+【其他教程】
+  连接教程.txt                  五种对接方式的详细填法
+  01-Windows 使用教程.txt
+  03-Linux 使用教程.txt         服务器部署 + mk 管理脚本
+  04-Termux 安卓手机 使用教程.txt
+  插件开发/                     想自己写插件从这里开始（控制台「工具 → 插件开发」也是这一份）
+
+================================================================================
+遇到本文没写到的报错：把终端里第一条 [ERROR] 开头的完整信息复制出来提问，
+带上 node -v 和 sw_vers 的输出。只说「起不来」很难帮你定位。
+================================================================================
