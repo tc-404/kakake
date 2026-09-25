@@ -1,0 +1,267 @@
+{
+  "intro": "前言.md",
+  "introCard": {
+    "title": "总览",
+    "subtitle": "前言 · 先读这一页",
+    "description": "插件目录规则、一次消息的一生、事件字段与接口速查、装载与排错，以及本教程的边界。"
+  },
+  "tracks": [
+    {
+      "id": "typescript",
+      "label": "野鸡TS开发",
+      "cardTitle": "野鸡TS开发",
+      "cardSubtitle": "TypeScript · 源码 → 构建 → 装产物",
+      "cardDescription": "写 src/index.ts，npm run build 出产物夹再装进 plugins/。要和「其他插件源码」的写法保持一致，选这条。",
+      "dir": "TypeScript",
+      "guide": "说明.md",
+      "files": [
+        {
+          "heading": "分步 ①：取出对方文字（片段）",
+          "path": "分步例子/01-取出对方文字.ts",
+          "title": "01-取出对方文字.ts",
+          "downloadName": "01-取出对方文字.ts",
+          "language": "typescript"
+        },
+        {
+          "heading": "分步 ②：怎么发回复（小函数）",
+          "path": "分步例子/02-怎么发回复.ts",
+          "title": "02-怎么发回复.ts",
+          "downloadName": "02-怎么发回复.ts",
+          "language": "typescript"
+        },
+        {
+          "heading": "分步 ③：精准匹配「你好」（片段）",
+          "path": "分步例子/03-指令-你好.ts",
+          "title": "03-指令-你好.ts",
+          "downloadName": "03-指令-你好.ts",
+          "language": "typescript"
+        },
+        {
+          "heading": "分步 ④：精准匹配「帮助」（片段）",
+          "path": "分步例子/04-指令-帮助.ts",
+          "title": "04-指令-帮助.ts",
+          "downloadName": "04-指令-帮助.ts",
+          "language": "typescript"
+        },
+        {
+          "heading": "分步 ⑤：精准匹配「ping」（片段）",
+          "path": "分步例子/05-指令-ping.ts",
+          "title": "05-指令-ping.ts",
+          "downloadName": "05-指令-ping.ts",
+          "language": "typescript"
+        },
+        {
+          "heading": "分步 ⑥：调用协议接口（禁言）（片段）",
+          "path": "分步例子/06-调用协议-禁言.ts",
+          "title": "06-调用协议-禁言.ts",
+          "downloadName": "06-调用协议-禁言.ts",
+          "language": "typescript"
+        },
+        {
+          "heading": "源码工程 · package.json（【照抄】）",
+          "path": "hello-src/package.json",
+          "title": "hello-src/package.json",
+          "downloadName": "package.json",
+          "language": "json"
+        },
+        {
+          "heading": "源码工程 · plugin.json（【照抄】）",
+          "path": "hello-src/plugin.json",
+          "title": "hello-src/plugin.json",
+          "downloadName": "plugin.json",
+          "language": "json"
+        },
+        {
+          "heading": "源码工程 · tsconfig.json（【照抄】）",
+          "path": "hello-src/tsconfig.json",
+          "title": "hello-src/tsconfig.json",
+          "downloadName": "tsconfig.json",
+          "language": "json"
+        },
+        {
+          "heading": "源码工程 · vite.config.ts（【照抄】）",
+          "path": "hello-src/vite.config.ts",
+          "title": "hello-src/vite.config.ts",
+          "downloadName": "vite.config.ts",
+          "language": "typescript"
+        },
+        {
+          "heading": "完整可运行源码（改完要 build）· src/index.ts",
+          "path": "hello-src/src/index.ts",
+          "title": "hello-src/src/index.ts",
+          "downloadName": "index.ts",
+          "language": "typescript"
+        },
+        {
+          "heading": "产物 · package.json（构建生成，装载用）",
+          "path": "hello-src/kakake-plugin-hello/package.json",
+          "title": "产物 package.json",
+          "downloadName": "package.json",
+          "language": "json"
+        },
+        {
+          "heading": "产物 · plugin.json（构建生成，装载用）",
+          "path": "hello-src/kakake-plugin-hello/plugin.json",
+          "title": "产物 plugin.json",
+          "downloadName": "plugin.json",
+          "language": "json"
+        },
+        {
+          "heading": "产物 · index.mjs（构建生成，装载用）",
+          "path": "hello-src/kakake-plugin-hello/index.mjs",
+          "title": "产物 index.mjs",
+          "downloadName": "index.mjs",
+          "language": "javascript"
+        }
+      ]
+    },
+    {
+      "id": "javascript-esm",
+      "label": "野鸡JS开发（ESM 版）",
+      "cardTitle": "野鸡JS开发（ESM 版）",
+      "cardSubtitle": "JavaScript · ESM · 改完存盘就生效",
+      "cardDescription": "用 export / import 写 index.mjs，不用编译，改完覆盖文件、重载插件即可。新写插件选这条。",
+      "dir": "JavaScript/ESM",
+      "guide": "说明.md",
+      "files": [
+        {
+          "heading": "分步 ①：取出对方文字（片段）",
+          "path": "分步例子/01-取出对方文字.mjs",
+          "title": "01-取出对方文字.mjs",
+          "downloadName": "01-取出对方文字.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ②：怎么发回复（小函数）",
+          "path": "分步例子/02-怎么发回复.mjs",
+          "title": "02-怎么发回复.mjs",
+          "downloadName": "02-怎么发回复.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ③：精准匹配「你好」（片段）",
+          "path": "分步例子/03-指令-你好.mjs",
+          "title": "03-指令-你好.mjs",
+          "downloadName": "03-指令-你好.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ④：精准匹配「帮助」（片段）",
+          "path": "分步例子/04-指令-帮助.mjs",
+          "title": "04-指令-帮助.mjs",
+          "downloadName": "04-指令-帮助.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ⑤：精准匹配「ping」（片段）",
+          "path": "分步例子/05-指令-ping.mjs",
+          "title": "05-指令-ping.mjs",
+          "downloadName": "05-指令-ping.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ⑥：调用协议接口（禁言）（片段）",
+          "path": "分步例子/06-调用协议-禁言.mjs",
+          "title": "06-调用协议-禁言.mjs",
+          "downloadName": "06-调用协议-禁言.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "完整可运行（装载用这份 index.mjs）",
+          "path": "kakake-plugin-hello/index.mjs",
+          "title": "kakake-plugin-hello/index.mjs",
+          "downloadName": "index.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "完整插件 · package.json",
+          "path": "kakake-plugin-hello/package.json",
+          "title": "package.json",
+          "downloadName": "package.json",
+          "language": "json"
+        },
+        {
+          "heading": "完整插件 · plugin.json",
+          "path": "kakake-plugin-hello/plugin.json",
+          "title": "plugin.json",
+          "downloadName": "plugin.json",
+          "language": "json"
+        }
+      ]
+    },
+    {
+      "id": "javascript-cjs",
+      "label": "野鸡JS开发（CJS 版）",
+      "cardTitle": "野鸡JS开发（CJS 版）",
+      "cardSubtitle": "JavaScript · CommonJS · 老插件写法，直接跑",
+      "cardDescription": "用 require / module.exports 写 index.js，同样不用编译。老插件移植、或习惯 CommonJS 写法，选这条；宿主有兼容层，不改代码也能跑。",
+      "dir": "JavaScript/CJS",
+      "guide": "说明.md",
+      "files": [
+        {
+          "heading": "分步 ①：取出对方文字（片段）",
+          "path": "分步例子/01-取出对方文字.js",
+          "title": "01-取出对方文字.js",
+          "downloadName": "01-取出对方文字.js",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ②：怎么发回复（小函数）",
+          "path": "分步例子/02-怎么发回复.js",
+          "title": "02-怎么发回复.js",
+          "downloadName": "02-怎么发回复.js",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ③：精准匹配「你好」（片段）",
+          "path": "分步例子/03-指令-你好.js",
+          "title": "03-指令-你好.js",
+          "downloadName": "03-指令-你好.js",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ④：精准匹配「帮助」（片段）",
+          "path": "分步例子/04-指令-帮助.js",
+          "title": "04-指令-帮助.js",
+          "downloadName": "04-指令-帮助.js",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ⑤：精准匹配「ping」（片段）",
+          "path": "分步例子/05-指令-ping.js",
+          "title": "05-指令-ping.js",
+          "downloadName": "05-指令-ping.js",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ⑥：调用协议接口（禁言）（片段）",
+          "path": "分步例子/06-调用协议-禁言.js",
+          "title": "06-调用协议-禁言.js",
+          "downloadName": "06-调用协议-禁言.js",
+          "language": "javascript"
+        },
+        {
+          "heading": "完整可运行（装载用这份 index.js）",
+          "path": "kakake-plugin-hello-cjs/index.js",
+          "title": "kakake-plugin-hello-cjs/index.js",
+          "downloadName": "index.js",
+          "language": "javascript"
+        },
+        {
+          "heading": "完整插件 · package.json（注意 type 写 commonjs）",
+          "path": "kakake-plugin-hello-cjs/package.json",
+          "title": "package.json",
+          "downloadName": "package.json",
+          "language": "json"
+        },
+        {
+          "heading": "完整插件 · plugin.json",
+          "path": "kakake-plugin-hello-cjs/plugin.json",
+          "title": "plugin.json",
+          "downloadName": "plugin.json",
+          "language": "json"
+        }
+      ]
+    }
+  ]
+}

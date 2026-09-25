@@ -1,0 +1,1725 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* —— 调色（设置页三张调色卡写入，JS 会覆写这些值） —— */
+    /* 组件与按钮色：色相 / 浓度 / 明度倍率（1 = 沿用原色阶明度） */
+    --kk-comp-h: 173;
+    --kk-comp-s: 80%;
+    --kk-comp-lmul: 1;
+    /* 全局字体色 */
+    --kk-ink-h: 215;
+    --kk-ink-s: 20%;
+    --kk-ink-lmul: 1;
+    /* 品牌 Logo 色，另附渐变两端 */
+    --kk-logo-h: 173;
+    --kk-logo-s: 80%;
+    --kk-logo-lmul: 1;
+    --kk-logo-from: hsl(173 80% 38%);
+    --kk-logo-to: hsl(199 74% 46%);
+    /* 组件色的 RGB 通道，供 rgb(var(--x) / α) 形式的描边与高光复用 */
+    --kk-comp-rgb: 20 184 166;
+    --kk-comp-soft-rgb: 45 180 165;
+    --kk-comp-alt-rgb: 56 178 222;
+
+    /* 液态玻璃 · 浅色氛围底 */
+    --background: 210 28% 94%;
+    --foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 1.4) min(96%, calc(12% * var(--kk-ink-lmul)));
+    --card: 0 0% 100%;
+    --card-foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 1.4) min(96%, calc(12% * var(--kk-ink-lmul)));
+    /* 主色：青 → 偏蓝青（默认值等于原品牌色） */
+    --primary: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.775) min(96%, calc(34% * var(--kk-comp-lmul)));
+    --primary-foreground: 0 0% 100%;
+    --primary-from: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.875) min(96%, calc(38% * var(--kk-comp-lmul)));
+    --primary-to: calc(var(--kk-comp-h) + 24) calc(var(--kk-comp-s) * 0.9) min(96%, calc(42% * var(--kk-comp-lmul)));
+    --secondary: 210 24% 92%;
+    --secondary-foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 0.8) min(96%, calc(28% * var(--kk-ink-lmul)));
+    --muted: 210 20% 92%;
+    --muted-foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 0.6) min(96%, calc(42% * var(--kk-ink-lmul)));
+    --accent: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.5) min(97%, calc(94% * var(--kk-comp-lmul)));
+    --accent-foreground: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.775) min(96%, calc(26% * var(--kk-comp-lmul)));
+    --success: 152 62% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 48%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 74% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 82%;
+    --input: 210 20% 82%;
+    --ring: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.775) min(96%, calc(34% * var(--kk-comp-lmul)));
+    --radius: 1.125rem;
+
+    /* —— 外观设置（设置页可调，JS 会覆写这四个值） —— */
+    /* 动效时长倍率：速度 2× 即时长 0.5 */
+    --kk-motion: 1;
+    /* 组件卡片底色不透明度 */
+    --kk-card-alpha: 0.32;
+    /* 组件毛玻璃模糊半径 */
+    --kk-blur: 22px;
+    /* 组件2（悬浮窗 / 插件与资源界面等次级表面）透明度与模糊 */
+    --kk-card2-alpha: 0.2;
+    --kk-blur2: 24px;
+    /* 背景图模糊半径 */
+    --kk-bg-blur: 0px;
+
+    /* Liquid Glass 材质 —— 卡片更透，避免实色白板 */
+    --glass-bg: rgba(255, 255, 255, var(--kk-card-alpha));
+    --glass-bg-strong: rgba(255, 255, 255, min(1, calc(var(--kk-card-alpha) * 1.5)));
+    --glass-bg-soft: rgba(255, 255, 255, calc(var(--kk-card-alpha) * 0.69));
+    --glass-bg-nav: rgba(255, 255, 255, calc(var(--kk-card-alpha) * 0.875));
+    /* 组件2 材质：与主组件同款推导，但读取 --kk-card2-alpha / --kk-blur2 */
+    --glass2-bg: rgba(255, 255, 255, var(--kk-card2-alpha));
+    --glass2-bg-strong: rgba(255, 255, 255, min(1, calc(var(--kk-card2-alpha) * 1.5)));
+    --glass2-bg-soft: rgba(255, 255, 255, calc(var(--kk-card2-alpha) * 0.69));
+    --glass2-blur: var(--kk-blur2);
+    --glass-border: rgba(255, 255, 255, 0.62);
+    --glass-border-soft: rgba(255, 255, 255, 0.38);
+    --glass-highlight: rgba(255, 255, 255, 0.78);
+    --glass-inset: rgba(255, 255, 255, 0.35);
+    --glass-shadow: 0 8px 32px rgba(15, 40, 60, 0.08), 0 1px 0 rgba(255, 255, 255, 0.55) inset;
+    --glass-shadow-hover: 0 14px 40px rgba(15, 40, 60, 0.12), 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+    --glass-blur: var(--kk-blur);
+    --glass-saturate: 1.55;
+    --sidebar-blur: calc(var(--kk-blur) * 1.27);
+    --shadow-card: var(--glass-shadow);
+    --shadow-card-hover: var(--glass-shadow-hover);
+
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --mobile-nav-h: 4.25rem;
+  }
+
+  /*
+   * 固定默认配色作用域：把三组调色变量重置回出厂值。
+   * 用于「运行日志」等内容——透明度 / 模糊度仍随设置变化（不在此重置），
+   * 但字体色、卡片色、组件色等自定义配色不影响这里，日志始终保持稳定的默认搭配。
+   * 派生 token（--foreground / --muted-foreground / teal·slate 色阶等）都由这些
+   * 变量惰性求值，故在此重置即可让作用域内一切颜色回落到默认。
+   */
+  .kk-fixed-theme {
+    --kk-comp-h: 173;
+    --kk-comp-s: 80%;
+    --kk-comp-lmul: 1;
+    --kk-ink-h: 215;
+    --kk-ink-s: 20%;
+    --kk-ink-lmul: 1;
+    --kk-logo-h: 173;
+    --kk-logo-s: 80%;
+    --kk-logo-lmul: 1;
+    --kk-comp-rgb: 20 184 166;
+    --kk-comp-soft-rgb: 45 180 165;
+    --kk-comp-alt-rgb: 56 178 222;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'DM Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    @apply text-foreground antialiased;
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  #root {
+    height: 100%;
+    isolation: isolate;
+  }
+
+  input:focus-visible,
+  textarea:focus-visible,
+  button:focus-visible,
+  [role='combobox']:focus-visible {
+    outline: none;
+  }
+}
+
+@layer components {
+  /* —— 氛围背景（全站：侧栏背后必须有可见色差，毛玻璃才通透） —— */
+  .kk-ambient {
+    position: relative;
+    background-color: #e4ecf4;
+    background-image:
+      radial-gradient(ellipse 90% 70% at 8% 12%, rgba(56, 200, 185, 0.48), transparent 58%),
+      radial-gradient(ellipse 75% 55% at 92% 8%, rgba(90, 160, 230, 0.42), transparent 52%),
+      radial-gradient(ellipse 65% 60% at 78% 92%, rgba(130, 195, 165, 0.38), transparent 55%),
+      radial-gradient(ellipse 55% 45% at 22% 82%, rgba(170, 200, 240, 0.45), transparent 50%),
+      radial-gradient(ellipse 40% 35% at 48% 48%, rgba(255, 255, 255, 0.35), transparent 60%),
+      linear-gradient(155deg, #d9e6f0 0%, #e8f0f5 38%, #dce8f2 72%, #e3eef6 100%);
+    background-attachment: fixed;
+  }
+
+  .kk-ambient::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(circle at 28% 36%, rgba(255, 255, 255, 0.55), transparent 38%),
+      radial-gradient(circle at 76% 58%, rgba(120, 210, 200, 0.22), transparent 42%),
+      radial-gradient(circle at 55% 18%, rgba(140, 185, 230, 0.2), transparent 36%);
+    animation: kk-ambient-drift 18s ease-in-out infinite alternate;
+  }
+
+  /* 右侧主区：不再叠独立色层，与侧栏共享同一片氛围底 */
+  .kk-ambient-main {
+    position: relative;
+    background: transparent;
+  }
+
+  .kk-ambient > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* —— 自定义背景：竖屏 / 横屏各一份（图片或视频），按屏幕方向取用（控制台与登录页同一套） —— */
+  html[data-kk-bg] .kk-ambient::after,
+  html[data-kk-bg] .kk-login-ambient::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    /* 外扩量随模糊半径增长，避免模糊后边缘露白 */
+    inset: calc(var(--kk-bg-blur) * -2);
+    z-index: 0;
+    /* 薄白幕保证玻璃与深色照片叠在一起时文字仍可读；
+       跨方向兜底已由 JS 解析进各方向变量，视频方向这里只剩白幕（盖在视频上） */
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)),
+      var(--kk-bg-portrait, none);
+    background-repeat: no-repeat;
+    background-position: center center;
+    /* 比例不匹配时裁切铺满，不拉伸变形 */
+    background-size: cover;
+    filter: blur(var(--kk-bg-blur));
+  }
+
+  @media (orientation: landscape) {
+    html[data-kk-bg] .kk-ambient::after,
+    html[data-kk-bg] .kk-login-ambient::after {
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)),
+        var(--kk-bg-landscape, none);
+    }
+  }
+
+  /* —— 视频背景层（mp4 / 实况图视频轨）：铺法与图片层一致，压在白幕之下、内容之上 —— */
+  .kk-ambient > .kk-ambient-video,
+  .kk-login-ambient > .kk-ambient-video {
+    position: absolute;
+    z-index: 0;
+  }
+
+  .kk-ambient-video {
+    pointer-events: none;
+    left: calc(var(--kk-bg-blur, 0px) * -2);
+    top: calc(var(--kk-bg-blur, 0px) * -2);
+    /* video 是替换元素，宽高须显式给足外扩量，不能像 ::after 靠 inset 撑开 */
+    width: calc(100% + var(--kk-bg-blur, 0px) * 4);
+    height: calc(100% + var(--kk-bg-blur, 0px) * 4);
+    object-fit: cover;
+    filter: blur(var(--kk-bg-blur, 0px));
+  }
+
+  /* 登录页：更高亮、对比更强的氛围底，衬托玻璃卡片 */
+  .kk-login-ambient {
+    position: relative;
+    background-color: #d7eaf4;
+    background-image:
+      radial-gradient(ellipse 95% 75% at 12% 18%, rgba(45, 210, 190, 0.58), transparent 55%),
+      radial-gradient(ellipse 80% 60% at 90% 10%, rgba(70, 155, 240, 0.5), transparent 50%),
+      radial-gradient(ellipse 70% 55% at 78% 88%, rgba(100, 205, 175, 0.42), transparent 52%),
+      radial-gradient(ellipse 50% 40% at 28% 78%, rgba(160, 210, 255, 0.5), transparent 48%),
+      radial-gradient(ellipse 42% 36% at 50% 45%, rgba(255, 255, 255, 0.42), transparent 58%),
+      linear-gradient(155deg, #c8e4f2 0%, #dff1f8 36%, #d0ebf4 68%, #e8f6fb 100%);
+    background-attachment: fixed;
+  }
+
+  .kk-login-ambient::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(circle at 30% 32%, rgba(255, 255, 255, 0.62), transparent 36%),
+      radial-gradient(circle at 72% 62%, rgba(90, 220, 205, 0.28), transparent 40%),
+      radial-gradient(circle at 58% 14%, rgba(120, 180, 245, 0.26), transparent 34%);
+    animation: kk-ambient-drift 18s ease-in-out infinite alternate;
+  }
+
+  .kk-login-ambient > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* 登录 / 设置密码卡片：与控制台卡片共用外观变量（透明度、模糊、动效速度） */
+  .kk-auth-card {
+    position: relative;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    transition:
+      background calc(0.2s * var(--kk-motion)) ease,
+      border-color calc(0.2s * var(--kk-motion)) ease,
+      box-shadow calc(0.25s * var(--kk-motion)) ease,
+      transform calc(0.2s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* —— 液态玻璃核心 —— */
+  .kk-glass {
+    position: relative;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: var(--glass-shadow);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    transition:
+      box-shadow calc(0.25s * var(--kk-motion)) ease,
+      transform calc(0.2s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1),
+      background calc(0.2s * var(--kk-motion)) ease,
+      border-color calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-glass::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      var(--glass-highlight) 0%,
+      transparent 42%,
+      transparent 58%,
+      rgba(255, 255, 255, 0.12) 100%
+    );
+    opacity: 0.55;
+    mix-blend-mode: soft-light;
+  }
+
+  .kk-glass-strong {
+    background: var(--glass-bg-strong);
+    border-color: var(--glass-border);
+    box-shadow: var(--glass-shadow-hover);
+  }
+
+  .kk-glass-soft {
+    background: var(--glass-bg-soft);
+    border-color: var(--glass-border-soft);
+  }
+
+  /* —— 组件2 玻璃：悬浮窗 / 插件与资源界面等次级表面，透明度与模糊由「组件2」控制 —— */
+  .kk-glass-2 {
+    position: relative;
+    background: var(--glass2-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: var(--glass-shadow);
+    -webkit-backdrop-filter: blur(var(--glass2-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass2-blur)) saturate(var(--glass-saturate));
+    transition:
+      box-shadow calc(0.25s * var(--kk-motion)) ease,
+      transform calc(0.2s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1),
+      background calc(0.2s * var(--kk-motion)) ease,
+      border-color calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-glass-2::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      var(--glass-highlight) 0%,
+      transparent 42%,
+      transparent 58%,
+      rgba(255, 255, 255, 0.12) 100%
+    );
+    opacity: 0.55;
+    mix-blend-mode: soft-light;
+  }
+
+  .kk-glass-2-strong {
+    background: var(--glass2-bg-strong);
+    border-color: var(--glass-border);
+    box-shadow: var(--glass-shadow-hover);
+  }
+
+  .kk-glass-2-soft {
+    background: var(--glass2-bg-soft);
+    border-color: var(--glass-border-soft);
+  }
+
+  .kk-glass-nav {
+    position: relative;
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, min(1, calc(var(--kk-card-alpha) * 1.25))) 0%,
+      rgba(255, 255, 255, calc(var(--kk-card-alpha) * 0.5)) 52%,
+      rgba(255, 255, 255, calc(var(--kk-card-alpha) * 0.3125)) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow:
+      0 8px 32px rgba(15, 40, 60, 0.08),
+      0 1px 0 rgba(255, 255, 255, 0.7) inset,
+      inset 0 -1px 0 rgba(255, 255, 255, 0.16);
+    -webkit-backdrop-filter: blur(var(--sidebar-blur)) saturate(1.75);
+    backdrop-filter: blur(var(--sidebar-blur)) saturate(1.75);
+  }
+
+  /* 侧栏：更透、中性玻璃，避免自成一块“青色世界” */
+  .kk-sidebar {
+    position: relative;
+    isolation: isolate;
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, min(1, calc(var(--kk-card-alpha) * 1.25))) 0%,
+      rgba(255, 255, 255, calc(var(--kk-card-alpha) * 0.5625)) 48%,
+      rgba(255, 255, 255, calc(var(--kk-card-alpha) * 0.3125)) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.58);
+    box-shadow:
+      0 12px 36px rgba(15, 40, 60, 0.08),
+      0 2px 8px rgba(15, 40, 60, 0.03),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+    -webkit-backdrop-filter: blur(var(--sidebar-blur)) saturate(1.75);
+    backdrop-filter: blur(var(--sidebar-blur)) saturate(1.75);
+  }
+
+  .kk-sidebar::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.08) 28%,
+      transparent 48%,
+      transparent 70%,
+      rgba(255, 255, 255, 0.12) 100%
+    );
+    /* 1px 内描边必须留在这层：::after 带动画，描边跟着位移会变成第二条轮廓线 */
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  }
+
+  .kk-sidebar::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    opacity: 0.7;
+    background: radial-gradient(
+      ellipse 120% 40% at 20% -10%,
+      rgba(255, 255, 255, 0.35),
+      transparent 55%
+    );
+    animation: kk-sidebar-sheen 10s ease-in-out infinite alternate;
+  }
+
+  .kk-sidebar > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .kk-glass-panel {
+    @apply kk-glass;
+    overflow: hidden;
+  }
+
+  .kk-glass-interactive:hover {
+    box-shadow: var(--glass-shadow-hover);
+    background: var(--glass-bg-strong);
+    transform: translateY(-1px);
+  }
+
+  .kk-glass-interactive:active {
+    transform: scale(0.985) translateY(0);
+  }
+
+  /* 玻璃内嵌控件槽 */
+  .kk-glass-inset {
+    background: rgba(255, 255, 255, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow: inset 0 1px 2px rgba(15, 40, 60, 0.04);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  .kk-card {
+    @apply kk-glass text-card-foreground;
+    border-radius: calc(var(--radius) + 2px);
+    background: rgba(255, 255, 255, min(1, calc(var(--kk-card-alpha) * 1.0625)));
+    -webkit-backdrop-filter: blur(calc(var(--kk-blur) * 0.82)) saturate(1.6);
+    backdrop-filter: blur(calc(var(--kk-blur) * 0.82)) saturate(1.6);
+  }
+
+  .kk-card-interactive:hover {
+    box-shadow: var(--glass-shadow-hover);
+    background: var(--glass-bg-strong);
+  }
+
+  /* 连接卡片网格
+   * 正方形；边距 15px；名称/类型贴底；头像占剩余区域居中完整显示；与文字间隔 10px
+   * 手机：两列半宽；文字 10px（对齐底部 Tab）
+   * 电脑：卡边长 = 15×2 + 偏好头像 + 间隔 + 文案区
+   */
+  .kk-conn-grid {
+    --kk-conn-edge: 15px;
+    --kk-conn-avatar-gap: 10px;
+    --kk-conn-grid-gap: 10px;
+    display: grid;
+    gap: var(--kk-conn-grid-gap);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: start;
+    align-items: start;
+    width: 100%;
+  }
+
+  .kk-conn-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .kk-conn-card {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    padding: var(--kk-conn-edge);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--kk-conn-avatar-gap);
+    border-radius: 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  /* 右上角类型标签：覆盖显示，不占布局行 */
+  .kk-conn-card__badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+    max-width: calc(100% - 12px);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* OneBot：标准清绿色 */
+  .kk-conn-card__badge--onebot {
+    color: #166534;
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+  }
+
+  /* 官方 QQ：标准浅蓝色 */
+  .kk-conn-card__badge--official {
+    color: #1e40af;
+    background: #dbeafe;
+    border: 1px solid #bfdbfe;
+  }
+
+  /* 微信：灰色 */
+  .kk-conn-card__badge--weixin {
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--muted) / 0.9);
+    border: 1px solid hsl(var(--border) / 0.8);
+  }
+
+  /* KOOK：紫色 */
+  .kk-conn-card__badge--kook {
+    color: #6b21a8;
+    background: #f3e8ff;
+    border: 1px solid #e9d5ff;
+  }
+
+  /* 头像舞台：吃掉文字以外的全部高度 */
+  .kk-conn-card__stage {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kk-conn-card__avatar {
+    box-sizing: border-box;
+    /* min(舞台宽, 舞台高)：以舞台高度为边长，宽度不超过舞台 */
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1 / 1;
+    flex: 0 0 auto;
+    border-radius: 9999px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kk-conn-card__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 贴内容区底部 */
+  .kk-conn-card__meta {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .kk-conn-card__name,
+  .kk-conn-card__mode {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.25;
+  }
+
+  /* 手机：与底部 Tab 同为 10px */
+  .kk-conn-card__name {
+    font-size: 10px;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+  }
+
+  .kk-conn-card__mode {
+    font-size: 10px;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+  }
+
+  @media (min-width: 768px) {
+    .kk-conn-grid {
+      --kk-conn-pref-avatar: 88px;
+      --kk-conn-meta-h: 2.6rem;
+      --kk-conn-avatar-gap: 10px;
+      --kk-conn-card-size: calc(
+        2 * var(--kk-conn-edge)
+        + var(--kk-conn-pref-avatar)
+        + var(--kk-conn-avatar-gap)
+        + var(--kk-conn-meta-h)
+      );
+      --kk-conn-grid-gap: 12px;
+      grid-template-columns: repeat(auto-fill, var(--kk-conn-card-size));
+    }
+
+    .kk-conn-card {
+      width: var(--kk-conn-card-size);
+      max-width: var(--kk-conn-card-size);
+      height: var(--kk-conn-card-size);
+      border-radius: 1rem;
+    }
+
+    .kk-conn-card__name {
+      font-size: 14px;
+    }
+
+    .kk-conn-card__mode {
+      font-size: 12px;
+    }
+
+    .kk-conn-card__badge {
+      top: 8px;
+      right: 8px;
+      padding: 2px 6px;
+      font-size: 10px;
+      border-radius: 5px;
+    }
+  }
+
+  .kk-page-title {
+    @apply text-2xl font-bold tracking-tight text-foreground md:text-[1.75rem];
+    letter-spacing: -0.02em;
+  }
+
+  .kk-page-desc {
+    @apply mt-0.5 text-sm text-muted-foreground;
+  }
+
+  .kk-btn-press {
+    @apply transition-transform duration-100 active:scale-95;
+  }
+
+  .kk-gradient-primary {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--primary-from)) 0%,
+      hsl(var(--primary-to)) 100%
+    );
+  }
+
+  /* 侧栏 / 底栏导航项：玻璃药丸，不要实心渐变 */
+  .kk-nav-item {
+    @apply relative flex items-center gap-2.5 rounded-[0.95rem] px-3 py-2.5 text-sm font-medium;
+    transition:
+      color calc(0.35s * var(--kk-motion)) ease,
+      transform calc(0.3s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1),
+      border-color calc(0.3s * var(--kk-motion)) ease;
+  }
+
+  .kk-nav-item-active {
+    color: hsl(var(--kk-comp-h) min(100%, calc(var(--kk-comp-s) * 0.96)) min(96%, calc(26% * var(--kk-comp-lmul))));
+    background: transparent;
+    border: 1px solid transparent;
+  }
+
+  .kk-nav-item-idle {
+    color: hsl(var(--muted-foreground));
+    border: 1px solid transparent;
+  }
+
+  .kk-nav-item-idle:hover {
+    background: rgba(255, 255, 255, 0.38);
+    border-color: rgba(255, 255, 255, 0.45);
+    color: hsl(var(--foreground));
+    transform: scale(1.02);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  }
+
+  .kk-nav-item-idle:active,
+  .kk-nav-item-active:active {
+    transform: scale(0.98);
+  }
+
+  /* 侧栏液态指示条：在激活项之间滑动 */
+  .kk-nav-liquid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 0.95rem;
+    opacity: 0;
+    will-change: transform, width, height;
+    background: rgb(var(--kk-comp-rgb) / 0.18);
+    border: 1px solid rgb(var(--kk-comp-rgb) / 0.42);
+    -webkit-backdrop-filter: blur(10px) saturate(1.4);
+    backdrop-filter: blur(10px) saturate(1.4);
+    box-shadow:
+      0 8px 22px rgb(var(--kk-comp-rgb) / 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgb(var(--kk-comp-rgb) / 0.08);
+    transition:
+      transform calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      width calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      height calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      opacity calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-nav-liquid-ready {
+    opacity: 1;
+  }
+
+  .kk-nav-liquid::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      transparent 42%,
+      transparent 100%
+    );
+    pointer-events: none;
+  }
+
+  .kk-sidebar-logout {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.18);
+    color: hsl(var(--muted-foreground));
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+
+  .kk-sidebar-logout:hover {
+    background: rgba(255, 255, 255, 0.32);
+    color: hsl(var(--foreground));
+  }
+
+  /* 手机底部浮动玻璃 Tab */
+  .kk-mobile-tabbar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(0.75rem + var(--safe-bottom));
+    z-index: 40;
+    display: flex;
+    width: calc(100% - 1.5rem);
+    max-width: 28rem;
+    transform: translateX(-50%);
+    border-radius: 1.35rem;
+    padding: 0.35rem;
+    gap: 0.15rem;
+  }
+
+  .kk-mobile-tab {
+    @apply flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-2 text-[10px] font-medium;
+    transition: color calc(0.35s * var(--kk-motion)) ease, transform calc(0.3s * var(--kk-motion)) ease;
+  }
+
+  .kk-mobile-tab-active {
+    color: hsl(var(--kk-comp-h) min(100%, calc(var(--kk-comp-s) * 0.96)) min(96%, calc(26% * var(--kk-comp-lmul))));
+    background: transparent;
+    border: 1px solid transparent;
+  }
+
+  .kk-mobile-tab-idle {
+    color: hsl(var(--muted-foreground));
+    border: 1px solid transparent;
+  }
+
+  .kk-mobile-tab-idle:hover {
+    color: hsl(var(--foreground));
+  }
+
+  .kk-mobile-liquid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 1.05rem;
+    opacity: 0;
+    will-change: transform, width, height;
+    background: rgb(var(--kk-comp-rgb) / 0.2);
+    border: 1px solid rgb(var(--kk-comp-rgb) / 0.35);
+    box-shadow:
+      0 4px 14px rgb(var(--kk-comp-rgb) / 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    transition:
+      transform calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      width calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      height calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      opacity calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-mobile-liquid-ready {
+    opacity: 1;
+  }
+
+  .kk-mobile-liquid::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      transparent 45%
+    );
+    pointer-events: none;
+  }
+
+  /* —— 触摸滑动条（原生 range，指针 / 触摸 / 键盘都可用） —— */
+  .kk-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    /* 加高只为触摸热区，视觉高度由轨道决定 */
+    height: 1.75rem;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    outline: none;
+    cursor: pointer;
+    /* 水平拖动归滑块，垂直方向仍可滚页 */
+    touch-action: pan-y;
+  }
+
+  .kk-slider:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .kk-slider::-webkit-slider-runnable-track {
+    height: 0.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    background:
+      linear-gradient(90deg, rgb(var(--kk-comp-rgb) / 0.9) 0%, rgb(var(--kk-comp-alt-rgb) / 0.85) 100%)
+        0 / var(--kk-slider-fill, 0%) 100% no-repeat,
+      rgba(255, 255, 255, 0.38);
+    box-shadow: inset 0 1px 2px rgba(15, 40, 60, 0.08);
+  }
+
+  .kk-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 1.15rem;
+    width: 1.15rem;
+    /* 让滑块垂直居中于 0.5rem 轨道 */
+    margin-top: calc((0.5rem - 1.15rem) / 2);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    background: linear-gradient(160deg, #ffffff 0%, #e8f6f4 100%);
+    box-shadow:
+      0 2px 6px rgba(15, 40, 60, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: transform calc(0.15s * var(--kk-motion)) ease;
+  }
+
+  .kk-slider:active::-webkit-slider-thumb {
+    transform: scale(1.12);
+  }
+
+  .kk-slider:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+      0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.3),
+      0 2px 6px rgba(15, 40, 60, 0.2);
+  }
+
+  .kk-slider::-moz-range-track {
+    height: 0.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.38);
+    box-shadow: inset 0 1px 2px rgba(15, 40, 60, 0.08);
+  }
+
+  .kk-slider::-moz-range-progress {
+    height: 0.5rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgb(var(--kk-comp-rgb) / 0.9), rgb(var(--kk-comp-alt-rgb) / 0.85));
+  }
+
+  .kk-slider::-moz-range-thumb {
+    height: 1.05rem;
+    width: 1.05rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(15, 40, 60, 0.2);
+  }
+
+  /* —— 背景图选择卡（竖屏 / 横屏各一张） —— */
+  .kk-bg-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    outline: none;
+    border-radius: 1.1rem;
+    border: 1px dashed rgba(255, 255, 255, 0.78);
+    background: rgba(255, 255, 255, 0.24);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 1px 3px rgba(15, 40, 60, 0.05);
+    -webkit-backdrop-filter: blur(10px) saturate(1.4);
+    backdrop-filter: blur(10px) saturate(1.4);
+    transition:
+      border-color calc(0.2s * var(--kk-motion)) ease,
+      background calc(0.2s * var(--kk-motion)) ease,
+      box-shadow calc(0.2s * var(--kk-motion)) ease,
+      transform calc(0.2s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .kk-bg-card:hover {
+    border-color: rgb(var(--kk-comp-soft-rgb) / 0.55);
+    background: rgba(255, 255, 255, 0.34);
+  }
+
+  .kk-bg-card:focus-visible {
+    border-color: rgb(var(--kk-comp-soft-rgb) / 0.6);
+    box-shadow: 0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.25);
+  }
+
+  .kk-bg-card:active {
+    transform: scale(0.99);
+  }
+
+  /* 拖拽进入：实线描边 + 轻微放大，明确“松手即放下” */
+  .kk-bg-card--drop {
+    border-style: solid;
+    border-color: rgb(var(--kk-comp-soft-rgb) / 0.85);
+    background: rgb(var(--kk-comp-soft-rgb) / 0.16);
+    transform: scale(1.02);
+    box-shadow:
+      0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.22),
+      0 10px 26px rgba(15, 80, 90, 0.12);
+  }
+
+  .kk-bg-card__img {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    /* 比例不对就裁切填满，只做自适应 */
+    object-fit: cover;
+  }
+
+  .kk-bg-card__plus {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    height: 2.5rem;
+    width: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.58);
+    color: hsl(var(--kk-comp-h) min(100%, calc(var(--kk-comp-s) * 0.96)) min(96%, calc(26% * var(--kk-comp-lmul))));
+    box-shadow: 0 2px 8px rgba(15, 40, 60, 0.1);
+    transition: opacity calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  /* 已有图时加号隐去，悬停或拖拽时再浮现 */
+  .kk-bg-card--filled .kk-bg-card__plus {
+    opacity: 0;
+  }
+
+  .kk-bg-card--filled:hover .kk-bg-card__plus,
+  .kk-bg-card--filled:focus-visible .kk-bg-card__plus,
+  .kk-bg-card--drop .kk-bg-card__plus {
+    opacity: 1;
+  }
+
+  .kk-bg-card__clear {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    z-index: 2;
+    display: flex;
+    height: 1.5rem;
+    width: 1.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    background: rgba(15, 40, 60, 0.42);
+    color: #ffffff;
+    transition: background calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-bg-card__clear:hover {
+    background: rgba(190, 40, 60, 0.72);
+  }
+
+  /* —— 调色卡（标准拾色器形态）：正方形选饱和度与明度，侧边竖条选色相 —— */
+  .kk-color-dial {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    border-radius: 1.1rem;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.24);
+    padding: 0.55rem;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 1px 3px rgba(15, 40, 60, 0.05);
+    -webkit-backdrop-filter: blur(10px) saturate(1.4);
+    backdrop-filter: blur(10px) saturate(1.4);
+  }
+
+  .kk-color-dial[data-disabled='true'] {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .kk-color-dial__sample {
+    height: 0.6rem;
+    width: 0.6rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 3px rgba(15, 40, 60, 0.25);
+    transition: background calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  /* 正方形渐变区：横轴饱和度、纵轴明度，背景色由行内样式给当前色相 */
+  .kk-color-dial__area {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    min-width: 0;
+    flex: 1 1 auto;
+    cursor: crosshair;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 2px 10px rgba(15, 40, 60, 0.12);
+    outline: none;
+    /* 触屏拖动时不要顺带滚页面 */
+    touch-action: none;
+  }
+
+  .kk-color-dial__area:focus-visible {
+    box-shadow: 0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.35);
+  }
+
+  /* 悬浮窗里的放大拾色盘：正方区固定更大，色相条随之加宽 */
+  .kk-color-dial__area--lg {
+    width: 15rem;
+    max-width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .kk-color-dial__hue--lg {
+    width: 1.35rem;
+  }
+
+  /* 渐变区里的拖动小球，球心即当前颜色 */
+  .kk-color-dial__ball {
+    position: absolute;
+    height: 0.85rem;
+    width: 0.85rem;
+    border-radius: 999px;
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 5px rgba(15, 40, 60, 0.45);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  /* 侧边竖条：色相，绕完整色环 */
+  .kk-color-dial__hue {
+    position: relative;
+    width: 0.75rem;
+    flex-shrink: 0;
+    align-self: stretch;
+    cursor: pointer;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow: inset 0 1px 2px rgba(15, 40, 60, 0.12);
+    outline: none;
+    touch-action: none;
+    background-image: linear-gradient(
+      to bottom,
+      hsl(0 85% 50%), hsl(60 85% 50%), hsl(120 85% 50%),
+      hsl(180 85% 50%), hsl(240 85% 50%), hsl(300 85% 50%), hsl(360 85% 50%)
+    );
+  }
+
+  .kk-color-dial__hue:focus-visible {
+    box-shadow: 0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.35);
+  }
+
+  .kk-color-dial__hue-knob {
+    position: absolute;
+    left: 50%;
+    height: 0.6rem;
+    width: 1.1rem;
+    border-radius: 999px;
+    border: 2px solid #ffffff;
+    background: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 1px 4px rgba(15, 40, 60, 0.4);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  /* 品牌标识：单独一组 Logo 色，与组件色互不影响 */
+  .kk-logo-text {
+    background-image: linear-gradient(100deg, var(--kk-logo-from), var(--kk-logo-to));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* 代码窗：可双向滚动；竖条隐藏；横条青绿圆角美化 */
+  .kk-code-scroll {
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--kk-comp-soft-rgb) / 0.35) transparent;
+  }
+
+  .kk-code-scroll::-webkit-scrollbar:vertical {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  .kk-code-scroll::-webkit-scrollbar:horizontal {
+    height: 8px;
+  }
+
+  .kk-code-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .kk-code-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.28);
+  }
+
+  .kk-code-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.45);
+  }
+
+  .kk-code-scroll::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  @keyframes kk-ambient-drift {
+    0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
+    100% { transform: translate3d(-2%, 1.5%, 0) scale(1.05); opacity: 1; }
+  }
+
+  /* 只呼吸亮度，不做位移：位移会让高光层与侧栏边框错开，顶部出现双层描边 */
+  @keyframes kk-sidebar-sheen {
+    0% { opacity: 0.55; }
+    100% { opacity: 0.9; }
+  }
+
+  @keyframes kk-glass-shine {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
+
+  @keyframes kk-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  .animate-kk-shake {
+    animation: kk-shake calc(0.42s * var(--kk-motion)) ease-in-out;
+  }
+
+  @keyframes kk-fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* 卡片入场：不再逐张错峰、不再位移。整页统一做一个很快的淡入，
+     卡片从第一帧起就是最终样式（模糊 / 配色都在），不再“先透明再一张张成形”。 */
+  @keyframes kk-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .kk-stagger-item {
+    opacity: 0;
+    animation: kk-fade-in calc(0.22s * var(--kk-motion)) ease-out forwards;
+  }
+
+  /* 错峰延迟全部归零：所有卡片同时淡入，视觉上等于整页一次淡入 */
+  .kk-stagger-1, .kk-stagger-2, .kk-stagger-3, .kk-stagger-4,
+  .kk-stagger-5, .kk-stagger-6, .kk-stagger-7, .kk-stagger-8,
+  .kk-stagger-slow-1, .kk-stagger-slow-2, .kk-stagger-slow-3,
+  .kk-stagger-slow-4, .kk-stagger-slow-5, .kk-stagger-slow-6 {
+    animation-delay: 0s;
+  }
+
+  /* —— 悬浮窗 / 下拉 / 弹窗：统一的开合动画 ——
+     只做透明度淡入淡出，不缩放、不位移：带 backdrop-filter 的表面一旦有几何位移，
+     浏览器要逐帧重算模糊（视频背景下尤其卡），纯淡入既顺滑又干净。
+     时长跟随「组件速度」（--kk-motion）。 */
+  @keyframes kk-pop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes kk-pop-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  .kk-pop[data-state='open'] {
+    animation: kk-pop-in calc(0.2s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .kk-pop[data-state='closed'] {
+    animation: kk-pop-out calc(0.14s * var(--kk-motion)) ease-in forwards;
+  }
+
+  .kk-log-fresh {
+    animation: kk-fade-up calc(0.28s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .kk-log-batch {
+    opacity: 0;
+    animation: kk-fade-up calc(0.32s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .kk-md-prose {
+    @apply text-[15px] text-slate-800;
+    line-height: 1.8;
+  }
+  .kk-md-prose h1 {
+    @apply mb-5 text-[1.35rem] font-bold tracking-tight text-slate-900;
+  }
+  .kk-md-prose h2 {
+    @apply mb-4 mt-8 border-b border-white/50 pb-2 text-lg font-bold text-slate-800;
+  }
+  .kk-md-prose h3 {
+    @apply mb-3 mt-6 text-base font-semibold text-slate-800;
+  }
+  .kk-md-prose p {
+    @apply mb-3.5;
+  }
+  .kk-md-prose ul,
+  .kk-md-prose ol {
+    @apply mb-4 list-outside space-y-1 pl-5;
+  }
+  .kk-md-prose ul {
+    @apply list-disc;
+  }
+  .kk-md-prose ol {
+    @apply list-decimal;
+  }
+  .kk-md-prose li {
+    @apply pb-1 pl-0.5;
+  }
+  .kk-md-prose li > ul,
+  .kk-md-prose li > ol {
+    @apply mt-1.5 mb-0;
+  }
+  .kk-md-prose li > p {
+    @apply mb-1.5;
+  }
+  /* 首个元素不留上间距、末个元素不留底间距：卡片的留白交给外层容器 */
+  .kk-md-prose > :first-child {
+    @apply mt-0;
+  }
+  .kk-md-prose > :last-child {
+    @apply mb-0;
+  }
+  /* GFM 任务列表 */
+  .kk-md-prose li.task-list-item {
+    @apply list-none pl-0;
+  }
+  .kk-md-prose li > input[type='checkbox'] {
+    @apply mr-1.5 h-3.5 w-3.5 align-[-2px];
+    accent-color: #0d9488;
+  }
+  .kk-md-prose strong {
+    @apply font-semibold text-slate-900;
+  }
+  .kk-md-prose a {
+    @apply text-teal-700 underline underline-offset-2 hover:text-teal-800;
+  }
+  .kk-md-prose code {
+    @apply rounded-md px-1 py-0.5 font-mono text-[0.85em] text-slate-800;
+    background: rgba(255, 255, 255, 0.55);
+  }
+  .kk-md-prose hr {
+    @apply my-6 border-white/50;
+  }
+  .kk-md-prose blockquote {
+    @apply my-4 rounded-r-xl border-l-4 border-teal-400/70 py-2.5 pl-4 text-slate-600;
+    background: rgba(255, 255, 255, 0.35);
+  }
+  /* 表格：外层负责横向滚动，表格自身按内容宽度自适应 */
+  .kk-md-prose .kk-md-table-wrap {
+    @apply mb-5 overflow-x-auto;
+  }
+  .kk-md-prose table {
+    @apply text-[0.9em];
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+  }
+  .kk-md-prose thead {
+    background: rgba(255, 255, 255, 0.55);
+  }
+  .kk-md-prose th {
+    @apply whitespace-nowrap px-3 py-2 text-left font-semibold text-slate-700;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+  }
+  .kk-md-prose td {
+    @apply px-3 py-2 align-top text-slate-700;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  }
+  .kk-md-prose tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .kk-md-prose pre {
+    @apply mb-5 overflow-x-auto rounded-xl p-3.5 text-[0.85em] leading-relaxed;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+  }
+  .kk-md-prose pre code {
+    @apply bg-transparent p-0 font-mono whitespace-pre text-[1em] text-slate-700;
+  }
+  /* 围栏代码块：顶部语言标签 + 复制按钮（结构见 components/markdown-content.tsx） */
+  .kk-md-prose .kk-md-code {
+    @apply mb-5 overflow-hidden rounded-xl;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+  }
+  .kk-md-prose .kk-md-code-head {
+    @apply flex items-center justify-between gap-2 border-b px-3 py-1.5;
+    border-color: rgba(148, 163, 184, 0.2);
+  }
+  .kk-md-prose .kk-md-code-lang {
+    @apply font-mono text-[11px] tracking-wide text-slate-500 uppercase;
+  }
+  .kk-md-prose .kk-md-code-copy {
+    @apply inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-slate-600 transition;
+    background: rgba(255, 255, 255, 0.5);
+  }
+  .kk-md-prose .kk-md-code-copy:hover {
+    background: rgba(255, 255, 255, 0.9);
+  }
+  .kk-md-prose .kk-md-code-body {
+    @apply m-0 max-h-[min(60vh,460px)] overflow-auto rounded-none border-0 p-3.5 text-[0.85em] leading-relaxed;
+    background: transparent;
+  }
+  .kk-md-prose .kk-md-code-body code {
+    @apply bg-transparent p-0 font-mono whitespace-pre text-[1em] text-slate-700;
+  }
+  .kk-md-prose img {
+    @apply my-3 max-w-full rounded-xl;
+  }
+
+  @keyframes kk-agree-pop {
+    0% { transform: translateY(6px); opacity: 0.7; box-shadow: 0 0 0 rgba(13, 148, 136, 0); }
+    60% { transform: translateY(-2px); }
+    100% { transform: translateY(0); opacity: 1; box-shadow: 0 8px 20px rgba(13, 148, 136, 0.25); }
+  }
+  .kk-agree-unlock {
+    animation: kk-agree-pop calc(0.45s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes kk-btn-ready {
+    0% { transform: scale(0.96); box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.35); }
+    55% { transform: scale(1.03); box-shadow: 0 0 0 8px rgba(13, 148, 136, 0); }
+    100% { transform: scale(1); box-shadow: 0 8px 20px rgba(13, 148, 136, 0.22); }
+  }
+  .kk-btn-ready {
+    animation: kk-btn-ready calc(0.5s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .kk-plugin-card {
+    transition:
+      transform calc(0.3s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow calc(0.3s * var(--kk-motion)) ease,
+      background calc(0.3s * var(--kk-motion)) ease,
+      border-color calc(0.3s * var(--kk-motion)) ease;
+  }
+  .kk-plugin-card:hover {
+    transform: translateY(-2px);
+  }
+  .kk-plugin-card:active {
+    transform: scale(0.985) translateY(0);
+  }
+
+  .kk-resource-grid {
+    display: grid;
+    gap: 0.75rem;
+    /* 手机默认两列 */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (min-width: 768px) {
+    .kk-resource-grid {
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    }
+  }
+  @media (orientation: landscape) and (max-width: 767px) {
+    .kk-resource-grid {
+      grid-template-columns: repeat(auto-fill, minmax(max(11.5rem, calc((100% - 2rem) / 3)), 1fr));
+    }
+  }
+
+  .kk-resource-card {
+    container-type: inline-size;
+    container-name: kk-resource-card;
+  }
+  .kk-resource-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .kk-resource-card-actions .kk-resource-card-btns {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.375rem;
+    margin-left: auto;
+  }
+  @container kk-resource-card (max-width: 11.5rem) {
+    .kk-resource-card-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .kk-resource-card-actions .kk-resource-card-btns {
+      margin-left: 0;
+      width: 100%;
+    }
+    .kk-resource-card-actions .kk-resource-card-btns > * {
+      flex: 1;
+    }
+  }
+
+  /* —— 工具页专用内容框（非原生 textarea 观感） —— */
+  .kk-tool-field {
+    position: relative;
+    display: flex;
+    min-height: 7.5rem;
+    overflow: hidden;
+    border-radius: 1.05rem;
+    border: 1px solid rgba(255, 255, 255, 0.58);
+    background:
+      linear-gradient(165deg, rgba(255, 255, 255, 0.52) 0%, rgba(255, 255, 255, 0.22) 48%, rgba(236, 246, 248, 0.28) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.75),
+      inset 0 -1px 0 rgba(15, 40, 60, 0.04),
+      0 1px 2px rgba(15, 40, 60, 0.04);
+    -webkit-backdrop-filter: blur(14px) saturate(1.45);
+    backdrop-filter: blur(14px) saturate(1.45);
+    transition:
+      border-color calc(0.2s * var(--kk-motion)) ease,
+      box-shadow calc(0.2s * var(--kk-motion)) ease,
+      background calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-tool-field--fill {
+    height: 100%;
+    min-height: 7.5rem;
+  }
+
+  .kk-tool-field--fill .kk-tool-field__input {
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .kk-tool-field::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      transparent 32%,
+      transparent 68%,
+      rgb(var(--kk-comp-soft-rgb) / 0.06) 100%
+    );
+    opacity: 0.7;
+  }
+
+  .kk-tool-field__accent {
+    position: absolute;
+    left: 0;
+    top: 14%;
+    bottom: 14%;
+    width: 3px;
+    border-radius: 0 999px 999px 0;
+    background: linear-gradient(180deg, rgb(var(--kk-comp-soft-rgb) / 0.15), rgb(var(--kk-comp-soft-rgb) / 0.55), rgb(var(--kk-comp-soft-rgb) / 0.15));
+    opacity: 0.55;
+    transition: opacity calc(0.2s * var(--kk-motion)) ease, transform calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-tool-field:hover {
+    border-color: rgba(255, 255, 255, 0.72);
+    background:
+      linear-gradient(165deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0.28) 48%, rgba(236, 246, 248, 0.34) 100%);
+  }
+
+  .kk-tool-field:hover .kk-tool-field__accent {
+    opacity: 0.85;
+  }
+
+  .kk-tool-field:focus-within {
+    border-color: rgb(var(--kk-comp-soft-rgb) / 0.45);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      inset 0 -1px 0 rgba(15, 40, 60, 0.04),
+      0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.14),
+      0 8px 24px rgba(15, 80, 90, 0.06);
+  }
+
+  .kk-tool-field:focus-within .kk-tool-field__accent {
+    opacity: 1;
+    transform: scaleY(1.06);
+  }
+
+  .kk-tool-field--readonly {
+    background:
+      linear-gradient(165deg, rgba(248, 250, 252, 0.55) 0%, rgba(241, 245, 249, 0.35) 100%);
+  }
+
+  .kk-tool-field--readonly .kk-tool-field__accent {
+    background: linear-gradient(180deg, rgba(100, 116, 139, 0.12), rgba(100, 116, 139, 0.4), rgba(100, 116, 139, 0.12));
+  }
+
+  .kk-tool-field--readonly:focus-within {
+    border-color: rgba(255, 255, 255, 0.58);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.75),
+      inset 0 -1px 0 rgba(15, 40, 60, 0.04),
+      0 1px 2px rgba(15, 40, 60, 0.04);
+  }
+
+  .kk-tool-field--disabled {
+    opacity: 0.58;
+    pointer-events: none;
+  }
+
+  .kk-tool-field--dragover {
+    border-color: rgb(var(--kk-comp-soft-rgb) / 0.55) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.18),
+      0 8px 24px rgba(15, 80, 90, 0.08) !important;
+  }
+
+  .kk-tool-field__input {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    min-height: inherit;
+    margin: 0;
+    padding: 0.85rem 1rem 0.85rem 1.15rem;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    color: #1e293b;
+    font: inherit;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    letter-spacing: 0.01em;
+    resize: none;
+    outline: none;
+    box-shadow: none;
+    -webkit-appearance: none;
+    appearance: none;
+    caret-color: hsl(var(--kk-comp-h) min(100%, calc(var(--kk-comp-s) * 1.05)) min(96%, calc(32% * var(--kk-comp-lmul))));
+  }
+
+  .kk-tool-field__input::placeholder {
+    color: rgba(100, 116, 139, 0.72);
+    letter-spacing: 0.02em;
+  }
+
+  .kk-tool-field__input::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .kk-tool-field__input::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 8px 0;
+  }
+
+  .kk-tool-field__input::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.28);
+  }
+
+  .kk-tool-field__input::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.45);
+  }
+
+  /* 降低透明 / 无 backdrop-filter 时的可读回退 */
+  @media (prefers-reduced-transparency: reduce) {
+    .kk-glass,
+    .kk-glass-nav,
+    .kk-sidebar,
+    .kk-card,
+    .kk-glass-strong,
+    .kk-glass-soft,
+    .kk-nav-liquid,
+    .kk-mobile-liquid {
+      background: rgba(255, 255, 255, 0.92) !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+    .kk-ambient::before,
+    .kk-sidebar::before,
+    .kk-sidebar::after {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kk-ambient::before,
+    .kk-login-ambient::before,
+    .kk-sidebar::after {
+      animation: none;
+    }
+    .kk-stagger-item,
+    .kk-log-fresh,
+    .kk-log-batch {
+      animation: none;
+      opacity: 1;
+    }
+    .kk-nav-liquid,
+    .kk-mobile-liquid {
+      transition: none !important;
+    }
+  }
+}
