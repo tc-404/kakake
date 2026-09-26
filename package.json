@@ -1,0 +1,47 @@
+{
+  "name": "kakake",
+  "version": "0.5.2",
+  "description": "咔咔珂 - TypeScript 插件平台框架，Web 控制台运维，兼容 NapCat 插件；支持 OneBot / QQ 官方 / KOOK / 微信 AI×BOT 接入",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node scripts/bootstrap.mjs",
+    "dev": "tsx watch src/main.ts",
+    "dev:web": "node scripts/ensure-web.mjs dev",
+    "build:web": "node scripts/ensure-web.mjs build --force",
+    "build:web:npm": "node scripts/ensure-web.mjs build --force",
+    "build:server": "node scripts/build-server.mjs",
+    "build": "pnpm build:web && pnpm build:server"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "7z-wasm": "^1.2.0",
+    "adm-zip": "^0.5.17",
+    "busboy": "^1.6.0",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "node-unrar-js": "^2.0.2",
+    "qrcode": "^1.5.4",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "tar": "^7.5.22",
+    "tsx": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/busboy": "^1.5.4",
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.13",
+    "@types/node": "^22.10.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/ws": "^8.5.13",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.2"
+  }
+}
