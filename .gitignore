@@ -1,0 +1,15 @@
+# packages/ 可整夹删除。启动或构建时自动生成：
+#   packages/web/…     ← ensure-web（前端依赖与 SPA）
+#   packages/server/…  ← build-server（后端 node 入口 main.mjs）
+packages/
+
+src/**/node_modules/
+src/**/.next/
+
+node_modules/
+dist/
+*.log
+.DS_Store
+*.tsbuildinfo
+.env
+.env.*
