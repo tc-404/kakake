@@ -1,0 +1,13 @@
+packages/
+
+src/**/node_modules/
+src/**/.next/
+
+node_modules/
+data/runtime-deps/
+dist/
+*.log
+.DS_Store
+*.tsbuildinfo
+.env
+.env.*

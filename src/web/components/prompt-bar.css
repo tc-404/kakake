@@ -1,0 +1,944 @@
+/*
+ * 默认配色读界面外观 token —— 输入框是一张「卡片」、悬浮窗是一张「悬浮层」，
+ * 设置页的卡片透明度 / 模糊度、悬浮层透明度 / 模糊度、全局配色都要管得到它们。
+ * 系数按出厂观感反推：卡片透明度 0.32 × 1.72 ≈ 0.55（原 AI 页写死的白 55%），
+ * 悬浮层 0.2 × 4.7 ≈ 0.94（原写死的白 94%）。调用方传 props 时内联值优先。
+ * 波浪暗色主题下 --kk-glass-base / --foreground 自动换成深玻璃 + 浅字，无需另写一套。
+ */
+.prompt-bar {
+  --pb-bg: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.72)));
+  --pb-ink: hsl(var(--foreground));
+  --pb-menu: rgb(var(--kk-glass-base) / min(0.97, calc(var(--kk-card2-alpha) * 4.7)));
+  --pb-w: 400px;
+  --pb-radius: 16px;
+  --pb-press: 0.96;
+  --pb-spark: #b39dff;
+  --pb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --pb-muted: color-mix(in srgb, var(--pb-ink) 55%, transparent);
+  --pb-hover: color-mix(in srgb, var(--pb-ink) 8%, transparent);
+
+  position: relative;
+  width: min(var(--pb-w), 100%);
+  color: var(--pb-ink);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.prompt-bar__menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 2;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--pb-menu);
+  /* 悬浮窗也是玻璃：模糊半径跟「悬浮层模糊度」设置走 */
+  -webkit-backdrop-filter: blur(var(--kk-blur2)) saturate(1.4);
+  backdrop-filter: blur(var(--kk-blur2)) saturate(1.4);
+  box-shadow:
+    0 10px 30px -10px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+  transform-origin: bottom center;
+  animation: prompt-bar-pop 180ms var(--pb-ease-out) both;
+}
+
+.prompt-bar__menu[data-kind='model'] {
+  right: auto;
+  width: 200px;
+  transform-origin: bottom left;
+}
+
+@keyframes prompt-bar-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+.prompt-bar__glow {
+  position: absolute;
+  right: 4px;
+  left: 4px;
+  border-radius: 8px;
+  background: var(--pb-hover);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    top 220ms var(--pb-ease-out),
+    height 220ms var(--pb-ease-out),
+    opacity 150ms ease;
+}
+
+.prompt-bar__row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.prompt-bar__row-icon {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 20px;
+  color: color-mix(in srgb, var(--pb-ink) 70%, transparent);
+}
+
+.prompt-bar__row-name {
+  flex: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.prompt-bar__row-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--pb-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.prompt-bar__row-tag {
+  flex: none;
+  margin-left: auto;
+  color: var(--pb-muted);
+  font-size: 11px;
+}
+
+.prompt-bar__row-check {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 16px;
+  opacity: 0;
+}
+
+.prompt-bar__row-check[data-on] {
+  opacity: 1;
+}
+
+.prompt-bar__empty {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 8px;
+  color: var(--pb-muted);
+  font-size: 12px;
+}
+
+/*
+ * 输入面板：比原版多一层毛玻璃与描边 —— 它要浮在控制台的波浪背景上，
+ * 纯色底会显得像贴了块板子，透一点背景才跟其它玻璃卡片同一套语言。
+ */
+.prompt-bar__field {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--pb-radius);
+  /* 背景 / 模糊 / 边框 / 阴影统一交给外层「悬浮窗」(kk-composer-glass) 管控；
+     本组件改为透明穿透，让背后内容连续透过玻璃看到，不再各自铺一层背景盖住 */
+  cursor: text;
+}
+
+.prompt-bar__field::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(
+    140% 120% at 0% 100%,
+    color-mix(in srgb, var(--pb-spark) 26%, transparent),
+    transparent 62%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+}
+
+.prompt-bar__field[data-max]::before {
+  opacity: 1;
+}
+
+.prompt-bar__sparks {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.prompt-bar__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.prompt-bar__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 4px 0 8px;
+  border-radius: 8px;
+  background: var(--pb-hover);
+  font-size: 12px;
+  animation: prompt-bar-pop 200ms var(--pb-ease-out) both;
+}
+
+.prompt-bar__chip-icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+.prompt-bar__chip-name {
+  max-width: 144px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.prompt-bar__chip-x {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  outline: none;
+  transition:
+    opacity 120ms ease,
+    background-color 120ms ease;
+}
+
+.prompt-bar__chip-x-icon {
+  width: 10px;
+  height: 10px;
+  stroke-width: 2.5;
+}
+
+.prompt-bar__chip-x:hover {
+  background: color-mix(in srgb, var(--pb-ink) 10%, transparent);
+  opacity: 1;
+}
+
+.prompt-bar__input {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  resize: none;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+
+.prompt-bar__input::placeholder {
+  color: color-mix(in srgb, var(--pb-ink) 45%, transparent);
+}
+
+@media (pointer: coarse) {
+  .prompt-bar__input {
+    font-size: 16px;
+  }
+}
+
+/*
+ * 输入框纵向滚动条：多行超出 maxRows 时 JS 会把 overflowY 切到 auto，
+ * 这里用主题化细圆角条替代浏览器默认（火柴棍/方块）样式，跟随输入框前景色。
+ */
+.prompt-bar__input {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--pb-ink) 38%, transparent) transparent;
+}
+
+.prompt-bar__input::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.prompt-bar__input::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prompt-bar__input::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: color-mix(in srgb, var(--pb-ink) 38%, transparent);
+}
+
+.prompt-bar__input::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--pb-ink) 60%, transparent);
+}
+
+.prompt-bar__input::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.prompt-bar__bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prompt-bar__spacer {
+  flex: 1 1 auto;
+}
+
+.prompt-bar__tool,
+.prompt-bar__pick,
+.prompt-bar__send {
+  flex: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.prompt-bar__tool {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: color-mix(in srgb, var(--pb-ink) 60%, transparent);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 160ms var(--pb-ease-out);
+}
+
+.prompt-bar__tool-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.prompt-bar__tool:active {
+  transform: scale(0.94);
+}
+
+/* 加号（附件 / 指令面板）按钮：图里是「圆形半透明」样式，这里改成正圆 + 浅玻璃底 */
+.prompt-bar__tool--plus {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pb-ink) 8%, transparent);
+  color: color-mix(in srgb, var(--pb-ink) 70%, transparent);
+}
+
+.prompt-bar__pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: transparent;
+  color: color-mix(in srgb, var(--pb-ink) 70%, transparent);
+  font-size: 12px;
+  font-weight: 500;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.prompt-bar__pick-name {
+  max-width: 9rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.prompt-bar__pick-icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.4;
+}
+
+.prompt-bar__pick-spark {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+
+.prompt-bar__tool[data-on],
+.prompt-bar__pick[data-on] {
+  background: var(--pb-hover);
+  color: var(--pb-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prompt-bar__tool:hover,
+  .prompt-bar__pick:hover {
+    background: var(--pb-hover);
+    color: var(--pb-ink);
+  }
+}
+
+/*
+ * 拉到最高档：档位按钮本身也转成火花色，和输入框的底色晕染对上。
+ * 必须排在 [data-on] / :hover 之后——同特异度下靠后者赢，
+ * 而滑块展开时按钮同时带着 data-on，放前面会被常态色盖掉。
+ */
+.prompt-bar__pick[data-max] {
+  color: var(--pb-spark);
+}
+
+/* lucide 图标的默认尺寸是 24px，按原版各处的字号收一下 */
+.prompt-bar__glyph-icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
+.prompt-bar__row-check .prompt-bar__glyph-icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.5;
+}
+
+.prompt-bar__send {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  /* 参考图：浅色圆形按钮 + 深色向上箭头；圆角与形变动画保持不变 */
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111827;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  transition:
+    transform 160ms var(--pb-ease-out),
+    background-color 200ms ease,
+    color 200ms ease,
+    opacity 200ms ease;
+}
+
+.prompt-bar__send:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.prompt-bar__send[data-armed] {
+  background: #ffffff;
+  color: #111827;
+}
+
+.prompt-bar__send[data-pressed] {
+  transform: scale(var(--pb-press));
+}
+
+.prompt-bar__glyph {
+  display: block;
+  width: 17px;
+  height: 17px;
+  transform-origin: 50% 50%;
+}
+
+/* 强度滑块：efforts 传空即隐藏整组控件（左下角的档位按钮也一起没） */
+.prompt-bar__menu[data-kind='effort'] {
+  right: auto;
+  width: 248px;
+  padding: 12px 14px 14px;
+  transform-origin: bottom left;
+}
+
+.prompt-bar__effort-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.prompt-bar__effort-title {
+  color: var(--pb-muted);
+}
+
+.prompt-bar__effort-level {
+  font-weight: 500;
+}
+
+.prompt-bar__effort-help {
+  display: inline-flex;
+  margin-left: auto;
+  color: var(--pb-muted);
+}
+
+.prompt-bar__effort-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  color: var(--pb-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.prompt-bar__effort-track {
+  position: relative;
+  height: 22px;
+  margin-top: 8px;
+  border-radius: 11px;
+  background: var(--pb-hover);
+  cursor: pointer;
+  outline: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.prompt-bar__effort-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--pb-effort-fill);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--pb-ink) 18%, transparent);
+  transition:
+    width 220ms var(--pb-ease-out),
+    background-color 300ms ease;
+}
+
+.prompt-bar__effort-dot {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--pb-ink) 30%, transparent);
+}
+
+.prompt-bar__effort-thumb {
+  position: absolute;
+  top: 1px;
+  left: var(--pb-effort-x);
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  border-radius: 50%;
+  background: var(--pb-ink);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition:
+    left 220ms var(--pb-ease-out),
+    background-color 300ms ease;
+}
+
+.prompt-bar[data-max] .prompt-bar__effort-fill {
+  background: color-mix(in srgb, var(--pb-spark) 35%, transparent);
+}
+
+.prompt-bar[data-max] .prompt-bar__effort-thumb {
+  background: var(--pb-spark);
+}
+
+/* 指令面板（点 + 展开）：比 at 列表宽一点，左对齐 */
+.prompt-bar__menu[data-kind='commands'] {
+  right: auto;
+  left: 0;
+  width: 268px;
+  transform-origin: bottom left;
+  padding: 6px;
+}
+
+.prompt-bar__commands {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 第一项：添加文件（图标 + 四字），复用 .prompt-bar__row 的底座 */
+.prompt-bar__cmd-addfile {
+  height: 38px;
+}
+
+/* 根菜单里的「下钻」项：模式 / 技能 Skill 右侧带箭头与状态 */
+.prompt-bar__cmd-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 38px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.prompt-bar__cmd-nav-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.prompt-bar__cmd-nav-meta {
+  flex: none;
+  color: var(--pb-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.prompt-bar__cmd-nav-arrow {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--pb-muted);
+  stroke-width: 2;
+}
+
+/* 子菜单顶部的「返回」 */
+.prompt-bar__cmd-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 30px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pb-muted);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.prompt-bar__cmd-back-arrow {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prompt-bar__cmd-nav:hover,
+  .prompt-bar__cmd-back:hover {
+    background: var(--pb-hover);
+    color: var(--pb-ink);
+  }
+}
+
+/* 技能列表项：左侧可点击区域（勾选 + 名）= 切换加载/卸载；右侧 × = 删除 */
+.prompt-bar__cmd-skill-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.prompt-bar__cmd-skill-main .prompt-bar__cmd-skill-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.prompt-bar__cmd-skill[data-on] .prompt-bar__cmd-skill-name {
+  color: var(--pb-ink);
+  font-weight: 500;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prompt-bar__cmd-skill-main:hover {
+    background: color-mix(in srgb, var(--pb-ink) 8%, transparent);
+  }
+}
+
+/* 输入框内已加载技能的标签（与附件标签同形，换色区分） */
+.prompt-bar__skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 6px 0;
+}
+
+.prompt-bar__chip--skill {
+  border-color: color-mix(in srgb, var(--pb-spark) 45%, transparent);
+  background: color-mix(in srgb, var(--pb-spark) 16%, transparent);
+  color: color-mix(in srgb, var(--pb-spark) 85%, var(--pb-ink));
+}
+
+.prompt-bar__cmd-sep {
+  height: 1px;
+  margin: 4px 4px;
+  background: color-mix(in srgb, var(--pb-ink) 10%, transparent);
+}
+
+.prompt-bar__cmd-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 2px 4px;
+}
+
+.prompt-bar__cmd-section-row {
+  display: flex;
+  align-items: center;
+}
+
+.prompt-bar__cmd-section-title {
+  flex: 1 1 auto;
+  color: var(--pb-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+}
+
+/* 模式勾选项 */
+.prompt-bar__cmd-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.prompt-bar__cmd-box {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid color-mix(in srgb, var(--pb-ink) 35%, transparent);
+  border-radius: 5px;
+  color: var(--pb-bg);
+}
+
+.prompt-bar__cmd-toggle[data-on] .prompt-bar__cmd-box {
+  background: var(--pb-ink);
+  border-color: var(--pb-ink);
+}
+
+.prompt-bar__cmd-label {
+  flex: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.prompt-bar__cmd-sub {
+  margin-left: 6px;
+  color: var(--pb-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.prompt-bar__cmd-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  color: var(--pb-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 技能导入按钮 */
+.prompt-bar__cmd-import {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--pb-ink) 16%, transparent);
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in srgb, var(--pb-ink) 80%, transparent);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.prompt-bar__cmd-import .prompt-bar__glyph-icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prompt-bar__cmd-toggle:hover,
+  .prompt-bar__cmd-import:hover {
+    background: var(--pb-hover);
+    color: var(--pb-ink);
+  }
+}
+
+/* 技能列表 */
+.prompt-bar__cmd-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 2px;
+}
+
+.prompt-bar__cmd-skill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 4px 0 8px;
+  border-radius: 7px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prompt-bar__cmd-skill:hover {
+    background: var(--pb-hover);
+  }
+}
+
+.prompt-bar__cmd-skill-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.prompt-bar__cmd-skill-x {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: color-mix(in srgb, var(--pb-ink) 55%, transparent);
+  cursor: pointer;
+  outline: none;
+  opacity: 0.55;
+  transition:
+    opacity 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.prompt-bar__cmd-skill-x .prompt-bar__glyph-icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.5;
+}
+
+.prompt-bar__cmd-skill-x:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--pb-ink) 10%, transparent);
+  color: #ef4444;
+}
+
+.prompt-bar__cmd-empty {
+  padding: 6px 8px;
+  color: var(--pb-muted);
+  font-size: 11.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt-bar__menu,
+  .prompt-bar__chip {
+    animation: none;
+  }
+
+  .prompt-bar__glow {
+    transition: opacity 150ms ease;
+  }
+
+  .prompt-bar__effort-fill,
+  .prompt-bar__effort-thumb {
+    transition: background-color 300ms ease;
+  }
+
+  .prompt-bar__tool:active,
+  .prompt-bar__send[data-pressed] {
+    transform: none;
+  }
+}
