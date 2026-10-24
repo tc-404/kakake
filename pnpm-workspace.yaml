@@ -1,0 +1,8 @@
+# 仅根项目；Web 依赖由 scripts/ensure-web.mjs 装到可删除的 packages/web
+packages:
+  - '.'
+allowBuilds:
+  esbuild: true
+  sharp: true
+overrides:
+  media-typer: '1.1.0'

@@ -1,0 +1,602 @@
+{
+  "source": "tencent-connect/bot-docs: docs/develop/api-v2",
+  "fetchedAt": "2026-10-24",
+  "actionCount": 65,
+  "disabledCount": 1,
+  "disabledEntries": [
+    "POST /v2/groups/{group_openid}/members"
+  ],
+  "entries": [
+    {
+      "method": "DELETE",
+      "path": "/channels/{channel_id}",
+      "title": "接口",
+      "group": "server-inter/channel/manage/channel",
+      "file": "server-inter/channel/manage/channel/delete_channel.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/channels/{channel_id}/announces/{message_id}",
+      "title": "接口",
+      "group": "server-inter/channel/content/announces",
+      "file": "server-inter/channel/content/announces/delete_channel_announces.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/channels/{channel_id}/messages/{message_id}",
+      "title": "接口",
+      "group": "server-inter/message/send-receive",
+      "file": "server-inter/message/send-receive/reset.md",
+      "line": 84,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/channels/{channel_id}/messages/{message_id}/reactions/{type}/{id}",
+      "title": "接口",
+      "group": "server-inter/message/trans",
+      "file": "server-inter/message/trans/emoji.md",
+      "line": 52,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/channels/{channel_id}/mic",
+      "title": "接口",
+      "group": "server-inter/channel/content/audio",
+      "file": "server-inter/channel/content/audio/delete_mic.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/channels/{channel_id}/pins/{message_id}",
+      "title": "接口",
+      "group": "server-inter/channel/content/pins",
+      "file": "server-inter/channel/content/pins/delete_pins_message.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/channels/{channel_id}/schedules/{schedule_id}",
+      "title": "接口",
+      "group": "server-inter/channel/content/schedule",
+      "file": "server-inter/channel/content/schedule/delete_schedule.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/channels/{channel_id}/threads/{thread_id}",
+      "title": "接口",
+      "group": "server-inter/channel/content/forum",
+      "file": "server-inter/channel/content/forum/delete_thread.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/dms/{guild_id}/messages/{message_id}",
+      "title": "接口",
+      "group": "server-inter/message/dms",
+      "file": "server-inter/message/dms/delete_dms.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/guilds/{guild_id}/announces/{message_id}",
+      "title": "接口",
+      "group": "server-inter/channel/content/announces",
+      "file": "server-inter/channel/content/announces/delete_guild_announces.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/guilds/{guild_id}/members/{user_id}",
+      "title": "接口",
+      "group": "openapi/member",
+      "file": "openapi/member/delete_member.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/guilds/{guild_id}/members/{user_id}/roles/{role_id}",
+      "title": "接口",
+      "group": "server-inter/channel/role-group",
+      "file": "server-inter/channel/role-group/delete_guild_member_role.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/guilds/{guild_id}/roles/{role_id}",
+      "title": "接口",
+      "group": "server-inter/channel/role-group",
+      "file": "server-inter/channel/role-group/delete_guild_role.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v2/groups/{group_openid}/messages/{message_id}",
+      "title": "接口",
+      "group": "server-inter/message/send-receive",
+      "file": "server-inter/message/send-receive/reset.md",
+      "line": 50,
+      "via": "method-line"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v2/users/{openid}/messages/{message_id}",
+      "title": "接口",
+      "group": "server-inter/message/send-receive",
+      "file": "server-inter/message/send-receive/reset.md",
+      "line": 16,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}",
+      "title": "接口",
+      "group": "server-inter/channel/manage/channel",
+      "file": "server-inter/channel/manage/channel/get_channel.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}/members/{user_id}/permissions",
+      "title": "接口",
+      "group": "server-inter/channel/role-group/channel_permissions",
+      "file": "server-inter/channel/role-group/channel_permissions/get_channel_permissions.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}/messages/{message_id}/reactions/{type}/{id}",
+      "title": "接口",
+      "group": "server-inter/message/trans",
+      "file": "server-inter/message/trans/emoji.md",
+      "line": 90,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}/online_nums",
+      "title": "接口",
+      "group": "server-inter/channel/role",
+      "file": "server-inter/channel/role/get_online_nums.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}/pins",
+      "title": "接口",
+      "group": "server-inter/channel/content/pins",
+      "file": "server-inter/channel/content/pins/get_pins_message.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}/roles/{role_id}/permissions",
+      "title": "接口",
+      "group": "server-inter/channel/role-group/channel_permissions",
+      "file": "server-inter/channel/role-group/channel_permissions/get_channel_roles_permissions.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}/schedules",
+      "title": "接口",
+      "group": "server-inter/channel/content/schedule",
+      "file": "server-inter/channel/content/schedule/get_schedules.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}/schedules/{schedule_id}",
+      "title": "接口",
+      "group": "server-inter/channel/content/schedule",
+      "file": "server-inter/channel/content/schedule/get_schedule.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}/threads",
+      "title": "接口",
+      "group": "server-inter/channel/content/forum",
+      "file": "server-inter/channel/content/forum/get_threads_list.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/channels/{channel_id}/threads/{thread_id}",
+      "title": "接口",
+      "group": "server-inter/channel/content/forum",
+      "file": "server-inter/channel/content/forum/get_thread.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/gateway",
+      "title": "接口",
+      "group": "openapi/wss",
+      "file": "openapi/wss/url_get.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/gateway/bot",
+      "title": "接口",
+      "group": "openapi/wss",
+      "file": "openapi/wss/shard_url_get.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/guilds/{guild_id}",
+      "title": "接口",
+      "group": "server-inter/channel/manage/guild",
+      "file": "server-inter/channel/manage/guild/get_guild.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/guilds/{guild_id}/api_permission",
+      "title": "接口",
+      "group": "server-inter/channel/api_permissions",
+      "file": "server-inter/channel/api_permissions/get_guild_api_permission.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/guilds/{guild_id}/channels",
+      "title": "接口",
+      "group": "server-inter/channel/manage/channel",
+      "file": "server-inter/channel/manage/channel/get_channels.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/guilds/{guild_id}/members",
+      "title": "接口",
+      "group": "openapi/member",
+      "file": "openapi/member/get_members.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/guilds/{guild_id}/members/{user_id}",
+      "title": "接口",
+      "group": "openapi/member",
+      "file": "openapi/member/get_member.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/guilds/{guild_id}/message/setting",
+      "title": "接口",
+      "group": "server-inter/channel/speak/setting",
+      "file": "server-inter/channel/speak/setting/message_setting.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/guilds/{guild_id}/roles",
+      "title": "接口",
+      "group": "server-inter/channel/role-group",
+      "file": "server-inter/channel/role-group/get_guild_roles.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/guilds/{guild_id}/roles/{role_id}/members",
+      "title": "接口",
+      "group": "server-inter/channel/role/member",
+      "file": "server-inter/channel/role/member/get_role_members.md",
+      "line": 5,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/users/@me",
+      "title": "接口",
+      "group": "openapi/user",
+      "file": "openapi/user/me.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "GET",
+      "path": "/users/@me/guilds",
+      "title": "接口",
+      "group": "openapi/user",
+      "file": "openapi/user/guilds.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PATCH",
+      "path": "/channels/{channel_id}",
+      "title": "接口",
+      "group": "server-inter/channel/manage/channel",
+      "file": "server-inter/channel/manage/channel/patch_channel.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PATCH",
+      "path": "/channels/{channel_id}/schedules/{schedule_id}",
+      "title": "接口",
+      "group": "server-inter/channel/content/schedule",
+      "file": "server-inter/channel/content/schedule/patch_schedule.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PATCH",
+      "path": "/guilds/{guild_id}/members/{user_id}/mute",
+      "title": "接口",
+      "group": "server-inter/channel/speak",
+      "file": "server-inter/channel/speak/patch_guild_member_mute.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PATCH",
+      "path": "/guilds/{guild_id}/mute",
+      "title": "接口",
+      "group": "server-inter/channel/speak",
+      "file": "server-inter/channel/speak/patch_guild_mute.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PATCH",
+      "path": "/guilds/{guild_id}/roles/{role_id}",
+      "title": "接口",
+      "group": "server-inter/channel/role-group",
+      "file": "server-inter/channel/role-group/patch_guild_role.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/channels/{channel_id}/announces",
+      "title": "接口",
+      "group": "server-inter/channel/content/announces",
+      "file": "server-inter/channel/content/announces/post_channel_announces.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/channels/{channel_id}/audio",
+      "title": "接口",
+      "group": "server-inter/channel/content/audio",
+      "file": "server-inter/channel/content/audio/audio_control.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/channels/{channel_id}/messages",
+      "title": "接口",
+      "group": "server-inter/message",
+      "file": "server-inter/message/post_messages.md",
+      "line": 5,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/channels/{channel_id}/schedules",
+      "title": "接口",
+      "group": "server-inter/channel/content/schedule",
+      "file": "server-inter/channel/content/schedule/post_schedule.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/dms/{guild_id}/messages",
+      "title": "接口",
+      "group": "server-inter/message/dms",
+      "file": "server-inter/message/dms/post_dms_messages.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/guilds/{guild_id}/announces",
+      "title": "接口",
+      "group": "server-inter/channel/content/announces",
+      "file": "server-inter/channel/content/announces/post_guild_announces.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/guilds/{guild_id}/api_permission/demand",
+      "title": "接口",
+      "group": "server-inter/channel/api_permissions",
+      "file": "server-inter/channel/api_permissions/post_api_permission_demand.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/guilds/{guild_id}/channels",
+      "title": "接口",
+      "group": "server-inter/channel/manage/channel",
+      "file": "server-inter/channel/manage/channel/post_channels.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/guilds/{guild_id}/roles",
+      "title": "接口",
+      "group": "server-inter/channel/role-group",
+      "file": "server-inter/channel/role-group/post_guild_role.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/users/@me/dms",
+      "title": "接口",
+      "group": "server-inter/message/dms",
+      "file": "server-inter/message/dms/post_dms.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "POST",
+      "path": "/v2/groups/{group_openid}/files",
+      "title": "用于群聊",
+      "disabled": false,
+      "group": "server-inter/message/send-receive",
+      "file": "server-inter/message/send-receive/rich-media.md",
+      "line": 72,
+      "via": "table"
+    },
+    {
+      "method": "POST",
+      "path": "/v2/groups/{group_openid}/members",
+      "title": "获取群内成员列表",
+      "disabled": true,
+      "group": "server-inter/group/manage",
+      "file": "server-inter/group/manage/README.md",
+      "line": 28,
+      "via": "table"
+    },
+    {
+      "method": "POST",
+      "path": "/v2/groups/{group_openid}/messages",
+      "title": "群聊",
+      "disabled": false,
+      "group": "server-inter/message/send-receive",
+      "file": "server-inter/message/send-receive/send.md",
+      "line": 116,
+      "via": "table"
+    },
+    {
+      "method": "POST",
+      "path": "/v2/users/{openid}/files",
+      "title": "用于单聊",
+      "disabled": false,
+      "group": "server-inter/message/send-receive",
+      "file": "server-inter/message/send-receive/rich-media.md",
+      "line": 20,
+      "via": "table"
+    },
+    {
+      "method": "POST",
+      "path": "/v2/users/{openid}/messages",
+      "title": "单聊",
+      "disabled": false,
+      "group": "server-inter/message/send-receive",
+      "file": "server-inter/message/send-receive/send.md",
+      "line": 53,
+      "via": "table"
+    },
+    {
+      "method": "PUT",
+      "path": "/channels/{channel_id}/members/{user_id}/permissions",
+      "title": "接口",
+      "group": "server-inter/channel/role-group/channel_permissions",
+      "file": "server-inter/channel/role-group/channel_permissions/put_channel_permissions.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PUT",
+      "path": "/channels/{channel_id}/messages/{message_id}/reactions/{type}/{id}",
+      "title": "接口",
+      "group": "server-inter/message/trans",
+      "file": "server-inter/message/trans/emoji.md",
+      "line": 14,
+      "via": "method-line"
+    },
+    {
+      "method": "PUT",
+      "path": "/channels/{channel_id}/mic",
+      "title": "接口",
+      "group": "server-inter/channel/content/audio",
+      "file": "server-inter/channel/content/audio/put_mic.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PUT",
+      "path": "/channels/{channel_id}/pins/{message_id}",
+      "title": "接口",
+      "group": "server-inter/channel/content/pins",
+      "file": "server-inter/channel/content/pins/put_pins_message.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PUT",
+      "path": "/channels/{channel_id}/roles/{role_id}/permissions",
+      "title": "接口",
+      "group": "server-inter/channel/role-group/channel_permissions",
+      "file": "server-inter/channel/role-group/channel_permissions/put_channel_roles_permissions.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PUT",
+      "path": "/channels/{channel_id}/threads",
+      "title": "接口",
+      "group": "server-inter/channel/content/forum",
+      "file": "server-inter/channel/content/forum/put_thread.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PUT",
+      "path": "/guilds/{guild_id}/members/{user_id}/roles/{role_id}",
+      "title": "接口",
+      "group": "server-inter/channel/role-group",
+      "file": "server-inter/channel/role-group/put_guild_member_role.md",
+      "line": 6,
+      "via": "method-line"
+    },
+    {
+      "method": "PUT",
+      "path": "/interactions/{interaction_id}",
+      "title": "点击回调按钮",
+      "disabled": false,
+      "group": "server-inter/message/trans",
+      "file": "server-inter/message/trans/msg-btn.md",
+      "line": 227,
+      "via": "table"
+    }
+  ]
+}
