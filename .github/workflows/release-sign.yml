@@ -1,0 +1,48 @@
+name: Sign Release Assets (Ed25519)
+
+# 在每次发版（GitHub Release 发布）后自动用离线私钥给所有资产签名，
+# 并把 <资产>.sig 上传回同一 Release。App 端据此验签，防镜像/中间人替换。
+#
+# 一次性准备（你来做，不用给我账号）：
+#   1. 仓库 Settings → Secrets and variables → Actions → New repository secret
+#   2. Name: RELEASE_SIGN_KEY
+#   3. Secret: 把 kakake-sign.key 的全部内容（含 BEGIN/END 行）粘进去
+#   4. 保存。以后每次发版本工作流会自动跑，无需任何手动操作。
+#
+# 注意：仓库里 kakake-sign.key 已被 .gitignore 排除，绝不入库；这里只用 Secret。
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (取 sign-release.mjs)
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 下载资产 → 签名 → 回传 .sig
+        env:
+          RELEASE_SIGN_KEY: ${{ secrets.RELEASE_SIGN_KEY }}
+          KEY_ID: kakake-2026
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p _assets
+          gh release download "${{ github.event.release.tag_name }}" --dir _assets --skip-existing
+          shopt -s nullglob
+          for f in _assets/*; do
+            case "$f" in *.sig) continue;; esac
+            node scripts/sign-release.mjs "$f" "$KEY_ID"
+            gh release upload "${{ github.event.release.tag_name }}" "$f.sig" --clobber
+          done
+          rm -rf _assets
