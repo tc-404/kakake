@@ -1,0 +1,9 @@
+{
+  "name": "kakake-plugin-hello",
+  "plugin": "你好示例",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.mjs",
+  "description": "指令：你好 / 帮助 / ping（TypeScript 源码构建）",
+  "author": "教程"
+}
