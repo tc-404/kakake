@@ -1,0 +1,192 @@
+/* 波浪背景预设 · 全局暗色主题 + 写死白色工具类的暗色等价覆盖 */
+/* ======================================================================
+ * 波浪背景预设 · 全局暗色主题（html[data-kk-bg-preset='waves']）
+ *
+ * 为什么要暗色：波浪线是亮色（lightMode=false 才是原版的「白线在深底上」画法），
+ * 鼠标划过的高亮（accentColor）也是亮色才看得见 —— 浅色主题下整片亮线糊在
+ * 玻璃卡片上，看起来就像画在 UI 之上。切暗色后卡片是深色玻璃、波浪在底下
+ * 透出来，层次立刻归位：背景在最底、内容浮在上层。
+ *
+ * 亮 → 暗不用逐处加 dark: 变体，三条路一起走：
+ *  1. --kk-dark 置 1，tailwind.config.ts 的 slate（字体）色阶按它整体反相，
+ *     teal（组件）色阶朝中间亮度收敛 —— 既有 text-slate-800 / bg-slate-100
+ *     自动变浅字 / 深底；
+ *  2. 下面这组语义 token（--background / --card / --border / --glass-* …）
+ *     整体换成暗色取值；
+ *  3. 少量写死白色的工具类（bg-white/40、border-white/30 …）按表覆盖成
+ *     暗色玻璃等价物 —— Tailwind 把透明度编译成了字面量，变量插不进去。
+ *
+ * 波浪层本身永远在 .kk-ambient 内容层（z-index:1）之下（z-index:0），
+ * 这里只是让「透出来的部分」读起来是背景而不是贴片。
+ * ====================================================================== */
+html[data-kk-bg-preset='waves'] {
+  --kk-dark: 1;
+
+  /*
+   * 玻璃基底翻成近黑（#0c131e）。globals.css 里 81 处原本写死的
+   * rgba(255,255,255,…) 已改成 rgb(var(--kk-glass-base) / …)，
+   * 所以改这一个值就整片卡片 / 浮层 / 遮罩一起变暗，不用逐条覆盖。
+   */
+  --kk-glass-base: 12 19 30;
+
+  /* 描边 / 内高光 / 滑块轨道：暗底上改成冷灰，保留层次又不过曝 */
+  --kk-hi-base: 150 166 188;
+
+  /* —— 语义色板：底色压到 8–15%，字色抬到 85–93%，描边抬到 21% —— */
+  --background: 221 28% 8%;
+  --foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 1.4) min(96%, calc(93% * var(--kk-ink-lmul)));
+  --card: 220 22% 11%;
+  --card-foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 1.4) min(96%, calc(93% * var(--kk-ink-lmul)));
+  --primary: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.775) min(96%, calc(56% * var(--kk-comp-lmul)));
+  --primary-from: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.875) min(96%, calc(60% * var(--kk-comp-lmul)));
+  --primary-to: calc(var(--kk-comp-h) + 24) calc(var(--kk-comp-s) * 0.9) min(96%, calc(64% * var(--kk-comp-lmul)));
+  --secondary: 219 16% 15%;
+  --secondary-foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 0.8) min(96%, calc(86% * var(--kk-ink-lmul)));
+  --muted: 219 14% 15%;
+  --muted-foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 0.6) min(96%, calc(62% * var(--kk-ink-lmul)));
+  --accent: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.5) 17%;
+  --accent-foreground: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.775) min(96%, calc(90% * var(--kk-comp-lmul)));
+  --border: 218 14% 21%;
+  --input: 218 14% 21%;
+
+  /* —— 液态玻璃：基底从白换成近黑；高光层（白）整体压暗，暗底上只留一丝冷光 —— */
+  --glass-bg: rgb(12 19 30 / var(--kk-card-alpha));
+  --glass-bg-strong: rgb(14 22 34 / min(1, calc(var(--kk-card-alpha) * 1.5)));
+  --glass-bg-soft: rgb(12 19 30 / calc(var(--kk-card-alpha) * 0.69));
+  --glass-bg-nav: rgb(12 19 30 / calc(var(--kk-card-alpha) * 0.875));
+  --glass2-bg: rgb(12 19 30 / var(--kk-card2-alpha));
+  --glass2-bg-strong: rgb(14 22 34 / min(1, calc(var(--kk-card2-alpha) * 1.5)));
+  --glass2-bg-soft: rgb(12 19 30 / calc(var(--kk-card2-alpha) * 0.69));
+  --glass-highlight: rgb(255 255 255 / calc(var(--kk-card-alpha) * 0.5));
+  --glass-sheen: rgb(255 255 255 / calc(var(--kk-card-alpha) * 0.14));
+  --glass-sheen-strong: rgb(255 255 255 / calc(var(--kk-card-alpha) * 0.62));
+  --glass-sheen-mid: rgb(255 255 255 / calc(var(--kk-card-alpha) * 0.1));
+  --glass-sheen-glow: rgb(255 255 255 / calc(var(--kk-card-alpha) * 0.4));
+  --glass-inset: rgb(255 255 255 / calc(var(--kk-card-alpha) * 0.4));
+  /* 暗底上阴影改用纯黑：原来偏蓝的墨色在深色底上会泛灰蓝 */
+  --glass-shadow:
+    0 0 1px rgb(0 0 0 / calc(var(--kk-shadow-alpha) * 0.65)),
+    0 1px 2px rgb(0 0 0 / calc(var(--kk-shadow-alpha) * 0.7)),
+    0 4px 10px rgb(0 0 0 / calc(var(--kk-shadow-alpha) * 0.5)),
+    0 0 14px rgb(0 0 0 / calc(var(--kk-shadow-alpha) * 0.34));
+  --glass-shadow-hover:
+    0 0 1px rgb(0 0 0 / calc(var(--kk-shadow-alpha) * 0.85)),
+    0 2px 3px rgb(0 0 0 / calc(var(--kk-shadow-alpha) * 0.95)),
+    0 6px 14px rgb(0 0 0 / calc(var(--kk-shadow-alpha) * 0.68)),
+    0 0 20px rgb(0 0 0 / calc(var(--kk-shadow-alpha) * 0.48));
+}
+
+/* 氛围底换成深色：同样的四团色斑布局，只是亮度压到深底可读的范围 */
+html[data-kk-bg-preset='waves'] .kk-ambient {
+  background-color: #0a1018;
+  background-image:
+    radial-gradient(ellipse 90% 70% at 8% 12%, rgb(18 96 88 / 0.5), transparent 58%),
+    radial-gradient(ellipse 75% 55% at 92% 8%, rgb(24 62 118 / 0.48), transparent 52%),
+    radial-gradient(ellipse 65% 60% at 78% 92%, rgb(16 78 60 / 0.42), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 22% 82%, rgb(30 52 100 / 0.45), transparent 50%),
+    radial-gradient(ellipse 40% 35% at 48% 48%, rgb(255 255 255 / 0.045), transparent 60%),
+    linear-gradient(155deg, #0a1018 0%, #0d1520 38%, #0a121c 72%, #0c141e 100%);
+}
+
+html[data-kk-bg-preset='waves'] .kk-login-ambient {
+  background-color: #0b1220;
+  background-image:
+    radial-gradient(ellipse 95% 75% at 12% 18%, rgb(16 118 106 / 0.55), transparent 55%),
+    radial-gradient(ellipse 80% 60% at 90% 10%, rgb(22 74 148 / 0.52), transparent 50%),
+    radial-gradient(ellipse 70% 55% at 78% 88%, rgb(16 100 82 / 0.45), transparent 52%),
+    radial-gradient(ellipse 50% 40% at 28% 78%, rgb(38 66 132 / 0.5), transparent 48%),
+    radial-gradient(ellipse 42% 36% at 50% 45%, rgb(255 255 255 / 0.055), transparent 58%),
+    linear-gradient(155deg, #0b1420 0%, #0e1a28 36%, #0c1622 68%, #101d2c 100%);
+}
+
+/* 氛围层那团白色漂移高光：暗底上压到一成不到，只留呼吸感 */
+html[data-kk-bg-preset='waves'] .kk-ambient::before,
+html[data-kk-bg-preset='waves'] .kk-login-ambient::before {
+  background:
+    radial-gradient(circle at 28% 36%, rgb(255 255 255 / 0.06), transparent 38%),
+    radial-gradient(circle at 76% 58%, rgb(45 212 191 / 0.07), transparent 42%),
+    radial-gradient(circle at 55% 18%, rgb(96 165 250 / 0.06), transparent 36%);
+}
+
+/* 自定义背景的白幕同理压暗（波浪生效时本来就没有自定义背景，这里只是兜底） */
+html[data-kk-bg-preset='waves'] .kk-ambient::after,
+html[data-kk-bg-preset='waves'] .kk-login-ambient::after {
+  background-image:
+    linear-gradient(rgb(4 8 14 / 0.45), rgb(4 8 14 / 0.45)),
+    var(--kk-bg-portrait, none);
+}
+
+@media (orientation: landscape) {
+  html[data-kk-bg-preset='waves'] .kk-ambient::after,
+  html[data-kk-bg-preset='waves'] .kk-login-ambient::after {
+    background-image:
+      linear-gradient(rgb(4 8 14 / 0.45), rgb(4 8 14 / 0.45)),
+      var(--kk-bg-landscape, none);
+  }
+}
+
+/* ----------------------------------------------------------------------
+ * 写死白色的工具类 → 暗色玻璃等价物。
+ * Tailwind 把 bg-white/40 编译成字面量 rgb(255 255 255 / 0.4)，变量插不进去，
+ * 只能按表覆盖。换算口径：底色约等于原 alpha 乘 0.22（暗玻璃），描边乘 0.35。
+ * 纯 .bg-white（二维码容器等）不动 —— 那些真的需要白底。
+ * ---------------------------------------------------------------------- */
+html[data-kk-bg-preset='waves'] .bg-white\/10 { background-color: rgb(255 255 255 / 0.03); }
+html[data-kk-bg-preset='waves'] .bg-white\/15 { background-color: rgb(255 255 255 / 0.04); }
+html[data-kk-bg-preset='waves'] .bg-white\/20 { background-color: rgb(255 255 255 / 0.05); }
+html[data-kk-bg-preset='waves'] .bg-white\/25 { background-color: rgb(255 255 255 / 0.06); }
+html[data-kk-bg-preset='waves'] .bg-white\/30 { background-color: rgb(255 255 255 / 0.07); }
+html[data-kk-bg-preset='waves'] .bg-white\/35 { background-color: rgb(255 255 255 / 0.08); }
+html[data-kk-bg-preset='waves'] .bg-white\/40 { background-color: rgb(255 255 255 / 0.09); }
+html[data-kk-bg-preset='waves'] .bg-white\/45 { background-color: rgb(255 255 255 / 0.1); }
+html[data-kk-bg-preset='waves'] .bg-white\/50 { background-color: rgb(255 255 255 / 0.11); }
+html[data-kk-bg-preset='waves'] .bg-white\/55 { background-color: rgb(255 255 255 / 0.12); }
+html[data-kk-bg-preset='waves'] .bg-white\/60 { background-color: rgb(255 255 255 / 0.14); }
+html[data-kk-bg-preset='waves'] .bg-white\/70 { background-color: rgb(255 255 255 / 0.16); }
+html[data-kk-bg-preset='waves'] .bg-white\/90 { background-color: rgb(255 255 255 / 0.24); }
+
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/20:hover { background-color: rgb(255 255 255 / 0.05); }
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/25:hover { background-color: rgb(255 255 255 / 0.06); }
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/30:hover { background-color: rgb(255 255 255 / 0.07); }
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/35:hover { background-color: rgb(255 255 255 / 0.08); }
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/40:hover { background-color: rgb(255 255 255 / 0.09); }
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/45:hover { background-color: rgb(255 255 255 / 0.1); }
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/50:hover { background-color: rgb(255 255 255 / 0.11); }
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/55:hover { background-color: rgb(255 255 255 / 0.12); }
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/60:hover { background-color: rgb(255 255 255 / 0.14); }
+html[data-kk-bg-preset='waves'] .hover\:bg-white\/70:hover { background-color: rgb(255 255 255 / 0.16); }
+html[data-kk-bg-preset='waves'] .focus\:bg-white\/25:focus { background-color: rgb(255 255 255 / 0.06); }
+html[data-kk-bg-preset='waves'] .focus\:bg-white\/30:focus { background-color: rgb(255 255 255 / 0.07); }
+html[data-kk-bg-preset='waves'] .focus\:bg-white\/35:focus { background-color: rgb(255 255 255 / 0.08); }
+html[data-kk-bg-preset='waves'] .focus\:bg-white\/40:focus { background-color: rgb(255 255 255 / 0.09); }
+html[data-kk-bg-preset='waves'] .focus\:bg-white\/50:focus { background-color: rgb(255 255 255 / 0.11); }
+html[data-kk-bg-preset='waves'] .active\:bg-white\/45:active { background-color: rgb(255 255 255 / 0.1); }
+
+html[data-kk-bg-preset='waves'] .border-white\/20 { border-color: rgb(255 255 255 / 0.07); }
+html[data-kk-bg-preset='waves'] .border-white\/25 { border-color: rgb(255 255 255 / 0.09); }
+html[data-kk-bg-preset='waves'] .border-white\/30 { border-color: rgb(255 255 255 / 0.11); }
+html[data-kk-bg-preset='waves'] .border-white\/35 { border-color: rgb(255 255 255 / 0.12); }
+html[data-kk-bg-preset='waves'] .border-white\/40 { border-color: rgb(255 255 255 / 0.14); }
+html[data-kk-bg-preset='waves'] .border-white\/50 { border-color: rgb(255 255 255 / 0.17); }
+html[data-kk-bg-preset='waves'] .border-white\/55 { border-color: rgb(255 255 255 / 0.19); }
+html[data-kk-bg-preset='waves'] .border-white\/60 { border-color: rgb(255 255 255 / 0.21); }
+html[data-kk-bg-preset='waves'] .border-white { border-color: rgb(255 255 255 / 0.22); }
+html[data-kk-bg-preset='waves'] .divide-white\/30 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(255 255 255 / 0.11); }
+html[data-kk-bg-preset='waves'] .divide-white\/35 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(255 255 255 / 0.12); }
+html[data-kk-bg-preset='waves'] .divide-white\/40 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(255 255 255 / 0.14); }
+
+html[data-kk-bg-preset='waves'] .from-white\/15 { --tw-gradient-from: rgb(255 255 255 / 0.04) var(--tw-gradient-from-position); }
+html[data-kk-bg-preset='waves'] .from-white\/40 { --tw-gradient-from: rgb(255 255 255 / 0.09) var(--tw-gradient-from-position); }
+html[data-kk-bg-preset='waves'] .via-white\/40 { --tw-gradient-via: rgb(255 255 255 / 0.09); --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position); }
+html[data-kk-bg-preset='waves'] .via-white\/55 { --tw-gradient-via: rgb(255 255 255 / 0.12); --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position); }
+html[data-kk-bg-preset='waves'] .ring-white\/60 { --tw-ring-color: rgb(255 255 255 / 0.21); }
+
+/* 深色 chip / 头像 / 气泡（bg-slate-800 / 900 + text-white）：反相会让它们变浅底
+   白字直接看不清，这几处本来就是「深色表面」，暗色主题下保持深色才对 */
+html[data-kk-bg-preset='waves'] .bg-slate-800 { background-color: rgb(21 30 46); }
+html[data-kk-bg-preset='waves'] .bg-slate-900 { background-color: rgb(13 20 33); }
+
+/* 选区在暗底上的观感：用组件色淡淡铺一层 */
+html[data-kk-bg-preset='waves'] ::selection {
+  background-color: rgb(var(--kk-comp-rgb) / 0.32);
+}

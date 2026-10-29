@@ -1,0 +1,44 @@
+name: CI
+
+# 每次推送 / PR 跑同一套门禁：单测、类型检查、接口代理覆盖率对账、教程锚点检查。
+# 与 release-sign.yml 相互独立：发版签名在 Release published 时单独跑。
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# 同仓库的新推送取消还没跑完的旧 CI，省额度
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Proxy registry coverage
+        run: node scripts/check-proxy-registry.mjs
+
+      - name: Tour anchors
+        run: node scripts/check-tour-anchors.mjs

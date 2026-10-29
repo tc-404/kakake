@@ -1,0 +1,71 @@
+/* 配色 · 渐变派生规则（未分层区，需压过 utilities 层的文字色工具类） */
+/* ————————————————————————————————————————————————————————————————————————————
+ * 配色 · 渐变派生规则（未分层区）
+ *
+ * 墨色渐变规则必须未分层：utilities 层（text-slate-* / text-muted-foreground 等
+ * 文字色工具类）会整体压过 @layer components 里的同属性声明——级联层的优先序
+ * 高于选择器优先级。放 components 层时只有少数没挂文字色工具类的元素生效，
+ * 副标题、提示文案、悬浮窗正文全都染不上色。
+ * ———————————————————————————————————————————————————————————————————————————— */
+
+/*
+ * 全局字体角色启用渐变时（html[data-kk-ink-gradient]，由 applyGradientTokens 打点）：
+ * 纯文字元素染成渐变（background-clip: text）——标题、正文、小字、提示、
+ * 介绍、子标题、悬浮窗文案全覆盖。
+ *
+ * 刻意排除（保住可用性）：
+ * - .kk-logo-text：品牌字有独立的 Logo 渐变，不被字体渐变劫持；
+ * - 含 svg 的元素：图标走 currentColor，color: transparent 会让图标凭空消失；
+ * - 含 pre / code / kbd 的元素：代码块不参与渐变 —— 这些标签本身不在染色名单里，
+ *   若祖先被染成透明色，它们会**继承透明**而整块看不见（这个坑以前就存在）；
+ * - 自带背景的元素（[class*='bg-']，徽标/色块/代码块）：clip:text 会把底色也裁进文字；
+ * - **有自己材质的表面**（.kk-glass / .kk-card / .kk-field / 气泡 …）：
+ *   background-clip:text 会把这些表面的底色一起裁进字形里，卡片看起来"漏底"。
+ *   旧规则只排除 [class*='bg-']（Tailwind 工具类），可这些材质是 CSS 类画的，
+ *   于是一整块卡片也被染成透明色 —— 这是字体渐变最伤观感的一个坑；
+ *   注意 .kk-glass 写成 [class~='kk-glass']：它被 .kk-card 的 @apply 引用过，
+ *   写裸类名会被构建链改写成 .kk-card，等于没排除。
+ * - 有子元素的 div（div:has(*)）：div 多半是布局容器，给容器设 color:transparent
+ *   会让没被单独染色的子节点（img / 自定义标签）跟着隐形；
+ * - 含按钮/输入框的容器：只让内部纯文字元素各自生效；
+ * - [class*='ant-']：Ant Design 弹层（拾色器面板、浮层）全部命中 ant- 前缀类，
+ *   不排除的话面板文字会被染成透明——面板"看不见但还能点"就是这个原因；
+ * - .kk-fixed-theme 及其后代：固定配色作用域（现仅日志流自身），不参与字体渐变，
+ *   那里的颜色只随等级/语义走；
+ * - .kk-log-stream 后代：日志流豁免——分类色 / 级别色 / 报错玫红是功能色，
+ *   保证日志颜色只随等级走。
+ * - .kk-ink-plain 后代同样豁免：菜单的「危险项」（删除等）文字是语义红，
+ *   不能被渐变染成透明色。
+ * - [class*='wake-slider'] / [class*='kk-nav-liquid'] / .kk-nav-drip / [class*='target-cursor']
+ *   豁免：这些是无文字的装饰件，clip:text 会把它们裁成隐形。
+ * 内联 color（状态徽标等）不受影响；需要某元素退出渐变加 .kk-ink-plain 即可。
+ */
+html[data-kk-ink-gradient='1'] :is(h1, h2, h3, h4, h5, h6, p, span, label, small, strong, em, b, i, a, li, td, th, dt, dd, blockquote, div):not(.kk-logo-text):not(.kk-ink-plain):not(.kk-ink-plain *):not(:has(svg)):not(:has(button)):not(:has(input)):not(:has(textarea)):not(:has(select)):not(:has(pre)):not(:has(code)):not(:has(kbd)):not([class*='bg-']):not([class*='ant-']):not([class*='wake-slider']):not([class*='kk-nav-liquid']):not(.kk-nav-drip):not([class*='target-cursor']):not(div:has(*)):not([class~='kk-glass']):not(.kk-glass-2):not(.kk-glass-soft):not(.kk-glass-strong):not(.kk-glass-2-soft):not(.kk-glass-2-strong):not(.kk-glass-nav):not(.kk-glass-panel):not(.kk-sidebar):not(.kk-card):not(.kk-field):not(.kk-tool-field):not(.kk-input-slot):not(.kk-inset-slot):not(.kk-composer-glass):not(.kk-bubble):not(.kk-bubble-user):not(.kk-bubble-bar):not(.kk-auth-card):not(.kk-download-toast):not(.kk-fixed-theme):not(.kk-fixed-theme *):not(.kk-log-stream *) {
+  background-image: var(--kk-ink-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/*
+ * 气泡单独处理：气泡本身是玻璃表面（不能裁底），只把**里面的文字**染渐变。
+ * 这样「字体渐变」在聊天气泡里也生效，而气泡的底色 / 描边 / 模糊保持完整。
+ */
+html[data-kk-ink-gradient='1'] :is(.kk-bubble, .kk-bubble-user) :is(p, span, div):not(.kk-ink-plain):not(:has(*)):not([class*='bg-']) {
+  background-image: var(--kk-ink-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/*
+ * 侧栏导航图标归「品牌 Logo」角色管（此前跟随组件/按钮色）：
+ * - --kk-logo-from 恒有值：单色态是 Logo HSV 派生色，Logo 渐变启用时是渐变首站色；
+ * - 激活项全亮，未激活项压一档透明度做出层次。
+ */
+html .kk-nav-item svg {
+  color: var(--kk-logo-from);
+}
+html .kk-nav-item-idle svg {
+  opacity: 0.72;
+}

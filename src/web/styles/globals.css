@@ -1,0 +1,12 @@
+/*
+ * 全局样式入口：内容已按段落拆分到同目录各文件，按原文件顺序 @import 以保持级联结果不变。
+ */
+@import './base.css';
+@import './components-ambient.css';
+@import './components-glass-nav.css';
+@import './components-widgets.css';
+@import './utilities.css';
+@import './shell-layout.css';
+@import './theme-waves-dark.css';
+@import './ink-gradient.css';
+@import './watermark.css';
