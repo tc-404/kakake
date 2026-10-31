@@ -1,0 +1,47 @@
+<!doctype html>
+<!--
+  禁用浏览器自带翻译（Chrome / Edge 的"翻译此页面"）。
+
+  原因：翻译引擎会直接改写 DOM —— 把文本节点包进 <font>、拆分合并元素，
+  React 手里保存的子节点引用随即失效，下一次删除节点就会抛
+  "NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed
+  is not a child of this node"，页面级错误边界随即整页报错。
+
+  切英文时 <html lang> 会变成 en，浏览器 UI 是中文就会判定"英文页面"并弹出翻译提示，
+  一翻译必崩。而控制台本身已内置 简体中文 / English 双语（设置 → 语言），
+  浏览器再叠一层翻译既没必要、又必然把 React 弄崩，所以整页关掉。
+
+  三重保险：meta（Google 官方开关）+ html 上的 translate="no"（HTML 标准属性）
+  + notranslate 类（Chrome 的识别类名）。
+-->
+<html lang="zh-CN" translate="no" class="h-full overflow-hidden notranslate">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="google" content="notranslate" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>咔咔珂</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <!-- 插件 ESM 与宿主共用 React（方案 B） -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "/plugin-ui/shims/react.js",
+          "react-dom": "/plugin-ui/shims/react-dom.js",
+          "react-dom/client": "/plugin-ui/shims/react-dom-client.js",
+          "react/jsx-runtime": "/plugin-ui/shims/jsx-runtime.js",
+          "react/jsx-dev-runtime": "/plugin-ui/shims/jsx-runtime.js",
+          "react-router-dom": "/plugin-ui/shims/react-router-dom.js"
+        }
+      }
+    </script>
+  </head>
+  <body translate="no" class="h-full overflow-hidden font-sans notranslate">
+    <div id="root" translate="no" class="h-full notranslate"></div>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

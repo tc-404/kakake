@@ -1,0 +1,88 @@
+/*
+ * TargetCursor（React Bits）—— 波浪模式下的全局准星光标。
+ *
+ * 四枚直角括号 + 中心点 + 标签，全部靠 JS 每帧写 transform，
+ * 这一层只负责定位与配色；pointer-events: none 保证不吃任何点击。
+ */
+
+.target-cursor {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  /* 准星是纯装饰，别让它参与文本选择 / 点击命中 */
+  user-select: none;
+}
+
+.target-cursor__corner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: var(--target-cursor-color, #ffffff);
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.target-cursor__dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  /* 渐变模式时 --target-cursor-bg 是 linear-gradient 串，纯色时回落到 --target-cursor-color */
+  background: var(--target-cursor-bg, var(--target-cursor-color, #ffffff));
+  will-change: transform;
+}
+
+.target-cursor[data-mode='mouse'] .target-cursor__corner,
+.target-cursor[data-mode='mouse'] .target-cursor__dot {
+  /* 主题色跟随外观后不再用 difference 反色，补一点投影保证在相近色底上仍可见 */
+  filter: drop-shadow(0 1px 2px rgb(15 23 42 / 0.35));
+}
+
+.target-cursor__label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--target-cursor-color, #ffffff);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* 触屏（手机 / 平板）下系统光标本来就不存在，也不需要 blend 反色，
+   改成正常混合 + 轻微投影，免得在浅色底上糊成一片。 */
+.target-cursor[data-mode='touch'] {
+  mix-blend-mode: normal !important;
+}
+
+.target-cursor[data-mode='touch'] .target-cursor__label {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgb(15 23 42 / 0.72);
+  color: #fff;
+  font-size: 11px;
+}
+
+.target-cursor[data-mode='touch'] .target-cursor__corner {
+  border-color: var(--target-cursor-color, #ffffff);
+  filter: drop-shadow(0 1px 2px rgb(15 23 42 / 0.35));
+}
+
+.target-cursor[data-mode='touch'] .target-cursor__dot {
+  background: var(--target-cursor-color, #ffffff);
+  filter: drop-shadow(0 1px 2px rgb(15 23 42 / 0.35));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target-cursor__corner,
+  .target-cursor__dot,
+  .target-cursor__label {
+    will-change: auto;
+  }
+}

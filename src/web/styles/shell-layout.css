@@ -1,0 +1,390 @@
+/* 未分层壳层样式：玻璃描边压制 / 滚动圆角 / 页面留白垫片 / 数字输入与工具控件 / 玻璃场 */
+/*
+ * 玻璃卡片统一去掉白色描边。
+ *
+ * 上面把 --glass-border 改成 transparent 只管得住引用这个变量的地方；页面里
+ * 还有几十处直接写了 border-white/40、border-white/30 之类的工具类，它们落在
+ * utilities 层，会反过来盖掉组件层的 border-color。
+ * 未分层规则优先于 @layer 里的任何一层，所以必须写在这里才压得住。
+ *
+ * 只针对「白边」生效（[class*="border-white"]）——组件层默认的
+ * --glass-border 已经是 transparent，用不着再压一遍；而连接卡片那种
+ * border-emerald-500 / border-amber-400 / border-red-500 是状态色，
+ * 之前被这条规则连带压成透明（0,2,0 特异性压过 0,1,0 的工具类），
+ * 卡片因此丢了状态描边。现在只认白边，状态色照旧。
+ * :not(.border-dashed) 是保住「空状态」那种虚线占位框——那条线是有意保留的提示。
+ */
+[class*='border-white'].kk-glass:not(.border-dashed),
+[class*='border-white'].kk-glass-strong:not(.border-dashed),
+[class*='border-white'].kk-glass-soft:not(.border-dashed),
+[class*='border-white'].kk-glass-2:not(.border-dashed),
+[class*='border-white'].kk-glass-2-strong:not(.border-dashed),
+[class*='border-white'].kk-glass-2-soft:not(.border-dashed),
+[class*='border-white'].kk-glass-nav,
+[class*='border-white'].kk-sidebar,
+[class*='border-white'].kk-card:not(.border-dashed),
+[class*='border-white'].kk-glass-panel,
+[class*='border-white'].kk-input-slot,
+[class*='border-white'].kk-inset-slot {
+  border-color: transparent;
+}
+
+/*
+ * 主内容滚动区：圆角窗口。
+ *
+ * 滚动视口原来是裸矩形，滚到中段时上下各有一张卡片被视口硬切，
+ * 切口是笔直的一条——看着就是「四个角都是尖的」。
+ * overflow 会沿 padding box 裁切，而 padding box 的角跟着 border-radius 走，
+ * 所以给滚动容器自己加圆角即可把四条硬切口收成圆角。
+ *
+ * ⚠️ 这里曾经还挂过一条 mask-image 做上下渐隐，必须拿掉：
+ * mask / filter / opacity < 1 都会让元素成为 backdrop root，
+ * 后代的 backdrop-filter 就只能采样「这个元素内部」画出来的东西，
+ * 而背景图氛围层在滚动容器外面（.kk-ambient 的伪元素），
+ * 于是所有主内容卡片、背景卡片的 backdrop-filter 采到的是一片空，
+ * 「组件模糊度 / 组件2模糊度」两根滑块拉到底也看不出任何变化。
+ * 圆角用 border-radius 就够了，别再往这上面叠遮罩。
+ */
+[data-kk-page-scroll] {
+  border-radius: 1.35rem;
+}
+
+/*
+ * 滚动内容末尾的留白（流式页）：只能用**跟着内容长高的那一层的末尾元素**撑，
+ * 不能靠容器的 padding-bottom，也不能挂在被封顶的祖先上。
+ *
+ * 1) 滚动容器的 padding-bottom 无效：它是 `display:flex; flex-direction:column; overflow-y:auto`，
+ *    内容溢出时浏览器会忽略它的 padding-bottom（不计入可滚动区域）—— 实测底部留白恒为 0。
+ * 2) 滚动容器的透明下边框虽然能撑出可滚动高度，但那几十像素落在**裁剪边界之外**
+ *    （overflow 沿 padding box 裁切），滚到底时最后一张卡片的底边正好压在这条边界上，
+ *    投影被齐根切断 —— 看着就是「底部被吞、显示不完整、没有阴影」。
+ * 3) 也不能挂回 .kk-page-enter：它和 [data-kk-page-scroll] 一样被 flex-1 + min-h-0
+ *    **封顶在视口高度**，长内容是从它身上「漫出去」的（overflow: visible 直接溢出盒子），
+ *    挂在它末尾的垫片会被埋在内容中间——滚到底时内容末尾齐根贴边，预留完全失效；
+ *    而装不满一屏的页面它又白占视口底部 40px，把固定底栏顶上去一截。
+ * 4) 所以垫片挂在内容层 .kk-page-flow 的末尾：这一层是 min-h-full + shrink-0，
+ *    跟着内容一起长高，垫片因此总是落在内容真正的末尾 —— 滚到最底部才露出这段距离，
+ *    卡片投影有地方画；内容装不满一屏时，它躺在内容下方的空白里，不占位、也不挤压。
+ *    高度取 1.75rem / 2.5rem：要盖住三层阴影最外那层（静止 0/8/16、悬停 0/12/22，
+ *    即卡片下沿还要往下 24px / 34px）。
+ */
+.kk-page-flow::after {
+  content: '';
+  display: block;
+  flex: 0 0 auto;
+  height: calc(1.75rem + var(--safe-bottom));
+}
+
+@media (min-width: 768px) {
+  .kk-page-flow::after {
+    height: 2.5rem;
+  }
+}
+
+/*
+ * 固定布局页（模拟消息 / 智能助手 / 日志 / 插件 / 工具 / 开放平台）：
+ * 整页是 h-full 固定骨架，底栏 / 底框**固定显示**，不需要「滚到底才出现」的预留。
+ * 只留 0.75rem（与顶栏悬浮距离、侧栏外边距同一节奏）让底部投影有地方画，
+ * 底栏不至于齐根贴住视口下沿。
+ */
+.kk-page-fixed {
+  padding-bottom: calc(0.75rem + var(--safe-bottom));
+}
+
+/*
+ * 整屏嵌入页（插件后台 iframe）：与固定骨架共用高度链，但不留底部投影间距——
+ * iframe 边到边铺满视口，那 12px 预留没有投影可垫，只会露出一条容器底色的白条。
+ */
+.kk-page-fixed.kk-page-embed {
+  padding-bottom: 0;
+}
+
+/*
+ * 纯净数字输入框：去掉浏览器自带的上下调节箭头（spinner）。
+ *
+ * 刻意写在未分层（不加 @layer）：`[&::-webkit-inner-spin-button]:appearance-none`
+ * 这类工具类要么写在 utilities 层被其它工具类抢顺序，要么得在每处 JSX 里重写一遍；
+ * 未分层规则特异性最低但层级最高，一处定义即可压住全局，也不影响别的属性。
+ * -moz-appearance:textfield 是 Firefox 的等效开关。
+ */
+.kk-num-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.kk-num-input::-webkit-outer-spin-button,
+.kk-num-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+/*
+ * 工具页控件材质（图片工具箱 / 图片混淆工具）。
+ *
+ * 这两个工具早期直接写了 bg-white/40、border-white/50、hover:bg-white/60 这类**定值
+ * 工具类**：它们落在 utilities 层，会盖掉组件层的玻璃材质，于是外观面板里的
+ * 「卡片透明度 / 卡片模糊度 / 阴影透明度」三根滑块对这里 90% 的控件完全无效——
+ * 卡片本体在跟着变，卡片里的按钮、输入框、分段器、凹槽却一动不动。
+ *
+ * 统一换成下面几个语义类，底色 / 模糊 / 阴影全部由**组件那一组**外观变量派生
+ * （--kk-card-alpha / --kk-blur / --kk-shadow-alpha），与 .kk-glass 同组、一起动。
+ *
+ * 刻意写成未分层：@layer 里的任何一层都压不住 utilities 层的同属性工具类，
+ * 只有未分层规则优先。所以这里也只是「补材质」，去掉工具类里的 bg-* / border-*
+ * 之后就不再需要跟层叠顺序打架。
+ *
+ * 只写底色 / 模糊 / 阴影，**不写 border 简写**——这样 border-dashed 之类的工具类
+ * 照样生效，也不会把描边宽度的布局占位弄丢（玻璃描边本来就是透明的）。
+ *
+ * 强调色统一用 rgb(var(--kk-comp-rgb))：它在 lib/appearance.ts 里跟着
+ * 「组件色」实时写入，比写死 rgba(20,184,166,…) 更贴合自定义配色。
+ */
+.kk-tool-ctl {
+  background-color: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.35)));
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(calc(var(--kk-blur) * 0.6)) saturate(1.4);
+  backdrop-filter: blur(calc(var(--kk-blur) * 0.6)) saturate(1.4);
+  transition:
+    background-color calc(0.2s * var(--kk-motion)) ease,
+    box-shadow calc(0.25s * var(--kk-motion)) ease,
+    color calc(0.2s * var(--kk-motion)) ease;
+}
+
+.kk-tool-ctl:hover {
+  background-color: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.6)));
+  box-shadow: var(--glass-shadow-hover);
+}
+
+/* 键盘 / 输入聚焦：用组件色描一圈，替代原来写死的 focus:border-teal-400 */
+.kk-tool-ctl:focus-visible {
+  outline: 2px solid rgb(var(--kk-comp-rgb) / 0.6);
+  outline-offset: 1px;
+}
+
+/* 禁用态：材质保留、阴影收掉（变淡交给 disabled:opacity-*） */
+.kk-tool-ctl:disabled {
+  background-color: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.35)));
+  box-shadow: none;
+}
+
+/* 主操作：不透明度随「卡片透明度」，模糊 / 阴影与次级控件一致 */
+.kk-tool-ctl.kk-tool-ctl--on {
+  background-color: rgb(var(--kk-comp-rgb) / min(1, calc(var(--kk-card-alpha) * 2.2)));
+  /* 填充面上的字色走 --primary-foreground（出厂白），不再写死 #fff */
+  color: hsl(var(--primary-foreground));
+}
+
+.kk-tool-ctl.kk-tool-ctl--on:hover {
+  background-color: rgb(var(--kk-comp-rgb) / min(1, calc(var(--kk-card-alpha) * 2.6)));
+}
+
+.kk-tool-ctl.kk-tool-ctl--danger:hover {
+  color: hsl(var(--destructive));
+}
+
+/* 分段器选项：未选中透明，悬停浮出淡底，选中用组件色 */
+.kk-tool-seg {
+  transition:
+    background-color calc(0.2s * var(--kk-motion)) ease,
+    box-shadow calc(0.25s * var(--kk-motion)) ease,
+    color calc(0.2s * var(--kk-motion)) ease;
+}
+
+.kk-tool-seg:hover {
+  background-color: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.15)));
+}
+
+.kk-tool-seg[aria-pressed='true'] {
+  background-color: rgb(var(--kk-comp-rgb) / min(1, calc(var(--kk-card-alpha) * 2.2)));
+  box-shadow: var(--glass-shadow);
+  color: hsl(var(--primary-foreground));
+}
+
+/* 内嵌凹槽：预览底 / 缩略图位 / 结果图位，比卡片更淡一档 */
+.kk-tool-well {
+  background-color: var(--glass-bg-soft);
+  -webkit-backdrop-filter: blur(calc(var(--kk-blur) * 0.36)) saturate(1.2);
+  backdrop-filter: blur(calc(var(--kk-blur) * 0.36)) saturate(1.2);
+}
+
+/* 可点选的结果卡片：默认完全透明（不套背景框），悬停淡底，选中浮出组件色 */
+.kk-tool-pick {
+  transition:
+    background-color calc(0.2s * var(--kk-motion)) ease,
+    border-color calc(0.2s * var(--kk-motion)) ease,
+    box-shadow calc(0.25s * var(--kk-motion)) ease;
+}
+
+.kk-tool-pick:hover {
+  background-color: rgb(var(--kk-glass-base) / calc(var(--kk-card-alpha) * 0.69));
+}
+
+.kk-tool-pick[aria-pressed='true'] {
+  background-color: rgb(var(--kk-comp-rgb) / min(1, calc(var(--kk-card-alpha) * 0.7)));
+  border-color: rgb(var(--kk-comp-rgb) / min(1, calc(var(--kk-card-alpha) * 2.8)));
+  box-shadow: var(--glass-shadow);
+}
+
+.kk-tool-pick[aria-pressed='true']:hover {
+  background-color: rgb(var(--kk-comp-rgb) / min(1, calc(var(--kk-card-alpha) * 0.95)));
+}
+
+/*
+ * 带描边的可选小件：文件缩略图 / 颜色小样。
+ * 未选中用「墨色」半透明描边而不是白边：白边画在浅色玻璃上等于看不见
+ * （白色 #f1f5f9 那个色样就整个糊掉了）。浓度挂在 --kk-shadow-alpha 上，
+ * 所以它照样跟着「阴影透明度」滑块走。
+ */
+.kk-tool-ring {
+  border-color: rgb(15 40 60 / min(0.5, calc(var(--kk-shadow-alpha) * 3)));
+  transition: border-color calc(0.2s * var(--kk-motion)) ease;
+}
+
+.kk-tool-ring[aria-pressed='true'],
+.kk-tool-ring[aria-current='true'] {
+  border-color: rgb(var(--kk-comp-rgb) / min(1, calc(var(--kk-card-alpha) * 2.8)));
+}
+
+/*
+ * 彩色辉光：按钮上的「品牌色抬升投影」。
+ *
+ * Tailwind 的 shadow-<颜色>（如 shadow-teal-500/30）把不透明度**写死在颜色里**，
+ * 而且它走的是另一条分支（--tw-shadow-colored），我们改 boxShadow 主题也管不到它——
+ * 于是设置页的「阴影透明度」对登录按钮、浮层里的主按钮、资源卡片的彩色光晕完全无效。
+ *
+ * 这里补一套语义类，与 shadow-<颜色> 干同样的事，只是把浓度挂到 --kk-shadow-alpha：
+ * ×2 的倍率让出厂 0.14 正好还原成原来的 /30，默认观感不变。
+ *
+ * 用法：保留调用方原本的尺寸类（shadow-md / shadow-lg …），把 shadow-<颜色>/<α> 换成 kk-glow。
+ * 尺寸类负责写出 --tw-shadow-colored，本类只是把它接上按变量算出来的颜色。
+ *
+ * 必须是未分层：utilities 层的 --tw-shadow（由 shadow-<尺寸> 写）会盖掉 @layer 里的同属性声明。
+ */
+.kk-glow {
+  --tw-shadow-color: rgb(var(--kk-comp-rgb) / calc(var(--kk-shadow-alpha) * 2));
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+/* 语义色光晕：走 --warning / --destructive / --success，主题换色时含义不变、色值跟随语义 token */
+.kk-glow-amber {
+  --tw-shadow-color: hsl(var(--warning) / calc(var(--kk-shadow-alpha) * 2));
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+.kk-glow-red {
+  --tw-shadow-color: hsl(var(--destructive) / calc(var(--kk-shadow-alpha) * 2));
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+.kk-glow-emerald {
+  --tw-shadow-color: hsl(var(--success) / calc(var(--kk-shadow-alpha) * 2));
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+/*
+ * 受控表单控件槽：搜索框 / 下拉触发器 / Token 输入框 / 导览按钮等。
+ *
+ * 这些地方以前直接写 bg-white/20、border-white/40、backdrop-blur-md，
+ * 全是不跟外观走的写死值——「卡片透明度 / 组件模糊度 / 阴影透明度」统统管不到，
+ * 而且压根没有阴影，看着就是贴在一片白上的裸控件。
+ * 统一换成这一类：底色、模糊、阴影全部由外观变量派生。
+ *
+ * 写在这里（未分层）同样是刻意的：utilities 层的 bg-white、border-white、
+ * backdrop-blur 这些工具类会盖掉组件层，只有未分层规则压得住它们。
+ * 特异性只有 (0,1,0)，所以 focus-visible:ring-* 这类 (0,2,0) 的聚焦环
+ * 照样能盖上来，不会把键盘可达性弄丢。
+ */
+.kk-field {
+  border: 1px solid var(--glass-border);
+  background: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.15)));
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(calc(var(--kk-blur) * 0.55)) saturate(1.4);
+  backdrop-filter: blur(calc(var(--kk-blur) * 0.55)) saturate(1.4);
+  transition:
+    background calc(0.2s * var(--kk-motion)) ease,
+    border-color calc(0.2s * var(--kk-motion)) ease,
+    box-shadow calc(0.25s * var(--kk-motion)) ease;
+}
+
+.kk-field:hover {
+  box-shadow: var(--glass-shadow-hover);
+  background: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.35)));
+}
+
+.kk-field:focus,
+.kk-field:focus-within {
+  background: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.5)));
+  box-shadow: var(--glass-shadow-hover);
+}
+
+/*
+ * 模拟消息底部输入栏：.kk-field 的描边按全局策略是透明的（去掉白框），
+ * 但输入栏聚焦时还是得有个可见的边界提示，这里补一条跟随组件色的描边。
+ * 特异性 (0,2,0) > .kk-field 的 (0,1,0)，且同为未分层规则，压得住。
+ */
+.kk-sim-composer:focus-within {
+  border-color: hsl(var(--accent) / 0.55);
+}
+
+/*
+ * 输入框的「自动填充底色」。
+ *
+ * Chromium 会把**它认定为自动填充**的输入框强铺一层不透明底色（#E8F0FE，浅蓝），
+ * 这层底色直接盖住卡片的透明度与毛玻璃，表现为「卡片模糊度 / 卡片透明度对这个输入框
+ * 完全没有效果」——设置页的 GitHub API Token 就是这一例：它的计算底色是
+ * rgb(232, 240, 254) 而不是 kk-field 的 rgba(255,255,255,0.06)，且 `:autofill` 为真。
+ * 触发原因是 type=password + autocomplete="off"：Chromium 忽略 off，仍按登录密码框处理
+ * （源头也在 SettingsPage 把该框改成 autocomplete="new-password"，双保险）。
+ *
+ * 这里把这次底色变化用「超长过渡」拖住（背景色要 115 天才能过渡完），
+ * 元素就一直停在受控的透明材质上，透明与模糊都恢复正常。
+ */
+input:autofill,
+input:autofill:hover,
+input:autofill:focus,
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  transition: background-color 9999999s ease-out 0s !important;
+}
+
+/*
+ * Tailwind 的 backdrop-blur-* 是写死的像素值（sm=4px、md=12px、xl=24px …），
+ * 落在 utilities 层，会整条盖掉组件层里 backdrop-filter: blur(var(--kk-blur))，
+ * 于是这些元素「组件模糊度」怎么拉都不动。
+ * 这里把它们的 --tw-backdrop-blur 全部改写成 --kk-blur 的比例，
+ * 系数按出厂 22px 反推，观感与原来一致，但从此跟着设置走。
+ * 用属性选择器而不是类名，是为了连 sm: / md: / hover: 这些变体一起命中。
+ */
+[class~='backdrop-blur'] {
+  --tw-backdrop-blur: blur(calc(var(--kk-blur) * 0.36));
+}
+
+[class*='backdrop-blur-none'] {
+  --tw-backdrop-blur: blur(0px);
+}
+
+[class*='backdrop-blur-sm'] {
+  --tw-backdrop-blur: blur(calc(var(--kk-blur) * 0.18));
+}
+
+[class*='backdrop-blur-md'] {
+  --tw-backdrop-blur: blur(calc(var(--kk-blur) * 0.55));
+}
+
+[class*='backdrop-blur-lg'] {
+  --tw-backdrop-blur: blur(calc(var(--kk-blur) * 0.73));
+}
+
+[class*='backdrop-blur-xl'] {
+  --tw-backdrop-blur: blur(calc(var(--kk-blur) * 1.09));
+}
+
+[class*='backdrop-blur-2xl'] {
+  --tw-backdrop-blur: blur(calc(var(--kk-blur) * 1.8));
+}
+
+[class*='backdrop-blur-3xl'] {
+  --tw-backdrop-blur: blur(calc(var(--kk-blur) * 2.9));
+}
