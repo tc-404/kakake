@@ -1,0 +1,46 @@
+const S = globalThis.__KAKAKE_SHARED__;
+if (!S?.reactRouterDom) {
+  throw new Error('[kakake] shared react-router-dom missing');
+}
+const R = S.reactRouterDom;
+export default R;
+export const {
+  BrowserRouter,
+  HashRouter,
+  MemoryRouter,
+  Navigate,
+  NavLink,
+  Outlet,
+  Route,
+  Routes,
+  Link,
+  createBrowserRouter,
+  createHashRouter,
+  createMemoryRouter,
+  createRoutesFromElements,
+  createSearchParams,
+  generatePath,
+  matchPath,
+  matchRoutes,
+  redirect,
+  useBlocker,
+  useHref,
+  useInRouterContext,
+  useLinkClickHandler,
+  useLocation,
+  useMatch,
+  useNavigate,
+  useNavigationType,
+  useOutlet,
+  useOutletResolver,
+  useParams,
+  useResolvedPath,
+  useRoutes,
+  useSearchParams,
+  useOutletError,
+  useNavigation,
+  useLoaderData,
+  useActionData,
+  useRevalidator,
+  RouterProvider,
+} = R;

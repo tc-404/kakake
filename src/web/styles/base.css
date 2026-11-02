@@ -1,0 +1,306 @@
+/*
+ * 产品导览背景底座：Tailwind 入口（@tailwind 指令）+ @layer base 主题变量 + 侧栏像素宽度断点。
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* —— 调色（设置页三张调色卡写入，JS 会覆写这些值） —— */
+    /* 组件与按钮色：色相 / 浓度 / 明度倍率（1 = 沿用原色阶明度）
+       出厂默认 #2ceb13（HSV 113,92,92 → HSL 113,85%,49.7%） */
+    --kk-comp-h: 113;
+    --kk-comp-s: 85%;
+    --kk-comp-lmul: 0.994;
+    /* 全局字体色 */
+    --kk-ink-h: 215;
+    --kk-ink-s: 20%;
+    --kk-ink-lmul: 1;
+    /* 品牌 Logo 色（出厂默认 #f1ff2e，HSV 64,82,100 → HSL 64,100%,59%），另附渐变两端 */
+    --kk-logo-h: 64;
+    --kk-logo-s: 100%;
+    --kk-logo-lmul: 1.18;
+    --kk-logo-from: hsl(64 100% 45%);
+    --kk-logo-to: hsl(90 92% 54%);
+    /* Logo 双通道：brand-500 / brand-400 用它，让「Logo」这张调色卡也能管到第二强调面 */
+    --kk-logo-rgb: 213 229 0;
+    --kk-logo-alt-rgb: 138 246 31;
+    /* 组件色的 RGB 通道，供 rgb(var(--x) / α) 形式的描边与高光复用 */
+    --kk-comp-rgb: 35 188 15;
+    --kk-comp-soft-rgb: 57 183 40;
+    --kk-comp-alt-rgb: 51 228 98;
+
+    /* 液态玻璃 · 浅色氛围底 */
+    --background: 210 28% 94%;
+    --foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 1.4) min(96%, calc(12% * var(--kk-ink-lmul)));
+    --card: 0 0% 100%;
+    --card-foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 1.4) min(96%, calc(12% * var(--kk-ink-lmul)));
+    /* 主色：青 → 偏蓝青（默认值等于原品牌色） */
+    --primary: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.775) min(96%, calc(34% * var(--kk-comp-lmul)));
+    --primary-foreground: 0 0% 100%;
+    --primary-from: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.875) min(96%, calc(38% * var(--kk-comp-lmul)));
+    --primary-to: calc(var(--kk-comp-h) + 24) calc(var(--kk-comp-s) * 0.9) min(96%, calc(42% * var(--kk-comp-lmul)));
+    --secondary: 210 24% 92%;
+    --secondary-foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 0.8) min(96%, calc(28% * var(--kk-ink-lmul)));
+    --muted: 210 20% 92%;
+    --muted-foreground: var(--kk-ink-h) calc(var(--kk-ink-s) * 0.6) min(96%, calc(42% * var(--kk-ink-lmul)));
+    --accent: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.5) min(97%, calc(94% * var(--kk-comp-lmul)));
+    --accent-foreground: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.775) min(96%, calc(26% * var(--kk-comp-lmul)));
+    --success: 152 62% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 48%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 74% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 82%;
+    --input: 210 20% 82%;
+    --ring: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.775) min(96%, calc(34% * var(--kk-comp-lmul)));
+    --radius: 1.125rem;
+
+    /* —— 外观设置（设置页可调，JS 会覆写这四个值） —— */
+    /* 动效时长倍率：速度 2× 即时长 0.5 */
+    --kk-motion: 1;
+    /* 组件卡片底色不透明度 */
+    --kk-card-alpha: 0.32;
+    /* 组件毛玻璃模糊半径 */
+    --kk-blur: 22px;
+    /* 组件2（悬浮窗 / 插件与资源界面等次级表面）透明度与模糊 */
+    --kk-card2-alpha: 0.2;
+    --kk-blur2: 24px;
+    /*
+     * 卡片阴影浓度，即设置里的「阴影透明度」：0–100% 刻度（0% = 关，100% = 墨色
+     * CARD_SHADOW_MAX = 0.2）。上限比老刻度淡一半，拉满也只是淡淡一层，
+     * 不会糊成一圈黑边。存的就是墨色不透明度本身（0–0.2），百分比由前端换算显示；
+     * 性能模式下被强制归零。
+     */
+    --kk-shadow-alpha: 0.14;
+    /* 背景图模糊半径 */
+    --kk-bg-blur: 0px;
+    /* 侧边栏宽度：手机按屏宽百分比、电脑按像素，两条调节线各管一端（默认值取区间中点） */
+    --kk-sidebar-w-mobile: 67vw;
+    --kk-sidebar-w-pc: 204px;
+    /* 派生量：按断点二选一。侧栏因此只挂一个不带断点的宽度类，
+       折叠用的那个 md 宽度类就是唯一的，不会被另一个同优先级的
+       md 宽度类按样式表源码顺序反压掉（后者在产物里更靠后）。 */
+    --kk-sidebar-w: var(--kk-sidebar-w-mobile);
+
+    /*
+     * 玻璃基底色（RGB 通道）。所有卡片 / 浮层 / 遮罩的白底都读它，
+     * 写成变量而不是写死 rgba(255,255,255,…)，是为了让「波浪」预设能整片翻成暗色：
+     * 只改这一个值，81 处硬编码白底一起跟着变，不用逐条覆盖。
+     */
+    --kk-glass-base: 255 255 255;
+    /*
+     * 描边与内高光的「浅色线」基色。它跟卡片底色是两回事：底色翻暗后，
+     * 边框 / 顶部内高光 / 滑块轨道若也跟着翻暗就整片糊掉了，所以这些统一读它，
+     * 暗色下改成冷灰而不是纯黑，线还在，只是不再刺眼。
+     */
+    --kk-hi-base: 255 255 255;
+    /* 0 = 浅色主题；1 = 暗色主题。波浪预设下被置 1，字阶（slate）随之反相 */
+    --kk-dark: 0;
+
+    /* Liquid Glass 材质 —— 卡片更透，避免实色白板 */
+    --glass-bg: rgb(var(--kk-glass-base) / var(--kk-card-alpha));
+    --glass-bg-strong: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.5)));
+    --glass-bg-soft: rgb(var(--kk-glass-base) / calc(var(--kk-card-alpha) * 0.69));
+    --glass-bg-nav: rgb(var(--kk-glass-base) / calc(var(--kk-card-alpha) * 0.875));
+    /* 组件2 材质：与主组件同款推导，但读取 --kk-card2-alpha / --kk-blur2 */
+    --glass2-bg: rgb(var(--kk-glass-base) / var(--kk-card2-alpha));
+    --glass2-bg-strong: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card2-alpha) * 1.5)));
+    --glass2-bg-soft: rgb(var(--kk-glass-base) / calc(var(--kk-card2-alpha) * 0.69));
+    --glass2-blur: var(--kk-blur2);
+    /*
+     * 玻璃描边一律透明：原来 0.62 的白边在每张卡片四周都镶了一圈亮线，
+     * 卡片一多就满屏白框，还会盖过自定义配色（白边不跟着字体色 / 组件色走）。
+     * 层次改由背景透明度差 + 阴影承担。保留 1px 占位，布局不会跳。
+     */
+    --glass-border: transparent;
+    --glass-border-soft: transparent;
+    /*
+     * 玻璃光泽层：以前全是不透明度写死的白（0.55 / 0.45 / 0.35 / 0.12 …），
+     * 于是「卡片透明度」拉到 0 时卡片底色确实没了，但侧栏左上角那一块高光
+     * 还亮着——看着就是「透明度明明是 0，左上角却仍有一层不透明的东西」。
+     * 现在一律由 --kk-card-alpha 派生，系数按出厂值 0.32 反推（观感不变），
+     * 透明度归零时这些白亮层同步归零。
+     */
+    --glass-highlight: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.4)));
+    /* 斜向高光尾端 / 卡片高光尾端（原 0.12） */
+    --glass-sheen: rgb(var(--kk-glass-base) / calc(var(--kk-card-alpha) * 0.375));
+    /* 侧栏左上角那道强高光的起点（原 0.55） */
+    --glass-sheen-strong: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.72)));
+    /* 侧栏高光过渡段（原 0.08） */
+    --glass-sheen-mid: rgb(var(--kk-glass-base) / calc(var(--kk-card-alpha) * 0.25));
+    /* 侧栏顶部那团径向柔光（原 0.35） */
+    --glass-sheen-glow: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.09)));
+    --glass-inset: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.09)));
+    /*
+     * 层次阴影：贴边一道「接触影」定边缘，中间一道近场，最外一道远场拉开层次。
+     * 关键点：原本三层全是「向下偏移」，上边缘几乎没有投影，看着像上方组件飘在更上面；
+     * 现在每层都额外补一道「居中（y=0）的对称光晕」，把上下左右裹上同样的深度，
+     * 再保留一点向下的抬升感（下方仍略强），读起来是「卡片浮起来且四面有厚度」。
+     * 主内容区卡片的对称光晕 blur 压在 16px 以内（原来 32px 的扩散会被 overflow 裁掉，
+     * 看着像阴影被吞）；悬浮层/模态的对称光晕可以更散，反正不进主内容区不被裁。
+     * 越往外墨色越淡，且所有层浓度都挂 --kk-shadow-alpha，设置页「阴影透明度」照常生效。
+     */
+    --glass-shadow:
+      0 0 1px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.55)),
+      0 1px 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.6)),
+      0 4px 10px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.42)),
+      0 0 14px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.3));
+    /* 悬停：三层同比例加浓、远场稍微推开（卡片被抬起来一点） */
+    --glass-shadow-hover:
+      0 0 1px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.65)),
+      0 2px 3px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.82)),
+      0 6px 14px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.58)),
+      0 0 20px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.42));
+    --glass-blur: var(--kk-blur);
+    /*
+     * 悬浮层（弹窗 / 下拉 / 浮层）专用的投影：比卡片的 --glass-shadow 更远更散，
+     * 才读得出「浮在内容之上」。三层浓度同样挂 --kk-shadow-alpha，
+     * 所以设置页的「阴影透明度」能一路管到悬浮窗。
+     * 倍率按出厂 0.14 反推，取到的浓度与原来写死的 rgba(0,0,0,.08) 单层相当。
+     */
+    --glass2-shadow:
+      0 0 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.55)),
+      0 4px 12px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.55)),
+      0 14px 32px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.68)),
+      0 0 38px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.5));
+    --glass2-shadow-hover:
+      0 0 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.65)),
+      0 6px 16px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.72)),
+      0 18px 40px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.85)),
+      0 0 50px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.62));
+    /*
+     * 压在整屏遮罩之上的模态（更新 / 安装浮层）用更重的一档：
+     * 底下那层遮罩已经把页面压暗，投影不加重就浮不起来。
+     * 倍率按原来写死的 rgba(0,0,0,0.16~0.18) 反推。
+     */
+    --glass2-shadow-modal:
+      0 0 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.7)),
+      0 8px 20px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.9)),
+      0 22px 52px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 1.1)),
+      0 0 66px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.8));
+    --glass-saturate: 1.55;
+    --sidebar-blur: calc(var(--kk-blur) * 1.27);
+    --shadow-card: var(--glass-shadow);
+    --shadow-card-hover: var(--glass-shadow-hover);
+
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --mobile-nav-h: 4.25rem;
+  }
+
+  /*
+   * 固定默认配色作用域：把三组调色变量重置回出厂值。
+   * 用于「运行日志」等内容——透明度 / 模糊度仍随设置变化（不在此重置），
+   * 但字体色、卡片色、组件色等自定义配色不影响这里，日志始终保持稳定的默认搭配。
+   * 派生 token（--foreground / --muted-foreground / teal·slate·brand 色阶等）都由这些
+   * 变量惰性求值，故在此重置即可让作用域内一切颜色回落到默认。
+   *
+   * 注意除了色相/饱和度/明度倍率，还要重置两样东西，否则会漏：
+   * 1. 主按钮渐变与两条整条渐变（--primary-from/to、--kk-comp-gradient、
+   *    --kk-logo-gradient）——它们是 JS 写在 <html> 的**内联**值，会一路继承进来，
+   *    不在这里改写，日志页的主按钮会跟着用户的自定义渐变；
+   * 2. 逐档色相（--kk-{role}-<档>-hs）——同理是 <html> 上的内联值，
+   *    色阶优先读它，必须显式置 initial（自定义属性的 initial = 保证无效值）
+   *    才能让 var() 回落到单色公式。
+   */
+  .kk-fixed-theme {
+    --kk-comp-h: 113;
+    --kk-comp-s: 85%;
+    --kk-comp-lmul: 0.994;
+    --kk-ink-h: 215;
+    --kk-ink-s: 20%;
+    --kk-ink-lmul: 1;
+    --kk-logo-h: 64;
+    --kk-logo-s: 100%;
+    --kk-logo-lmul: 1.18;
+    --kk-comp-rgb: 35 188 15;
+    --kk-comp-soft-rgb: 57 183 40;
+    --kk-comp-alt-rgb: 51 228 98;
+    --kk-logo-rgb: 213 229 0;
+    --kk-logo-alt-rgb: 138 246 31;
+    --primary-from: var(--kk-comp-h) calc(var(--kk-comp-s) * 0.875) min(96%, calc(38% * var(--kk-comp-lmul)));
+    --primary-to: calc(var(--kk-comp-h) + 24) calc(var(--kk-comp-s) * 0.9) min(96%, calc(42% * var(--kk-comp-lmul)));
+    --kk-comp-gradient: linear-gradient(135deg, hsl(var(--primary-from)), hsl(var(--primary-to)));
+    --kk-comp-gradient-veil: initial;
+    --kk-comp-gradient-strong: initial;
+    --kk-logo-gradient: linear-gradient(100deg, var(--kk-logo-from), var(--kk-logo-to));
+    --kk-comp-50-hs: initial;  --kk-comp-100-hs: initial; --kk-comp-200-hs: initial;
+    --kk-comp-300-hs: initial; --kk-comp-400-hs: initial; --kk-comp-500-hs: initial;
+    --kk-comp-600-hs: initial; --kk-comp-700-hs: initial; --kk-comp-800-hs: initial;
+    --kk-comp-900-hs: initial; --kk-comp-950-hs: initial;
+    --kk-ink-50-hs: initial;   --kk-ink-100-hs: initial;  --kk-ink-200-hs: initial;
+    --kk-ink-300-hs: initial;  --kk-ink-400-hs: initial;  --kk-ink-500-hs: initial;
+    --kk-ink-600-hs: initial;  --kk-ink-700-hs: initial;  --kk-ink-800-hs: initial;
+    --kk-ink-900-hs: initial;  --kk-ink-950-hs: initial;
+    --kk-logo-50-hs: initial;  --kk-logo-100-hs: initial; --kk-logo-200-hs: initial;
+    --kk-logo-300-hs: initial; --kk-logo-400-hs: initial; --kk-logo-500-hs: initial;
+    --kk-logo-600-hs: initial; --kk-logo-700-hs: initial; --kk-logo-800-hs: initial;
+    --kk-logo-900-hs: initial; --kk-logo-950-hs: initial;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'DM Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    @apply text-foreground antialiased;
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  /*
+   * 选区色跟「组件及按钮」走（原来是浏览器默认的蓝色，只有波浪预设里才写过一条）。
+   * 用组件色通道 + 低不透明度，浅底深底都读得清，且不需要为暗色再写一套。
+   */
+  ::selection {
+    background-color: rgb(var(--kk-comp-rgb) / 0.24);
+  }
+
+  #root {
+    height: 100%;
+    isolation: isolate;
+  }
+
+  /*
+   * 隐藏浏览器默认聚焦环，但要用「常驻 2px 透明描边」而不是 outline: none。
+   *
+   * 坑：Tailwind 的 outline-none 实际上是 `outline: 2px solid transparent`
+   * （不是 none，故意留宽度以便 forced-colors 高对比模式能显示）。
+   * 若这里给 none，聚焦/失焦切换时 outline-width 就在 0 ↔ 2px 之间跳变，
+   * 而 outline-color 在 outline: none 下会回落到初始值 currentColor（深色文字色）。
+   * 一旦元素还带了 transition-all，outline-width / outline-color 也会被过渡，
+   * 失焦瞬间就出现「宽度已经画出来了、颜色还是近黑的 currentColor」——
+   * 也就是搜索框失焦时闪一道黑边（日志页搜索框与同排下拉就是这个）。
+   *
+   * 统一成常驻透明描边：宽度恒定、颜色恒透明，视觉上仍然等于没有描边，
+   * 但不再有 0↔2px 的跳变，也不再有 currentColor 参与过渡。
+   * 常驻（不限 :focus-visible）是为了让未聚焦态也有同样的宽度与颜色。
+   */
+  input,
+  textarea,
+  button,
+  [role='combobox'] {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}
+
+/* 断点切换：电脑端侧栏改用像素宽度（设置页那条「侧边栏宽度 · 电脑」调节线）。
+   不放进 @layer base 是刻意的——同属性下未分层规则优先，确保 768px 以上一定生效。 */
+@media (min-width: 768px) {
+  :root {
+    --kk-sidebar-w: var(--kk-sidebar-w-pc);
+  }
+}

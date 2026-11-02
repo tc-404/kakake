@@ -1,0 +1,4794 @@
+{
+  "source": "NapCatQQ/packages/napcat-onebot/action (router.ts ActionName + handler payloadSchema)",
+  "fetchedAt": "2026-10-24",
+  "actionCount": 180,
+  "unimplementedActions": [
+    ".get_word_slices",
+    "unknown"
+  ],
+  "actions": [
+    {
+      "action": "_del_group_notice",
+      "className": "DelGroupNotice",
+      "file": "group/DelGroupNotice.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "删除群公告",
+      "description": "删除群聊中的公告",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "notice_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '公告ID' })"
+        }
+      ]
+    },
+    {
+      "action": "_get_group_notice",
+      "className": "GetGroupNotice",
+      "file": "group/GetGroupNotice.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群公告",
+      "description": "获取指定群聊中的公告列表",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "_get_model_show",
+      "className": "GoCQHTTPGetModelShow",
+      "file": "go-cqhttp/GoCQHTTPGetModelShow.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取机型显示",
+      "description": "获取当前账号可用的设备机型显示名称列表",
+      "params": [
+        {
+          "key": "model",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '模型名称' }))"
+        }
+      ]
+    },
+    {
+      "action": "_mark_all_as_read",
+      "className": "MarkAllMsgAsRead",
+      "file": "msg/MarkMsgAsRead.ts",
+      "tags": [
+        "消息接口"
+      ],
+      "summary": "标记所有消息已读",
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "_send_group_notice",
+      "className": "SendGroupNotice",
+      "file": "go-cqhttp/SendGroupNotice.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "发送群公告",
+      "description": "在指定群聊中发布新的公告",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "content",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '公告内容' })"
+        },
+        {
+          "key": "image",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '公告图片路径或 URL' }))"
+        },
+        {
+          "key": "pinned",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 0, description: '是否置顶 (0/1)' })"
+        },
+        {
+          "key": "type",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 1, description: '类型 (默认为 1)' })"
+        },
+        {
+          "key": "confirm_required",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 1, description: '是否需要确认 (0/1)' })"
+        },
+        {
+          "key": "is_show_edit_card",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 0, description: '是否显示修改群名片引导 (0/1)' })"
+        },
+        {
+          "key": "tip_window_type",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 0, description: '弹窗类型 (默认为 0)' })"
+        }
+      ]
+    },
+    {
+      "action": "_set_model_show",
+      "className": "GoCQHTTPSetModelShow",
+      "file": "go-cqhttp/GoCQHTTPSetModelShow.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "设置机型",
+      "description": "设置当前账号的设备机型名称",
+      "params": []
+    },
+    {
+      "action": ".handle_quick_operation",
+      "className": "GoCQHTTPHandleQuickAction",
+      "file": "go-cqhttp/QuickAction.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "处理快速操作",
+      "description": "处理来自事件上报的快速操作请求",
+      "params": [
+        {
+          "key": "context",
+          "type": null,
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "QuickActionEventSchema"
+        },
+        {
+          "key": "operation",
+          "type": null,
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "QuickActionSchema"
+        }
+      ]
+    },
+    {
+      "action": ".ocr_image",
+      "className": "IOCRImage",
+      "file": "extends/OCRImage.ts",
+      "tags": [],
+      "summary": "图片 OCR 识别 (内部)",
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "add_custom_face",
+      "className": "AddCustomFace",
+      "file": "extends/CustomFace.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "添加自定义表情",
+      "description": null,
+      "params": [
+        {
+          "key": "file",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '本地表情文件路径' })"
+        },
+        {
+          "key": "emoji_id",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.String(), Type.Number()], { description: '表情ID，未提供时传空字符串' }))"
+        },
+        {
+          "key": "package_id",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.String(), Type.Number()], { description: '表情包ID，未提供时传0' }))"
+        },
+        {
+          "key": "file_name",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件名，未提供时从file路径取basename' }))"
+        },
+        {
+          "key": "file_size",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.String(), Type.Number()], { description: '文件大小，未提供时读取本地文件' }))"
+        },
+        {
+          "key": "md5",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件MD5，未提供时读取本地文件计算' }))"
+        },
+        {
+          "key": "is_mark_face",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '是否商城表情' }))"
+        },
+        {
+          "key": "is_origin",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '是否原图' }))"
+        }
+      ]
+    },
+    {
+      "action": "ArkShareGroup",
+      "className": "ShareGroupEx",
+      "file": "extends/ShareContact.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "ArkSharePeer",
+      "className": "SharePeer",
+      "file": "extends/ShareContact.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "bot_exit",
+      "className": "BotExit",
+      "file": "extends/BotExit.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "退出登录",
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "can_send_image",
+      "className": "CanSendImage",
+      "file": "system/CanSendImage.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "是否可以发送图片",
+      "description": "检查是否可以发送图片",
+      "params": null
+    },
+    {
+      "action": "can_send_record",
+      "className": "CanSendRecord",
+      "file": "system/CanSendRecord.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "是否可以发送语音",
+      "description": "检查是否可以发送语音",
+      "params": null
+    },
+    {
+      "action": "cancel_group_album_media_like",
+      "className": "CancelGroupAlbumMediaLike",
+      "file": "extends/SetGroupAlbumMediaLike.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "取消点赞群相册媒体",
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "cancel_group_todo",
+      "className": "CancelGroupTodo",
+      "file": "packet/CancelGroupTodo.ts",
+      "tags": [],
+      "summary": "取消群待办",
+      "description": "将指定消息对应的群待办取消",
+      "params": null
+    },
+    {
+      "action": "cancel_online_file",
+      "className": "CancelOnlineFile",
+      "file": "file/online/CancelOnlineFile.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "取消在线文件",
+      "description": null,
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户 QQ' })"
+        },
+        {
+          "key": "msg_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '消息 ID' })"
+        }
+      ]
+    },
+    {
+      "action": "check_url_safely",
+      "className": "GoCQHTTPCheckUrlSafely",
+      "file": "go-cqhttp/GoCQHTTPCheckUrlSafely.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "检查URL安全性",
+      "description": "检查指定URL的安全等级",
+      "params": [
+        {
+          "key": "url",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '要检查的 URL' })"
+        }
+      ]
+    },
+    {
+      "action": "clean_cache",
+      "className": "CleanCache",
+      "file": "system/CleanCache.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "清理缓存",
+      "description": "清理缓存",
+      "params": []
+    },
+    {
+      "action": "clean_stream_temp_file",
+      "className": "CleanStreamTempFile",
+      "file": "stream/CleanStreamTempFile.ts",
+      "tags": [
+        "流式传输扩展"
+      ],
+      "summary": "清理流式传输临时文件",
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "click_inline_keyboard_button",
+      "className": "ClickInlineKeyboardButton",
+      "file": "extends/ClickInlineKeyboardButton.ts",
+      "tags": [
+        "消息扩展"
+      ],
+      "summary": "点击内联键盘按钮",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "bot_appid",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '机器人AppID' })"
+        },
+        {
+          "key": "button_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ default: '', description: '按钮ID' })"
+        },
+        {
+          "key": "callback_data",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ default: '', description: '回调数据' })"
+        },
+        {
+          "key": "msg_seq",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ default: '10086', description: '消息序列号' })"
+        }
+      ]
+    },
+    {
+      "action": "complete_group_todo",
+      "className": "CompleteGroupTodo",
+      "file": "packet/CompleteGroupTodo.ts",
+      "tags": [],
+      "summary": "完成群待办",
+      "description": "将指定消息对应的群待办标记为已完成",
+      "params": null
+    },
+    {
+      "action": "create_collection",
+      "className": "CreateCollection",
+      "file": "extends/CreateCollection.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "创建收藏",
+      "description": null,
+      "params": [
+        {
+          "key": "rawData",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '原始数据' })"
+        },
+        {
+          "key": "brief",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '简要描述' })"
+        }
+      ]
+    },
+    {
+      "action": "create_flash_task",
+      "className": "CreateFlashTask",
+      "file": "file/flash/CreateFlashTask.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "创建闪传任务",
+      "description": null,
+      "params": [
+        {
+          "key": "files",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([\n    Type.Array(Type.String()),\n    Type.String(),\n  ], { description: '文件列表或单个文件路径' })"
+        },
+        {
+          "key": "name",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '任务名称' }))"
+        },
+        {
+          "key": "thumb_path",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '缩略图路径' }))"
+        },
+        {
+          "key": "validitySeconds",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ description: '文件集有效期（秒），可选 14 天 1209600 / 90 天 7776000 / 180 天 15552000，默认 1209600' }))"
+        }
+      ]
+    },
+    {
+      "action": "create_group_file_folder",
+      "className": "CreateGroupFileFolder",
+      "file": "go-cqhttp/CreateGroupFileFolder.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "创建群文件目录",
+      "description": "在群文件系统中创建新的文件夹",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "folder_name",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件夹名称' }))"
+        },
+        {
+          "key": "name",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件夹名称' }))"
+        }
+      ]
+    },
+    {
+      "action": "del_group_album_media",
+      "className": "DelGroupAlbumMedia",
+      "file": "extends/DelGroupAlbumMedia.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "删除群相册媒体",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "album_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册ID' })"
+        },
+        {
+          "key": "lloc",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '媒体ID (lloc)' })"
+        }
+      ]
+    },
+    {
+      "action": "delete_custom_face",
+      "className": "DeleteCustomFace",
+      "file": "extends/CustomFace.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "删除自定义表情",
+      "description": null,
+      "params": [
+        {
+          "key": "res_id",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([\n    Type.String({ description: 'fetch_custom_face_detail返回的resId' }),\n    Type.Array(Type.String({ description: 'fetch_custom_face_de…"
+        },
+        {
+          "key": "id",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([\n    Type.String({ description: 'native deleteFavEmoji字符串ID，通常为resId' }),\n    Type.Array(Type.String({ description: 'native deleteFavE…"
+        },
+        {
+          "key": "ids",
+          "type": "Array",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Array(Type.String({ description: 'native deleteFavEmoji字符串ID列表，通常为resId列表' })))"
+        },
+        {
+          "key": "md5",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([\n    Type.String({ description: '表情MD5，不能直接删除，请先通过fetch_custom_face_detail获取resId' }),\n    Type.Array(Type.String({ description: '表情MD…"
+        }
+      ]
+    },
+    {
+      "action": "delete_essence_msg",
+      "className": "DelEssenceMsg",
+      "file": "group/DelEssenceMsg.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "移出精华消息",
+      "description": "将一条消息从群精华消息列表中移出",
+      "params": [
+        {
+          "key": "message_id",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Number(), Type.String()], { description: '消息ID' }))"
+        },
+        {
+          "key": "msg_seq",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '消息序号' }))"
+        },
+        {
+          "key": "msg_random",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '消息随机数' }))"
+        },
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '群号' }))"
+        }
+      ]
+    },
+    {
+      "action": "delete_friend",
+      "className": "GoCQHTTPDeleteFriend",
+      "file": "go-cqhttp/GoCQHTTPDeleteFriend.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "删除好友",
+      "description": "从好友列表中删除指定用户",
+      "params": [
+        {
+          "key": "friend_id",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.String(), Type.Number()], { description: '好友 QQ 号' }))"
+        },
+        {
+          "key": "user_id",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.String(), Type.Number()], { description: '用户 QQ 号' }))"
+        },
+        {
+          "key": "temp_block",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '是否加入黑名单' }))"
+        },
+        {
+          "key": "temp_both_del",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '是否双向删除' }))"
+        }
+      ]
+    },
+    {
+      "action": "delete_group_file",
+      "className": "DeleteGroupFile",
+      "file": "go-cqhttp/DeleteGroupFile.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "删除群文件",
+      "description": "在群文件系统中删除指定的文件",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件ID' })"
+        },
+        {
+          "key": "bus_id",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ minimum: 1, maximum: 0xFFFFFFFF, multipleOf: 1, description: '文件业务ID，默认使用文件列表中的 busid' }))"
+        },
+        {
+          "key": "busid",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ minimum: 1, maximum: 0xFFFFFFFF, multipleOf: 1, description: '文件业务ID，兼容 busid 字段' }))"
+        }
+      ]
+    },
+    {
+      "action": "delete_group_folder",
+      "className": "DeleteGroupFileFolder",
+      "file": "go-cqhttp/DeleteGroupFileFolder.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "删除群文件目录",
+      "description": "在群文件系统中删除指定的文件夹",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "folder_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件夹ID' }))"
+        },
+        {
+          "key": "folder",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件夹ID' }))"
+        }
+      ]
+    },
+    {
+      "action": "delete_msg",
+      "className": "DeleteMsg",
+      "file": "msg/DeleteMsg.ts",
+      "tags": [
+        "消息接口"
+      ],
+      "summary": "撤回消息",
+      "description": "撤回已发送的消息",
+      "params": [
+        {
+          "key": "message_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '消息ID' })"
+        }
+      ]
+    },
+    {
+      "action": "delete_qzone_msg",
+      "className": "DeleteQzoneMsg",
+      "file": "extends/DeleteQzoneMsg.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "删除QQ空间说说",
+      "description": "删除QQ空间(Qzone)的一条说说, 按 tid 删除",
+      "params": [
+        {
+          "key": "tid",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '说说 tid (来自 get_qzone_msg_list / send_qzone_msg)' })"
+        }
+      ]
+    },
+    {
+      "action": "do_group_album_comment",
+      "className": "DoGroupAlbumComment",
+      "file": "extends/DoGroupAlbumComment.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "发表群相册评论",
+      "description": "lloc 与 batch_id 至少提供一项。传入 lloc 时评论单张图片；仅传 batch_id 时评论整个上传批次。",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "album_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册 ID' })"
+        },
+        {
+          "key": "lloc",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '图片 ID；不传或为空时评论整个上传批次，此时必须提供 batch_id' }))"
+        },
+        {
+          "key": "batch_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '上传批次 ID，可取自 get_group_album_media_list 返回的 batch.link_id 或 media[].batch_id' }))"
+        },
+        {
+          "key": "content",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '评论内容' })"
+        }
+      ]
+    },
+    {
+      "action": "download_file",
+      "className": "GoCQHTTPDownloadFile",
+      "file": "go-cqhttp/DownloadFile.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "下载文件",
+      "description": "下载网络文件到本地临时目录",
+      "params": [
+        {
+          "key": "url",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '下载链接' }))"
+        },
+        {
+          "key": "base64",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: 'base64数据' }))"
+        },
+        {
+          "key": "name",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件名' }))"
+        },
+        {
+          "key": "headers",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.String(), Type.Array(Type.String())], { description: '请求头' }))"
+        }
+      ]
+    },
+    {
+      "action": "download_file_image_stream",
+      "className": "DownloadFileImageStream",
+      "file": "stream/DownloadFileImageStream.ts",
+      "tags": [
+        "流式传输扩展"
+      ],
+      "summary": "下载图片文件流",
+      "description": null,
+      "params": [
+        {
+          "key": "file",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件路径或 URL' }))"
+        },
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件 ID' }))"
+        },
+        {
+          "key": "chunk_size",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ default: 64 * 1024, description: '分块大小 (字节)' }))"
+        }
+      ]
+    },
+    {
+      "action": "download_file_record_stream",
+      "className": "DownloadFileRecordStream",
+      "file": "stream/DownloadFileRecordStream.ts",
+      "tags": [
+        "流式传输扩展"
+      ],
+      "summary": "下载语音文件流",
+      "description": null,
+      "params": [
+        {
+          "key": "file",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件路径或 URL' }))"
+        },
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件 ID' }))"
+        },
+        {
+          "key": "chunk_size",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ default: 64 * 1024, description: '分块大小 (字节)' }))"
+        },
+        {
+          "key": "out_format",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '输出格式' }))"
+        }
+      ]
+    },
+    {
+      "action": "download_file_stream",
+      "className": "DownloadFileStream",
+      "file": "stream/DownloadFileStream.ts",
+      "tags": [
+        "流式接口"
+      ],
+      "summary": "下载文件流",
+      "description": "以流式方式从网络或本地下载文件",
+      "params": [
+        {
+          "key": "file",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件路径或 URL' }))"
+        },
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件 ID' }))"
+        },
+        {
+          "key": "chunk_size",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ default: 64 * 1024, description: '分块大小 (字节)' }))"
+        }
+      ]
+    },
+    {
+      "action": "download_fileset",
+      "className": "DownloadFileset",
+      "file": "file/flash/DownloadFileset.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "下载文件集",
+      "description": null,
+      "params": [
+        {
+          "key": "fileset_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件集 ID' })"
+        }
+      ]
+    },
+    {
+      "action": "fetch_custom_face",
+      "className": "FetchCustomFace",
+      "file": "extends/FetchCustomFace.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "获取自定义表情",
+      "description": null,
+      "params": [
+        {
+          "key": "count",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 48, description: '获取数量' })"
+        }
+      ]
+    },
+    {
+      "action": "fetch_custom_face_detail",
+      "className": "FetchCustomFaceDetail",
+      "file": "extends/CustomFace.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "获取自定义表情详情",
+      "description": null,
+      "params": [
+        {
+          "key": "count",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 48, description: '获取数量' })"
+        }
+      ]
+    },
+    {
+      "action": "fetch_emoji_like",
+      "className": "FetchEmojiLike",
+      "file": "extends/FetchEmojiLike.ts",
+      "tags": [
+        "消息扩展"
+      ],
+      "summary": "获取表情点赞详情",
+      "description": null,
+      "params": [
+        {
+          "key": "message_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '消息ID' })"
+        },
+        {
+          "key": "emojiId",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '表情ID' })"
+        },
+        {
+          "key": "emojiType",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '表情类型' })"
+        },
+        {
+          "key": "count",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 20, description: '获取数量' })"
+        },
+        {
+          "key": "cookie",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ default: '', description: '分页Cookie' })"
+        }
+      ]
+    },
+    {
+      "action": "fetch_ptt_text",
+      "className": "FetchPttText",
+      "file": "msg/FetchPttText.ts",
+      "tags": [
+        "消息扩展"
+      ],
+      "summary": "获取语音转文字结果",
+      "description": null,
+      "params": [
+        {
+          "key": "message_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '消息ID' })"
+        }
+      ]
+    },
+    {
+      "action": "forward_friend_single_msg",
+      "className": "ForwardFriendSingleMsg",
+      "file": "msg/ForwardSingleMsg.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "forward_group_single_msg",
+      "className": "ForwardGroupSingleMsg",
+      "file": "msg/ForwardSingleMsg.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "friend_poke",
+      "className": "FriendPoke",
+      "file": "packet/SendPoke.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "get_ai_characters",
+      "className": "GetAiCharacters",
+      "file": "extends/GetAiCharacters.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "获取AI角色列表",
+      "description": "获取群聊中的AI角色列表",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "chat_type",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 1, description: '聊天类型' })"
+        }
+      ]
+    },
+    {
+      "action": "get_ai_record",
+      "className": "GetAiRecord",
+      "file": "group/GetAiRecord.ts",
+      "tags": [
+        "AI 扩展"
+      ],
+      "summary": "获取 AI 语音",
+      "description": "通过 AI 语音引擎获取指定文本的语音 URL",
+      "params": [
+        {
+          "key": "character",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '角色ID' })"
+        },
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "text",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '语音文本内容' })"
+        }
+      ]
+    },
+    {
+      "action": "get_clientkey",
+      "className": "GetClientkey",
+      "file": "extends/GetClientkey.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "获取ClientKey",
+      "description": "获取当前登录帐号的ClientKey",
+      "params": []
+    },
+    {
+      "action": "get_collection_list",
+      "className": "GetCollectionList",
+      "file": "extends/GetCollectionList.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "获取收藏列表",
+      "description": null,
+      "params": [
+        {
+          "key": "category",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '分类ID' })"
+        },
+        {
+          "key": "count",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ default: '50', description: '获取数量' })"
+        }
+      ]
+    },
+    {
+      "action": "get_cookies",
+      "className": "GetCookies",
+      "file": "user/GetCookies.ts",
+      "tags": [
+        "用户接口"
+      ],
+      "summary": "获取 Cookies",
+      "description": "获取指定域名的 Cookies",
+      "params": [
+        {
+          "key": "domain",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '需要获取 cookies 的域名' })"
+        }
+      ]
+    },
+    {
+      "action": "get_credentials",
+      "className": "GetCredentials",
+      "file": "system/GetCredentials.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "获取登录凭证",
+      "description": "获取登录凭证",
+      "params": [
+        {
+          "key": "domain",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '需要获取 cookies 的域名' })"
+        }
+      ]
+    },
+    {
+      "action": "get_csrf_token",
+      "className": "GetCSRF",
+      "file": "system/GetCSRF.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "获取 CSRF Token",
+      "description": "获取 CSRF Token",
+      "params": []
+    },
+    {
+      "action": "get_doubt_friends_add_request",
+      "className": "GetDoubtFriendsAddRequest",
+      "file": "new/GetDoubtFriendsAddRequest.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "获取可疑好友申请",
+      "description": "获取系统的可疑好友申请列表",
+      "params": [
+        {
+          "key": "count",
+          "type": "Number",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Number({ default: 50, description: '获取数量' })"
+        }
+      ]
+    },
+    {
+      "action": "get_emoji_likes",
+      "className": "GetEmojiLikes",
+      "file": "extends/GetEmojiLikes.ts",
+      "tags": [
+        "消息扩展"
+      ],
+      "summary": "获取消息表情点赞列表",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '群号，短ID可不传' }))"
+        },
+        {
+          "key": "message_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '消息ID，可以传递长ID或短ID' })"
+        },
+        {
+          "key": "emoji_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '表情ID' })"
+        },
+        {
+          "key": "emoji_type",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '表情类型' }))"
+        },
+        {
+          "key": "count",
+          "type": "Number",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Number({ default: 0, description: '数量，0代表全部' })"
+        }
+      ]
+    },
+    {
+      "action": "get_essence_msg_list",
+      "className": "GetGroupEssence",
+      "file": "group/GetGroupEssence.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群精华消息",
+      "description": "获取指定群聊中的精华消息列表",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "get_file",
+      "className": "GetFile",
+      "file": "file/GetFile.ts",
+      "tags": [
+        "文件接口"
+      ],
+      "summary": "获取文件",
+      "description": "获取指定文件的详细信息及下载路径",
+      "params": null
+    },
+    {
+      "action": "get_fileset_id",
+      "className": "GetFilesetId",
+      "file": "file/flash/GetFilesetIdByCode.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "获取文件集 ID",
+      "description": null,
+      "params": [
+        {
+          "key": "share_code",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '分享码或分享链接' })"
+        }
+      ]
+    },
+    {
+      "action": "get_fileset_info",
+      "className": "GetFilesetInfo",
+      "file": "file/flash/GetFilesetInfo.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "获取文件集信息",
+      "description": null,
+      "params": [
+        {
+          "key": "fileset_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件集 ID' })"
+        }
+      ]
+    },
+    {
+      "action": "get_flash_file_list",
+      "className": "GetFlashFileList",
+      "file": "file/flash/GetFlashFileList.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "获取闪传文件列表",
+      "description": null,
+      "params": [
+        {
+          "key": "fileset_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件集 ID' })"
+        }
+      ]
+    },
+    {
+      "action": "get_flash_file_url",
+      "className": "GetFlashFileUrl",
+      "file": "file/flash/GetFlashFileUrl.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "获取闪传文件链接",
+      "description": null,
+      "params": [
+        {
+          "key": "fileset_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件集 ID' })"
+        },
+        {
+          "key": "file_name",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件名' }))"
+        },
+        {
+          "key": "file_index",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ description: '文件索引' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_forward_msg",
+      "className": "GoCQHTTPGetForwardMsgAction",
+      "file": "go-cqhttp/GetForwardMsg.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取合并转发消息",
+      "description": "获取合并转发消息的具体内容",
+      "params": [
+        {
+          "key": "message_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '消息ID' }))"
+        },
+        {
+          "key": "id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '消息ID' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_friend_list",
+      "className": "GetFriendList",
+      "file": "user/GetFriendList.ts",
+      "tags": [
+        "用户接口"
+      ],
+      "summary": "获取好友列表",
+      "description": "获取当前帐号的好友列表",
+      "params": [
+        {
+          "key": "no_cache",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否不使用缓存' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_friend_msg_history",
+      "className": "GetFriendMsgHistory",
+      "file": "go-cqhttp/GetFriendMsgHistory.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取好友历史消息",
+      "description": "获取指定好友的历史聊天记录",
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户QQ' })"
+        },
+        {
+          "key": "message_seq",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '起始消息序号' }))"
+        },
+        {
+          "key": "count",
+          "type": "Number",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Number({ default: 20, description: '获取消息数量' })"
+        },
+        {
+          "key": "reverse_order",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: false, description: '是否反向排序' })"
+        },
+        {
+          "key": "disable_get_url",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: false, description: '是否禁用获取URL' })"
+        },
+        {
+          "key": "parse_mult_msg",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: true, description: '是否解析合并消息' })"
+        },
+        {
+          "key": "quick_reply",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: false, description: '是否快速回复' })"
+        },
+        {
+          "key": "reverseOrder",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: false, description: '是否反向排序(旧版本兼容)' })"
+        }
+      ]
+    },
+    {
+      "action": "get_friends_with_category",
+      "className": "GetFriendWithCategory",
+      "file": "extends/GetFriendWithCategory.ts",
+      "tags": [
+        "用户扩展"
+      ],
+      "summary": "获取带分组的好友列表",
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "get_group_album_media_list",
+      "className": "GetGroupAlbumMediaList",
+      "file": "extends/GetGroupAlbumMediaList.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "获取群相册媒体列表",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "album_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册ID' })"
+        },
+        {
+          "key": "attach_info",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ default: '', description: '附加信息（用于分页）' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_group_at_all_remain",
+      "className": "GoCQHTTPGetGroupAtAllRemain",
+      "file": "go-cqhttp/GetGroupAtAllRemain.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取群艾特全体剩余次数",
+      "description": "获取指定群聊中艾特全体成员的剩余次数",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_detail_info",
+      "className": "GetGroupDetailInfo",
+      "file": "group/GetGroupDetailInfo.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群详细信息",
+      "description": "获取群聊的详细信息，包括成员数、最大成员数等",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_file_system_info",
+      "className": "GetGroupFileSystemInfo",
+      "file": "go-cqhttp/GetGroupFileSystemInfo.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取群文件系统信息",
+      "description": "获取群聊文件系统的空间及状态信息",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_file_url",
+      "className": "GetGroupFileUrl",
+      "file": "file/GetGroupFileUrl.ts",
+      "tags": [
+        "文件接口"
+      ],
+      "summary": "获取群文件URL",
+      "description": "获取指定群文件的下载链接",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件ID' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_files_by_folder",
+      "className": "GetGroupFilesByFolder",
+      "file": "go-cqhttp/GetGroupFilesByFolder.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取群文件夹文件列表",
+      "description": "获取指定群文件夹下的文件及子文件夹列表",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "folder_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件夹ID' }))"
+        },
+        {
+          "key": "folder",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件夹ID' }))"
+        },
+        {
+          "key": "file_count",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 50, description: '文件数量' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_honor_info",
+      "className": "GetGroupHonorInfo",
+      "file": "go-cqhttp/GetGroupHonorInfo.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取群荣誉信息",
+      "description": "获取指定群聊的荣誉信息，如龙王等",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "type",
+          "type": "Enum",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Enum(WebHonorType, { description: '荣誉类型' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_group_ignore_add_request",
+      "className": "GetGroupAddRequest",
+      "file": "extends/GetGroupAddRequest.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群被忽略的加群请求",
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "get_group_ignored_notifies",
+      "className": "GetGroupIgnoredNotifies",
+      "file": "group/GetGroupIgnoredNotifies.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群忽略通知",
+      "description": "获取被忽略的入群申请和邀请通知",
+      "params": []
+    },
+    {
+      "action": "get_group_info",
+      "className": "GetGroupInfo",
+      "file": "group/GetGroupInfo.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群信息",
+      "description": "获取群聊的基本信息",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_info_ex",
+      "className": "GetGroupInfoEx",
+      "file": "extends/GetGroupInfoEx.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "获取群详细信息 (扩展)",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_list",
+      "className": "GetGroupList",
+      "file": "group/GetGroupList.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群列表",
+      "description": "获取当前帐号的群聊列表",
+      "params": [
+        {
+          "key": "no_cache",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否不使用缓存' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_group_member_info",
+      "className": "GetGroupMemberInfo",
+      "file": "group/GetGroupMemberInfo.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群成员信息",
+      "description": "获取群聊中指定成员的信息",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: 'QQ号' })"
+        },
+        {
+          "key": "no_cache",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否不使用缓存' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_group_member_list",
+      "className": "GetGroupMemberList",
+      "file": "group/GetGroupMemberList.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群成员列表",
+      "description": "获取群聊中的所有成员列表",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "no_cache",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否不使用缓存' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_group_msg_history",
+      "className": "GoCQHTTPGetGroupMsgHistory",
+      "file": "go-cqhttp/GetGroupMsgHistory.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取群历史消息",
+      "description": "获取指定群聊的历史聊天记录",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "message_seq",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '起始消息序号' }))"
+        },
+        {
+          "key": "count",
+          "type": "Number",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Number({ default: 20, description: '获取消息数量' })"
+        },
+        {
+          "key": "reverse_order",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: false, description: '是否反向排序' })"
+        },
+        {
+          "key": "disable_get_url",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: false, description: '是否禁用获取URL' })"
+        },
+        {
+          "key": "parse_mult_msg",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: true, description: '是否解析合并消息' })"
+        },
+        {
+          "key": "quick_reply",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: false, description: '是否快速回复' })"
+        },
+        {
+          "key": "reverseOrder",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: false, description: '是否反向排序(旧版本兼容)' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_root_files",
+      "className": "GetGroupRootFiles",
+      "file": "go-cqhttp/GetGroupRootFiles.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取群根目录文件列表",
+      "description": "获取群文件根目录下的所有文件和文件夹",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "file_count",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 50, description: '文件数量' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_share_link",
+      "className": "GetGroupShareLink",
+      "file": "extends/GetGroupShareLink.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "获取群分享链接",
+      "description": "通过 NTQQ 原生 getJoinGroupLink 获取群的 H5 分享/加群链接 (qm.qq.com/q/xxx 或 qun.qq.com/universal-share/share?...)",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '群号' })"
+        },
+        {
+          "key": "need_short_url",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { default: true, description: '是否返回短链 (qm.qq.com/q/xxx)，false 返回完整 universal-share 链接' }))"
+        },
+        {
+          "key": "src_id",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Number(), Type.String()], { default: 73, description: '分享来源 ID' }))"
+        },
+        {
+          "key": "additional_param",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ default: '', description: '附加参数' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_group_shut_list",
+      "className": "GetGroupShutList",
+      "file": "group/GetGroupShutList.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "获取群禁言列表",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_signed_list",
+      "className": "GetGroupSignedList",
+      "file": "extends/GetGroupSignedList.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "获取群组今日打卡列表",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.String(), Type.Number()], { description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "get_group_system_msg",
+      "className": "GetGroupSystemMsg",
+      "file": "system/GetSystemMsg.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "获取群系统消息",
+      "description": "获取群系统消息",
+      "params": [
+        {
+          "key": "count",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 50, description: '获取的消息数量' })"
+        }
+      ]
+    },
+    {
+      "action": "get_guild_list",
+      "className": "GetGuildList",
+      "file": "guild/GetGuildList.ts",
+      "tags": [
+        "频道接口"
+      ],
+      "summary": "获取频道列表",
+      "description": "获取当前帐号已加入的频道列表",
+      "params": []
+    },
+    {
+      "action": "get_guild_service_profile",
+      "className": "GetGuildProfile",
+      "file": "guild/GetGuildProfile.ts",
+      "tags": [
+        "频道接口"
+      ],
+      "summary": "获取频道个人信息",
+      "description": "获取当前帐号在频道中的个人资料",
+      "params": []
+    },
+    {
+      "action": "get_image",
+      "className": "GetImage",
+      "file": "file/GetImage.ts",
+      "tags": [
+        "文件接口"
+      ],
+      "summary": "获取图片",
+      "description": "获取指定图片的信息及路径",
+      "params": null
+    },
+    {
+      "action": "get_login_info",
+      "className": "GetLoginInfo",
+      "file": "system/GetLoginInfo.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "获取登录号信息",
+      "description": "获取当前登录帐号的信息",
+      "params": []
+    },
+    {
+      "action": "get_mini_app_ark",
+      "className": "GetMiniAppArk",
+      "file": "extends/GetMiniAppArk.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "获取小程序 Ark",
+      "description": null,
+      "params": [
+        {
+          "key": "type",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Literal('bili'), Type.Literal('weibo')], { description: '模板类型' })"
+        },
+        {
+          "key": "title",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '标题' })"
+        },
+        {
+          "key": "desc",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '描述' })"
+        },
+        {
+          "key": "picUrl",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '图片URL' })"
+        },
+        {
+          "key": "jumpUrl",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '跳转URL' })"
+        },
+        {
+          "key": "webUrl",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '网页URL' }))"
+        },
+        {
+          "key": "rawArkData",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.String()], { description: '是否返回原始Ark数据' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_msg",
+      "className": "GetMsg",
+      "file": "msg/GetMsg.ts",
+      "tags": [
+        "消息接口"
+      ],
+      "summary": "获取消息",
+      "description": "根据消息 ID 获取消息详细信息",
+      "params": [
+        {
+          "key": "message_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '消息ID' })"
+        }
+      ]
+    },
+    {
+      "action": "get_online_clients",
+      "className": "GetOnlineClient",
+      "file": "go-cqhttp/GetOnlineClient.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取在线客户端",
+      "description": "获取当前登录账号的在线客户端列表",
+      "params": []
+    },
+    {
+      "action": "get_online_file_msg",
+      "className": "GetOnlineFileMessages",
+      "file": "file/online/GetOnlineFileMessages.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "获取在线文件消息",
+      "description": null,
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户 QQ' })"
+        }
+      ]
+    },
+    {
+      "action": "get_private_file_url",
+      "className": "GetPrivateFileUrl",
+      "file": "file/GetPrivateFileUrl.ts",
+      "tags": [
+        "文件接口"
+      ],
+      "summary": "获取私聊文件URL",
+      "description": "获取指定私聊文件的下载链接",
+      "params": [
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件ID' })"
+        }
+      ]
+    },
+    {
+      "action": "get_profile_like",
+      "className": "GetProfileLike",
+      "file": "extends/GetProfileLike.ts",
+      "tags": [
+        "用户扩展"
+      ],
+      "summary": "获取资料点赞",
+      "description": null,
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: 'QQ号' }))"
+        },
+        {
+          "key": "start",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 0, description: '起始位置' })"
+        },
+        {
+          "key": "count",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 10, description: '获取数量' })"
+        }
+      ]
+    },
+    {
+      "action": "get_qun_album_list",
+      "className": "GetQunAlbumList",
+      "file": "extends/GetQunAlbumList.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "获取群相册列表",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "attach_info",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ default: '', description: '附加信息（用于分页，从上一次返回结果中获取）' }))"
+        }
+      ]
+    },
+    {
+      "action": "get_recent_contact",
+      "className": "GetRecentContact",
+      "file": "user/GetRecentContact.ts",
+      "tags": [
+        "用户接口"
+      ],
+      "summary": "获取最近会话",
+      "description": "获取最近会话",
+      "params": [
+        {
+          "key": "count",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 10, description: '获取的数量' })"
+        }
+      ]
+    },
+    {
+      "action": "get_record",
+      "className": "GetRecord",
+      "file": "file/GetRecord.ts",
+      "tags": [
+        "文件接口"
+      ],
+      "summary": "获取语音",
+      "description": "获取指定语音文件的信息，并支持格式转换",
+      "params": [
+        {
+          "key": "file",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件路径、URL或Base64' }))"
+        },
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件ID' }))"
+        },
+        {
+          "key": "out_format",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '输出格式' })"
+        }
+      ]
+    },
+    {
+      "action": "get_rkey",
+      "className": "GetRkeyEx",
+      "file": "packet/GetRkeyEx.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "获取扩展 RKey",
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "get_rkey_server",
+      "className": "GetRkeyServer",
+      "file": "packet/GetRkeyServer.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "获取 RKey 服务器",
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "get_robot_uin_range",
+      "className": "GetRobotUinRange",
+      "file": "extends/GetRobotUinRange.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "获取机器人 UIN 范围",
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "get_share_link",
+      "className": "GetShareLink",
+      "file": "file/flash/GetShareLink.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "获取文件分享链接",
+      "description": null,
+      "params": [
+        {
+          "key": "fileset_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件集 ID' })"
+        }
+      ]
+    },
+    {
+      "action": "get_status",
+      "className": "GetStatus",
+      "file": "system/GetStatus.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "获取运行状态",
+      "description": "获取运行状态",
+      "params": []
+    },
+    {
+      "action": "get_stranger_info",
+      "className": "GoCQHTTPGetStrangerInfo",
+      "file": "go-cqhttp/GetStrangerInfo.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "获取陌生人信息",
+      "description": "获取指定非好友用户的信息",
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户QQ' })"
+        },
+        {
+          "key": "no_cache",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Boolean(), Type.String()], { default: false, description: '是否不使用缓存' })"
+        }
+      ]
+    },
+    {
+      "action": "get_unidirectional_friend_list",
+      "className": "GetUnidirectionalFriendList",
+      "file": "extends/GetUnidirectionalFriendList.ts",
+      "tags": [
+        "用户扩展"
+      ],
+      "summary": "获取单向好友列表",
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "get_version_info",
+      "className": "GetVersionInfo",
+      "file": "system/GetVersionInfo.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "获取版本信息",
+      "description": "获取版本信息",
+      "params": null
+    },
+    {
+      "action": "group_poke",
+      "className": "GroupPoke",
+      "file": "packet/SendPoke.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "mark_group_msg_as_read",
+      "className": "MarkGroupMsgAsRead",
+      "file": "msg/MarkMsgAsRead.ts",
+      "tags": [],
+      "summary": "标记群聊已读",
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "mark_msg_as_read",
+      "className": "GoCQHTTPMarkMsgAsRead",
+      "file": "msg/MarkMsgAsRead.ts",
+      "tags": [],
+      "summary": "标记消息已读 (Go-CQHTTP)",
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "mark_private_msg_as_read",
+      "className": "MarkPrivateMsgAsRead",
+      "file": "msg/MarkMsgAsRead.ts",
+      "tags": [],
+      "summary": "标记私聊已读",
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "move_group_file",
+      "className": "MoveGroupFile",
+      "file": "extends/MoveGroupFile.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "移动群文件",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件ID' })"
+        },
+        {
+          "key": "current_parent_directory",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '当前父目录' })"
+        },
+        {
+          "key": "target_parent_directory",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '目标父目录' })"
+        }
+      ]
+    },
+    {
+      "action": "nc_get_packet_status",
+      "className": "GetPacketStatus",
+      "file": "packet/GetPacketStatus.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "获取Packet状态",
+      "description": "获取底层Packet服务的运行状态",
+      "params": []
+    },
+    {
+      "action": "nc_get_rkey",
+      "className": "GetRkey",
+      "file": "extends/GetRkey.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "获取 RKey",
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "nc_get_user_status",
+      "className": "GetUserStatus",
+      "file": "extends/GetUserStatus.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "获取用户在线状态",
+      "description": null,
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: 'QQ号' })"
+        }
+      ]
+    },
+    {
+      "action": "ocr_image",
+      "className": "OCRImage",
+      "file": "extends/OCRImage.ts",
+      "tags": [],
+      "summary": "图片 OCR 识别",
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "receive_online_file",
+      "className": "ReceiveOnlineFile",
+      "file": "file/online/ReceiveOnlineFile.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "接收在线文件",
+      "description": null,
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户 QQ' })"
+        },
+        {
+          "key": "msg_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '消息 ID' })"
+        },
+        {
+          "key": "element_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '元素 ID' })"
+        }
+      ]
+    },
+    {
+      "action": "refuse_online_file",
+      "className": "RefuseOnlineFile",
+      "file": "file/online/RefuseOnlineFile.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "拒绝在线文件",
+      "description": null,
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户 QQ' })"
+        },
+        {
+          "key": "msg_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '消息 ID' })"
+        },
+        {
+          "key": "element_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '元素 ID' })"
+        }
+      ]
+    },
+    {
+      "action": "rename_group_file",
+      "className": "RenameGroupFile",
+      "file": "extends/RenameGroupFile.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "重命名群文件",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件ID' })"
+        },
+        {
+          "key": "current_parent_directory",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '当前父目录' })"
+        },
+        {
+          "key": "new_name",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '新文件名' })"
+        }
+      ]
+    },
+    {
+      "action": "send_ark_share",
+      "className": "SendArkShare",
+      "file": "extends/ShareContact.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "send_flash_msg",
+      "className": "SendFlashMsg",
+      "file": "file/flash/SendFlashMsg.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "发送闪传消息",
+      "description": null,
+      "params": [
+        {
+          "key": "fileset_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件集 ID' })"
+        },
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '用户 QQ' }))"
+        },
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '群号' }))"
+        }
+      ]
+    },
+    {
+      "action": "send_forward_msg",
+      "className": "GoCQHTTPSendForwardMsg",
+      "file": "go-cqhttp/SendForwardMsg.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "发送合并转发消息",
+      "description": "发送合并转发消息",
+      "params": null
+    },
+    {
+      "action": "send_group_ai_record",
+      "className": "SendGroupAiRecord",
+      "file": "group/SendGroupAiRecord.ts",
+      "tags": [
+        "AI 扩展"
+      ],
+      "summary": "发送群 AI 语音",
+      "description": "发送 AI 生成的语音到指定群聊",
+      "params": [
+        {
+          "key": "character",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '角色ID' })"
+        },
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "text",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '语音文本内容' })"
+        }
+      ]
+    },
+    {
+      "action": "send_group_ark_share",
+      "className": "SendGroupArkShare",
+      "file": "extends/ShareContact.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "send_group_forward_msg",
+      "className": "GoCQHTTPSendGroupForwardMsg",
+      "file": "go-cqhttp/SendForwardMsg.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "发送群合并转发消息",
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "send_group_msg",
+      "className": "SendGroupMsg",
+      "file": "group/SendGroupMsg.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "发送群消息",
+      "description": "发送群消息",
+      "params": null
+    },
+    {
+      "action": "send_group_sign",
+      "className": "SendGroupSign",
+      "file": "extends/SetGroupSign.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "send_like",
+      "className": "SendLike",
+      "file": "user/SendLike.ts",
+      "tags": [
+        "用户接口"
+      ],
+      "summary": "点赞",
+      "description": "给指定用户点赞",
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '对方 QQ 号' })"
+        },
+        {
+          "key": "times",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 1, description: '点赞次数' })"
+        }
+      ]
+    },
+    {
+      "action": "send_msg",
+      "className": "SendMsg",
+      "file": "msg/SendMsg.ts",
+      "tags": [
+        "消息接口"
+      ],
+      "summary": "发送消息",
+      "description": "发送私聊或群聊消息",
+      "params": null
+    },
+    {
+      "action": "send_online_file",
+      "className": "SendOnlineFile",
+      "file": "file/online/SendOnlineFile.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "发送在线文件",
+      "description": null,
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户 QQ' })"
+        },
+        {
+          "key": "file_path",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '本地文件路径' })"
+        },
+        {
+          "key": "file_name",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件名 (可选)' }))"
+        }
+      ]
+    },
+    {
+      "action": "send_online_folder",
+      "className": "SendOnlineFolder",
+      "file": "file/online/SendOnlineFolder.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "发送在线文件夹",
+      "description": null,
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户 QQ' })"
+        },
+        {
+          "key": "folder_path",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '本地文件夹路径' })"
+        },
+        {
+          "key": "folder_name",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件夹名称 (可选)' }))"
+        }
+      ]
+    },
+    {
+      "action": "send_packet",
+      "className": "SendPacket",
+      "file": "extends/SendPacket.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "发送原始数据包",
+      "description": null,
+      "params": [
+        {
+          "key": "cmd",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '命令字' })"
+        },
+        {
+          "key": "data",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '十六进制数据' })"
+        },
+        {
+          "key": "rsp",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.String(), Type.Boolean()], { default: true, description: '是否等待响应' })"
+        }
+      ]
+    },
+    {
+      "action": "send_poke",
+      "className": "SendPoke",
+      "file": "packet/SendPoke.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "send_private_forward_msg",
+      "className": "GoCQHTTPSendPrivateForwardMsg",
+      "file": "go-cqhttp/SendForwardMsg.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "发送私聊合并转发消息",
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "send_private_msg",
+      "className": "SendPrivateMsg",
+      "file": "msg/SendPrivateMsg.ts",
+      "tags": [
+        "消息接口"
+      ],
+      "summary": "发送私聊消息",
+      "description": "发送私聊消息",
+      "params": null
+    },
+    {
+      "action": "send_qzone_msg",
+      "className": "SendQzoneMsg",
+      "file": "extends/SendQzoneMsg.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "发表QQ空间说说",
+      "description": "在QQ空间(Qzone)发表说说, 支持纯文字或带(多)图, 可设置查看权限",
+      "params": [
+        {
+          "key": "content",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '说说正文' })"
+        },
+        {
+          "key": "images",
+          "type": "Array",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Array(Type.String(), { description: '图片数组, 支持 file:// http(s):// base64:// , 自动上传' }))"
+        },
+        {
+          "key": "ugc_right",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Number(), Type.String()], { default: 1, description: '查看权限: 1所有人可见 4好友可见 16部分好友可见 64仅自己可见 128部分好友不可见' }))"
+        },
+        {
+          "key": "target_uins",
+          "type": "Array",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Array(Type.Union([Type.Number(), Type.String()]), { description: 'ugc_right为16/128时, 权限作用的QQ号数组' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_custom_face_desc",
+      "className": "SetCustomFaceDesc",
+      "file": "extends/CustomFace.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "修改自定义表情描述",
+      "description": null,
+      "params": [
+        {
+          "key": "emoji_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '表情ID' })"
+        },
+        {
+          "key": "res_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '资源ID' })"
+        },
+        {
+          "key": "md5",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '表情MD5' })"
+        },
+        {
+          "key": "desc",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '新的表情描述' })"
+        }
+      ]
+    },
+    {
+      "action": "set_diy_online_status",
+      "className": "SetDiyOnlineStatus",
+      "file": "extends/SetDiyOnlineStatus.ts",
+      "tags": [
+        "用户扩展"
+      ],
+      "summary": "设置自定义在线状态",
+      "description": "设置自定义在线状态",
+      "params": [
+        {
+          "key": "face_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '图标ID' })"
+        },
+        {
+          "key": "face_type",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: '1', description: '图标类型' })"
+        },
+        {
+          "key": "wording",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ default: ' ', description: '状态文字内容' })"
+        }
+      ]
+    },
+    {
+      "action": "set_doubt_friends_add_request",
+      "className": "SetDoubtFriendsAddRequest",
+      "file": "new/SetDoubtFriendsAddRequest.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "处理可疑好友申请",
+      "description": "同意或拒绝系统的可疑好友申请",
+      "params": [
+        {
+          "key": "flag",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '请求 flag' })"
+        },
+        {
+          "key": "approve",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: true, description: '是否同意 (强制为 true)' })"
+        }
+      ]
+    },
+    {
+      "action": "set_essence_msg",
+      "className": "SetEssenceMsg",
+      "file": "group/SetEssenceMsg.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "设置精华消息",
+      "description": "将一条消息设置为群精华消息",
+      "params": [
+        {
+          "key": "message_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '消息ID' })"
+        }
+      ]
+    },
+    {
+      "action": "set_friend_add_request",
+      "className": "SetFriendAddRequest",
+      "file": "user/SetFriendAddRequest.ts",
+      "tags": [
+        "用户接口"
+      ],
+      "summary": "处理加好友请求",
+      "description": "同意或拒绝加好友请求",
+      "params": [
+        {
+          "key": "flag",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '加好友请求的 flag (需从上报中获取)' })"
+        },
+        {
+          "key": "approve",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.String(), Type.Boolean()], { description: '是否同意请求' }))"
+        },
+        {
+          "key": "remark",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '添加后的好友备注' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_friend_remark",
+      "className": "SetFriendRemark",
+      "file": "user/SetFriendRemark.ts",
+      "tags": [
+        "用户接口"
+      ],
+      "summary": "设置好友备注",
+      "description": "设置好友备注",
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '对方 QQ 号' })"
+        },
+        {
+          "key": "remark",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '备注内容' })"
+        }
+      ]
+    },
+    {
+      "action": "set_group_add_option",
+      "className": "SetGroupAddOption",
+      "file": "extends/SetGroupAddOption.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "设置群加群选项",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "add_type",
+          "type": "Number",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Number({ description: '加群方式' })"
+        },
+        {
+          "key": "group_question",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '加群问题' }))"
+        },
+        {
+          "key": "group_answer",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '加群答案' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_add_request",
+      "className": "SetGroupAddRequest",
+      "file": "group/SetGroupAddRequest.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "处理加群请求",
+      "description": "同意或拒绝加群请求或邀请",
+      "params": [
+        {
+          "key": "flag",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '请求flag' })"
+        },
+        {
+          "key": "approve",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否同意' }))"
+        },
+        {
+          "key": "reason",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.String({ default: ' ' }), Type.Null()], { description: '拒绝理由' }))"
+        },
+        {
+          "key": "count",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ default: 100, description: '搜索通知数量' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_admin",
+      "className": "SetGroupAdmin",
+      "file": "group/SetGroupAdmin.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "设置群管理员",
+      "description": "设置或取消群聊中的管理员",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户QQ' })"
+        },
+        {
+          "key": "enable",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否设置为管理员' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_album_media_like",
+      "className": "SetGroupAlbumMediaLike",
+      "file": "extends/SetGroupAlbumMediaLike.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "点赞群相册媒体",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "album_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册ID' })"
+        },
+        {
+          "key": "batch_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: 'batch_id' })"
+        },
+        {
+          "key": "lloc",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: 'lloc，若对整个上传操作则不填' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_ban",
+      "className": "SetGroupBan",
+      "file": "group/SetGroupBan.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "群组禁言",
+      "description": "禁言群聊中的指定成员",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户QQ' })"
+        },
+        {
+          "key": "duration",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { default: 0, description: '禁言时长(秒)' })"
+        }
+      ]
+    },
+    {
+      "action": "set_group_card",
+      "className": "SetGroupCard",
+      "file": "group/SetGroupCard.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "设置群名片",
+      "description": "设置群聊中指定成员的群名片",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户QQ' })"
+        },
+        {
+          "key": "card",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '群名片' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_kick",
+      "className": "SetGroupKick",
+      "file": "group/SetGroupKick.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "群组踢人",
+      "description": "将指定成员踢出群聊",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户QQ' })"
+        },
+        {
+          "key": "reject_add_request",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否拒绝加群请求' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_kick_members",
+      "className": "SetGroupKickMembers",
+      "file": "extends/SetGroupKickMembers.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "批量踢出群成员",
+      "description": "从指定群聊中批量踢出多个成员",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "user_id",
+          "type": "Array",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Array(Type.String(), { description: 'QQ号列表' })"
+        },
+        {
+          "key": "reject_add_request",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否拒绝加群请求' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_leave",
+      "className": "SetGroupLeave",
+      "file": "group/SetGroupLeave.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "退出群组",
+      "description": "退出或解散指定群聊",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "is_dismiss",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否解散' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_member_invite_policy",
+      "className": "SetGroupMemberInvitePolicy",
+      "file": "group/SetGroupMemberInvitePolicy.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "设置群成员邀请策略",
+      "description": "设置是否允许群成员邀请好友进群，以及邀请是否需要管理员审核",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "policy",
+          "type": null,
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "MemberInvitePolicySchema"
+        }
+      ]
+    },
+    {
+      "action": "set_group_member_permissions",
+      "className": "SetGroupMemberPermissions",
+      "file": "group/SetGroupMemberPermissions.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "设置群成员功能权限",
+      "description": "设置群成员上传相册、发起临时会话和发起新群聊的权限；未传入的项目保持不变",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "allow_member_upload_album",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '允许成员上传群相册' }))"
+        },
+        {
+          "key": "allow_member_temporary_session",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '允许成员发起临时会话' }))"
+        },
+        {
+          "key": "allow_member_create_group",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '允许成员发起新的群聊' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_name",
+      "className": "SetGroupName",
+      "file": "group/SetGroupName.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "设置群名称",
+      "description": "修改指定群聊的名称",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "group_name",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群名称' })"
+        }
+      ]
+    },
+    {
+      "action": "set_group_new_member_history_visibility",
+      "className": "SetGroupNewMemberHistoryVisibility",
+      "file": "group/SetGroupNewMemberHistoryVisibility.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "设置新成员历史消息可见性",
+      "description": "设置新入群成员默认是否可以查看最近聊天记录",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "visible",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ description: '新成员默认可见最近聊天记录' })"
+        }
+      ]
+    },
+    {
+      "action": "set_group_portrait",
+      "className": "SetGroupPortrait",
+      "file": "go-cqhttp/SetGroupPortrait.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "设置群头像",
+      "description": "修改指定群聊的头像",
+      "params": [
+        {
+          "key": "file",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '头像文件路径或 URL' })"
+        },
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        }
+      ]
+    },
+    {
+      "action": "set_group_remark",
+      "className": "SetGroupRemark",
+      "file": "extends/SetGroupRemark.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "设置群备注",
+      "description": "设置群备注",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "remark",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '备注' })"
+        }
+      ]
+    },
+    {
+      "action": "set_group_robot_add_option",
+      "className": "SetGroupRobotAddOption",
+      "file": "extends/SetGroupRobotAddOption.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "设置群机器人加群选项",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "robot_member_switch",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ description: '机器人成员开关' }))"
+        },
+        {
+          "key": "robot_member_examine",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ description: '机器人成员审核' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_search",
+      "className": "SetGroupSearch",
+      "file": "extends/SetGroupSearch.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "设置群搜索选项",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "no_code_finger_open",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ description: '未知' }))"
+        },
+        {
+          "key": "no_finger_open",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ description: '未知' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_group_sign",
+      "className": "SetGroupSign",
+      "file": "extends/SetGroupSign.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": null
+    },
+    {
+      "action": "set_group_special_title",
+      "className": "SetSpecialTitle",
+      "file": "extends/SetSpecialTitle.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "设置专属头衔",
+      "description": "设置群聊中指定成员的专属头衔",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: 'QQ号' })"
+        },
+        {
+          "key": "special_title",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ default: '', description: '专属头衔' })"
+        }
+      ]
+    },
+    {
+      "action": "set_group_todo",
+      "className": "SetGroupTodo",
+      "file": "packet/SetGroupTodo.ts",
+      "tags": [],
+      "summary": "设置群待办",
+      "description": "将指定消息设置为群待办",
+      "params": null
+    },
+    {
+      "action": "set_group_whole_ban",
+      "className": "SetGroupWholeBan",
+      "file": "group/SetGroupWholeBan.ts",
+      "tags": [
+        "群组接口"
+      ],
+      "summary": "全员禁言",
+      "description": "开启或关闭指定群聊的全员禁言",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "enable",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否开启全员禁言' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_input_status",
+      "className": "SetInputStatus",
+      "file": "extends/SetInputStatus.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "设置输入状态",
+      "description": null,
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: 'QQ号' })"
+        },
+        {
+          "key": "event_type",
+          "type": "Number",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Number({ description: '事件类型' })"
+        }
+      ]
+    },
+    {
+      "action": "set_msg_emoji_like",
+      "className": "SetMsgEmojiLike",
+      "file": "msg/SetMsgEmojiLike.ts",
+      "tags": [
+        "消息扩展"
+      ],
+      "summary": "设置消息表情点赞",
+      "description": null,
+      "params": [
+        {
+          "key": "message_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '消息ID' })"
+        },
+        {
+          "key": "emoji_id",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '表情ID' })"
+        },
+        {
+          "key": "set",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Boolean(), Type.String()], { description: '是否设置' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_online_status",
+      "className": "SetOnlineStatus",
+      "file": "extends/SetOnlineStatus.ts",
+      "tags": [
+        "系统扩展"
+      ],
+      "summary": "设置在线状态",
+      "description": null,
+      "params": [
+        {
+          "key": "status",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '在线状态' })"
+        },
+        {
+          "key": "ext_status",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '扩展状态' })"
+        },
+        {
+          "key": "battery_status",
+          "type": "Union",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Union([Type.Number(), Type.String()], { description: '电量状态' })"
+        }
+      ]
+    },
+    {
+      "action": "set_qq_avatar",
+      "className": "SetAvatar",
+      "file": "extends/SetQQAvatar.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "设置QQ头像",
+      "description": "修改当前账号的QQ头像",
+      "params": [
+        {
+          "key": "file",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '图片路径、URL或Base64' })"
+        }
+      ]
+    },
+    {
+      "action": "set_qq_profile",
+      "className": "SetQQProfile",
+      "file": "go-cqhttp/SetQQProfile.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "设置QQ资料",
+      "description": "修改当前账号的昵称、个性签名等资料",
+      "params": [
+        {
+          "key": "nickname",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '昵称' })"
+        },
+        {
+          "key": "personal_note",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '个性签名' }))"
+        },
+        {
+          "key": "sex",
+          "type": "Union",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Union([Type.Number(), Type.String()], { description: '性别 (0: 未知, 1: 男, 2: 女)' }))"
+        }
+      ]
+    },
+    {
+      "action": "set_restart",
+      "className": "SetRestart",
+      "file": "system/SetRestart.ts",
+      "tags": [
+        "系统接口"
+      ],
+      "summary": "重启服务",
+      "description": "重启服务",
+      "params": []
+    },
+    {
+      "action": "set_self_longnick",
+      "className": "SetLongNick",
+      "file": "extends/SetLongNick.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "设置个性签名",
+      "description": "修改当前登录帐号的个性签名",
+      "params": [
+        {
+          "key": "longNick",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '签名内容' })"
+        }
+      ]
+    },
+    {
+      "action": "test_auto_register_01",
+      "className": "TestAutoRegister01",
+      "file": "test/TestAutoRegister01.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "test_auto_register_02",
+      "className": "TestAutoRegister02",
+      "file": "test/TestAutoRegister02.ts",
+      "tags": [],
+      "summary": null,
+      "description": null,
+      "params": []
+    },
+    {
+      "action": "test_download_stream",
+      "className": "TestDownloadStream",
+      "file": "stream/TestStreamDownload.ts",
+      "tags": [
+        "流式传输扩展"
+      ],
+      "summary": "测试下载流",
+      "description": null,
+      "params": [
+        {
+          "key": "error",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ default: false, description: '是否触发测试错误' }))"
+        }
+      ]
+    },
+    {
+      "action": "trans_group_file",
+      "className": "TransGroupFile",
+      "file": "extends/TransGroupFile.ts",
+      "tags": [
+        "文件扩展"
+      ],
+      "summary": "传输群文件",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "file_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件ID' })"
+        }
+      ]
+    },
+    {
+      "action": "translate_en2zh",
+      "className": "TranslateEnWordToZn",
+      "file": "extends/TranslateEnWordToZn.ts",
+      "tags": [
+        "扩展接口"
+      ],
+      "summary": "英文单词翻译",
+      "description": "将英文单词列表翻译为中文",
+      "params": [
+        {
+          "key": "words",
+          "type": "Array",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Array(Type.String(), { description: '待翻译单词列表' })"
+        }
+      ]
+    },
+    {
+      "action": "upload_file_stream",
+      "className": "UploadFileStream",
+      "file": "stream/UploadFileStream.ts",
+      "tags": [
+        "流式接口"
+      ],
+      "summary": "上传文件流",
+      "description": "以流式方式上传文件数据到机器人",
+      "params": [
+        {
+          "key": "stream_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '流 ID' })"
+        },
+        {
+          "key": "chunk_data",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '分块数据 (Base64)' }))"
+        },
+        {
+          "key": "chunk_index",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ description: '分块索引' }))"
+        },
+        {
+          "key": "total_chunks",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ description: '总分块数' }))"
+        },
+        {
+          "key": "file_size",
+          "type": "Number",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Number({ description: '文件总大小' }))"
+        },
+        {
+          "key": "expected_sha256",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '期望的 SHA256' }))"
+        },
+        {
+          "key": "is_complete",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '是否完成' }))"
+        },
+        {
+          "key": "filename",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '文件名' }))"
+        },
+        {
+          "key": "reset",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '是否重置' }))"
+        },
+        {
+          "key": "verify_only",
+          "type": "Boolean",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.Boolean({ description: '是否仅验证' }))"
+        },
+        {
+          "key": "file_retention",
+          "type": "Number",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Number({ default: 5 * 60 * 1000, description: '文件保留时间 (毫秒)' })"
+        }
+      ]
+    },
+    {
+      "action": "upload_group_file",
+      "className": "GoCQHTTPUploadGroupFile",
+      "file": "go-cqhttp/UploadGroupFile.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "上传群文件",
+      "description": "上传资源路径或URL指定的文件到指定群聊的文件系统中",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "file",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '资源路径或URL' })"
+        },
+        {
+          "key": "name",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件名' })"
+        },
+        {
+          "key": "folder",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '父目录 ID' }))"
+        },
+        {
+          "key": "folder_id",
+          "type": "String",
+          "optional": true,
+          "desc": null,
+          "required": false,
+          "raw": "Type.Optional(Type.String({ description: '父目录 ID (兼容性字段)' }))"
+        },
+        {
+          "key": "upload_file",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: true, description: '是否执行上传' })"
+        }
+      ]
+    },
+    {
+      "action": "upload_image_to_qun_album",
+      "className": "UploadImageToQunAlbum",
+      "file": "extends/UploadImageToQunAlbum.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "上传图片到群相册",
+      "description": null,
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "album_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册ID' })"
+        },
+        {
+          "key": "album_name",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册名称' })"
+        },
+        {
+          "key": "file",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '图片路径、URL或Base64' })"
+        }
+      ]
+    },
+    {
+      "action": "upload_images_to_qun_album",
+      "className": "UploadImagesToQunAlbum",
+      "file": "extends/UploadImagesToQunAlbum.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "上传多张图片到群相册",
+      "description": "一次上传多张图片，这些图片在群相册里显示为同一条上传",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "album_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册ID' })"
+        },
+        {
+          "key": "album_name",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册名称' })"
+        },
+        {
+          "key": "files",
+          "type": "Array",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Array(Type.String(), { description: '图片路径、URL或Base64 数组，一次上传多张' })"
+        }
+      ]
+    },
+    {
+      "action": "upload_private_file",
+      "className": "GoCQHTTPUploadPrivateFile",
+      "file": "go-cqhttp/UploadPrivateFile.ts",
+      "tags": [
+        "Go-CQHTTP"
+      ],
+      "summary": "上传私聊文件",
+      "description": "上传本地文件到指定私聊会话中",
+      "params": [
+        {
+          "key": "user_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '用户 QQ' })"
+        },
+        {
+          "key": "file",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '资源路径或URL' })"
+        },
+        {
+          "key": "name",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '文件名' })"
+        },
+        {
+          "key": "upload_file",
+          "type": "Boolean",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.Boolean({ default: true, description: '是否执行上传' })"
+        }
+      ]
+    },
+    {
+      "action": "upload_video_to_qun_album",
+      "className": "UploadVideoToQunAlbum",
+      "file": "extends/UploadVideoToQunAlbum.ts",
+      "tags": [
+        "群组扩展"
+      ],
+      "summary": "上传视频到群相册",
+      "description": "上传视频到群相册，封面自动抽取首帧（失败时使用内置默认封面）",
+      "params": [
+        {
+          "key": "group_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '群号' })"
+        },
+        {
+          "key": "album_id",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册ID' })"
+        },
+        {
+          "key": "album_name",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '相册名称' })"
+        },
+        {
+          "key": "file",
+          "type": "String",
+          "optional": false,
+          "desc": null,
+          "required": true,
+          "raw": "Type.String({ description: '视频路径、URL或Base64' })"
+        }
+      ]
+    }
+  ]
+}

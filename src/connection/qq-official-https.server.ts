@@ -1,0 +1,618 @@
+import type { Request, Response, NextFunction } from 'express';
+import type { ConnectionConfig } from '../core/types.js';
+import { isQqOfficialConnection } from '../core/types.js';
+import { configService } from '../core/config.service.js';
+import { eventBus } from '../event/event-bus.js';
+import { logQqOfficialEvent } from '../core/log-store.js';
+import { recordDauFromQqEvent } from '../core/dau.js';
+import { formatLogArgs, formatQqOfficialEvent } from '../core/log-format.js';
+import {
+  rememberBotSelf,
+  registerGroupInfoFetcher,
+  shortId,
+  unregisterGroupInfoFetcher,
+} from '../core/entity-names.js';
+import { displayHost } from './onebot-http.shared.js';
+import {
+  appendQqOfficialAuthHint,
+  fetchQqOfficialAccessToken,
+  qqOfficialApiRawRequest,
+  qqOfficialApiRequest,
+  mapQqOfficialMeToProfile,
+  type QqOfficialBotProfile,
+  type QqOfficialMethod,
+  type QqOfficialRawResult,
+} from './qq-official-api.js';
+import {
+  QQC_CALLBACK_MAX_SKEW_SEC,
+  qqOfficialSignValidation,
+  qqOfficialTimestampFresh,
+  qqOfficialVerifyCallbackSignature,
+} from './qq-official-crypto.js';
+import type { QqOfficialEndpoint } from './qq-official-ws.client.js';
+
+export function qqOfficialHttpsCallbackPath(connectionId: string): string {
+  return `/gfbot/${connectionId}`;
+}
+
+/**
+ * 供开放平台填写 / 界面复制的回调 URL。
+ * 只在填了 webhookBaseUrl（公网域名）时才是平台可用的地址；
+ * 缺省回落到本机地址，仅用于自测/日志，界面不该把它当成可提交的回调地址。
+ */
+export function qqOfficialHttpsCallbackUrl(
+  connectionId: string,
+  webhookBaseUrl?: string,
+): string {
+  const path = qqOfficialHttpsCallbackPath(connectionId);
+  const base = (webhookBaseUrl || '').trim().replace(/\/+$/, '');
+  if (base) return `${base}${path}`;
+  const cfg = configService.getConfig();
+  const h = displayHost(cfg.host || '127.0.0.1');
+  return `http://${h}:${cfg.port}${path}`;
+}
+
+/** 公网回调基址是否已配置（决定界面能否给出可提交的回调 URL） */
+export function qqOfficialHttpsHasPublicBase(webhookBaseUrl?: string): boolean {
+  return !!String(webhookBaseUrl ?? '').trim();
+}
+
+type WebhookHandler = {
+  connection: ConnectionConfig;
+  onEvent?: () => void;
+  /** 平台校验过回调地址（op13 验签通过）或收到过验签通过的事件 */
+  verified?: boolean;
+  /** verified 由 false 翻成 true 时回调一次（用于刷新界面状态） */
+  onVerified?: () => void;
+};
+
+const webhookHandlers = new Map<string, WebhookHandler>();
+
+export function registerQqOfficialHttpsWebhook(id: string, handler: WebhookHandler): void {
+  webhookHandlers.set(id, handler);
+}
+
+export function unregisterQqOfficialHttpsWebhook(id: string): void {
+  webhookHandlers.delete(id);
+}
+
+/** 回调时间戳允许的最大偏差（秒）：超出即判定过期/重放 */
+const QQ_CALLBACK_MAX_SKEW_SEC = QQC_CALLBACK_MAX_SKEW_SEC;
+/** 平台会重推事件：按事件 id 去重，避免插件重复执行 */
+const QQ_CALLBACK_DEDUPE_TTL_MS = 10 * 60_000;
+const QQ_CALLBACK_DEDUPE_MAX = 4096;
+/** op=13 校验载荷的长度上限（正常值都很短，超长一律拒绝） */
+const QQ_VALIDATION_PLAIN_TOKEN_MAX = 512;
+const QQ_VALIDATION_EVENT_TS_MAX = 64;
+
+/** connectionId:eventId → 首次收到时间（Map 保持插入序，便于按顺序清理） */
+const seenCallbackEvents = new Map<string, number>();
+
+/** 记录事件 id 并判断是否重复（重复＝平台重试或有人重放） */
+function isDuplicateCallbackEvent(connectionId: string, eventId: string): boolean {
+  const now = Date.now();
+  for (const [key, ts] of seenCallbackEvents) {
+    if (now - ts <= QQ_CALLBACK_DEDUPE_TTL_MS) break;
+    seenCallbackEvents.delete(key);
+  }
+  const key = `${connectionId}:${eventId}`;
+  if (seenCallbackEvents.has(key)) return true;
+  seenCallbackEvents.set(key, now);
+  while (seenCallbackEvents.size > QQ_CALLBACK_DEDUPE_MAX) {
+    const oldest = seenCallbackEvents.keys().next();
+    if (oldest.done) break;
+    seenCallbackEvents.delete(oldest.value);
+  }
+  return false;
+}
+
+/** 标记“平台确实连通过来”，并在首次翻正时刷新界面状态 */
+function markWebhookVerified(handler: WebhookHandler): void {
+  if (handler.verified) return;
+  handler.verified = true;
+  handler.onVerified?.();
+}
+
+/**
+ * 无签名 op=13 校验请求的每连接限速（签名 oracle 缓解）。
+ *
+ * 正常部署里，平台只在「保存回调地址」时发起几次校验；超过每分钟阈值
+ * 只可能是滥用（扫描 /gfbot/<id> 后批量借签）。放行窗口给足余量，
+ * 不会误伤真实平台校验。connectionId → 窗口起始时间戳与已用次数。
+ */
+const TOKENLESS_VALIDATION_WINDOW_MS = 60_000;
+const TOKENLESS_VALIDATION_MAX = 10;
+const tokenlessValidationSlots = new Map<string, { windowStart: number; used: number }>();
+
+function consumeTokenlessValidationSlot(connectionId: string): boolean {
+  const now = Date.now();
+  let slot = tokenlessValidationSlots.get(connectionId);
+  if (!slot || now - slot.windowStart >= TOKENLESS_VALIDATION_WINDOW_MS) {
+    slot = { windowStart: now, used: 0 };
+    tokenlessValidationSlots.set(connectionId, slot);
+    // 防表无限增长：连接数有限，但删掉已废弃连接的旧槽位总没错
+    if (tokenlessValidationSlots.size > 256) {
+      for (const [key, s] of tokenlessValidationSlots) {
+        if (now - s.windowStart >= TOKENLESS_VALIDATION_WINDOW_MS) {
+          tokenlessValidationSlots.delete(key);
+        }
+      }
+    }
+  }
+  if (slot.used >= TOKENLESS_VALIDATION_MAX) return false;
+  slot.used += 1;
+  return true;
+}
+
+export interface QqOfficialHttpsServerOptions {
+  connection: ConnectionConfig;
+  onReady?: () => void;
+  onDisconnect?: () => void;
+  onProfileUpdated?: () => void;
+  /** 回调地址首次被平台验证通过（用于刷新连接状态） */
+  onWebhookVerified?: () => void;
+}
+
+/**
+ * QQ 官方机器人 — HTTPS Webhook
+ * 挂在框架主端口 /gfbot/:id，等待腾讯 POST；外网用域名 HTTPS 反代即可。
+ */
+export class QqOfficialHttpsServer implements QqOfficialEndpoint {
+  readonly id: string;
+  readonly name: string;
+
+  private active = false;
+  private accessToken = '';
+  private tokenExpiresAt = 0;
+  private botProfile: QqOfficialBotProfile | null = null;
+
+  constructor(private readonly options: QqOfficialHttpsServerOptions) {
+    this.id = options.connection.id;
+    this.name = options.connection.name;
+    if (options.connection.botProfile) {
+      this.botProfile = options.connection.botProfile;
+      rememberBotSelf(
+        options.connection.appId ?? '',
+        this.botProfile.id,
+        this.botProfile.username,
+      );
+    }
+    // 与 WS 侧同一套：群名由 entity-names 的后台队列异步补，注册键用 appId
+    registerGroupInfoFetcher(
+      options.connection.appId ?? '',
+      (appId, groupOpenid) => this.fetchGroupName(appId, groupOpenid),
+    );
+  }
+
+  private log(
+    level: 'debug' | 'info' | 'warn' | 'error',
+    message: string,
+    ...args: unknown[]
+  ): void {
+    logQqOfficialEvent(`[官方:${this.name}]`, message, {
+      level,
+      detail: args.length ? formatLogArgs(args) : undefined,
+    });
+  }
+
+  get isConnected(): boolean {
+    return this.active;
+  }
+
+  get appId(): string {
+    return this.options.connection.appId ?? '';
+  }
+
+  /**
+   * 回调地址是否已被平台真正验证过。
+   * Webhook 模式下“监听已就绪”不等于“平台能推到”：
+   * 域名没配好 / 没做反代时同样 active，界面必须靠这个标记区分。
+   */
+  getWebhookVerified(): boolean {
+    return webhookHandlers.get(this.id)?.verified ?? false;
+  }
+
+  private logNetRetry(message: string): void {
+    this.log('warn', '[QQ官方HTTPS] 网络重试', message);
+  }
+
+  get callbackUrl(): string {
+    return qqOfficialHttpsCallbackUrl(this.id, this.options.connection.webhookBaseUrl);
+  }
+
+  getBotProfile(): QqOfficialBotProfile | null {
+    return this.botProfile;
+  }
+
+  start(): void {
+    const { connection } = this.options;
+    if (!connection.enable || this.active) return;
+    if (!isQqOfficialConnection(connection) || !connection.appId || !connection.appSecret) {
+      this.log('error', '[QQ官方HTTPS] 缺少 AppID / AppSecret');
+      return;
+    }
+
+    registerQqOfficialHttpsWebhook(this.id, {
+      connection,
+      verified: false,
+      onEvent: () => {
+        /* 收到事件即通路正常 */
+      },
+      onVerified: () => this.options.onWebhookVerified?.(),
+    });
+    this.active = true;
+    const hasPublicBase = qqOfficialHttpsHasPublicBase(connection.webhookBaseUrl);
+    if (hasPublicBase) {
+      this.log('info', `[QQ官方HTTPS] 等待腾讯回调: ${this.callbackUrl}`);
+    } else {
+      this.log(
+        'warn',
+        '[QQ官方HTTPS] 未填写「公网回调基址」：开放平台要求公网 HTTPS（80/443/8080/8443）地址，'
+        + `当前监听地址 ${this.callbackUrl} 只能本机自测；请填域名并反代到本服务端口`,
+      );
+    }
+    this.log('info', `[QQ官方HTTPS] 路径: ${qqOfficialHttpsCallbackPath(this.id)} （反代到咔咔主端口即可）`);
+    void this.refreshBotProfile().then(() => {
+      this.options.onProfileUpdated?.();
+    });
+    this.options.onReady?.();
+  }
+
+  stop(): void {
+    const was = this.active;
+    this.active = false;
+    unregisterQqOfficialHttpsWebhook(this.id);
+    unregisterGroupInfoFetcher(this.options.connection.appId ?? '');
+    if (was) this.options.onDisconnect?.();
+  }
+
+  /**
+   * 官方群资料 GET /v2/groups/{group_openid}/info → group_name。
+   * 与 WS 侧实现一致：只由后台队列调用，失败进负缓存，不在同步路径上打接口。
+   */
+  async fetchGroupName(appId: string, groupOpenid: string): Promise<string | null> {
+    const conn = this.options.connection;
+    const gid = String(groupOpenid ?? '').trim();
+    if (!gid) return null;
+    if (!isQqOfficialConnection(conn) || !conn.appId || !conn.appSecret) return null;
+    try {
+      await this.ensureAccessToken();
+      const info = await qqOfficialApiRequest<{ group_name?: string }>({
+        method: 'GET',
+        path: `/v2/groups/${encodeURIComponent(gid)}/info`,
+        appId: conn.appId,
+        accessToken: this.accessToken,
+        sandbox: conn.sandbox,
+        onRetry: (m) => this.logNetRetry(m),
+      });
+      const name = String(info?.group_name ?? '').trim();
+      if (!name) this.log('debug', `[QQ官方HTTPS] 群资料未返回群名 ${shortId(gid)}`);
+      return name || null;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log('debug', `[QQ官方HTTPS] 获取群名失败 ${shortId(gid)}`, msg);
+      return null;
+    }
+  }
+
+  async refreshBotProfile(): Promise<QqOfficialBotProfile | null> {
+    const conn = this.options.connection;
+    if (!isQqOfficialConnection(conn) || !conn.appId || !conn.appSecret) return null;
+    try {
+      await this.ensureAccessToken();
+      const me = await qqOfficialApiRequest<{
+        id?: string;
+        username?: string;
+        avatar?: string;
+        union_openid?: string;
+        desc?: string;
+        bio?: string;
+        share_url?: string;
+      }>({
+        method: 'GET',
+        path: '/users/@me',
+        appId: conn.appId,
+        accessToken: this.accessToken,
+        sandbox: conn.sandbox,
+        onRetry: (m) => this.logNetRetry(m),
+      });
+      this.botProfile = mapQqOfficialMeToProfile(me);
+      conn.botProfile = this.botProfile;
+      rememberBotSelf(conn.appId ?? '', this.botProfile.id, this.botProfile.username);
+      return this.botProfile;
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : String(err);
+      const msg = appendQqOfficialAuthHint(raw, conn.sandbox);
+      this.log('warn', '[QQ官方HTTPS] 获取机器人资料失败', msg);
+      return null;
+    }
+  }
+
+  async callAction(action: string, params?: Record<string, unknown>): Promise<unknown> {
+    const conn = this.options.connection;
+    if (!isQqOfficialConnection(conn)) {
+      throw new Error('非 QQ 官方连接');
+    }
+    if (!conn.appId) {
+      throw new Error('QQ 官方连接缺少 AppID，无法调用官方接口');
+    }
+    await this.ensureAccessToken();
+    const p = { ...(params ?? {}) };
+    const method = (p.__method as string) || 'POST';
+    delete p.__method;
+    const body = method === 'GET' || Object.keys(p).length === 0 ? undefined : p;
+    return qqOfficialApiRequest({
+      method: method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+      path: action.startsWith('/') ? action : `/${action}`,
+      appId: conn.appId,
+      accessToken: this.accessToken,
+      sandbox: conn.sandbox,
+      body,
+      onRetry: (m) => this.logNetRetry(m),
+    });
+  }
+
+  /**
+   * 接口代理专用：原始调用，不抛异常、保留 HTTP 状态码与响应体原文。
+   * 见 QqOfficialEndpoint.callRaw 的注释——这是「报错即报错」透传的落点。
+   */
+  async callRaw(request: {
+    method: QqOfficialMethod;
+    path: string;
+    body?: Record<string, unknown>;
+  }): Promise<QqOfficialRawResult> {
+    if (!this.isConnected) return { ok: false, error: 'QQ 官方连接尚未就绪（未连接）' };
+    const conn = this.options.connection;
+    if (!isQqOfficialConnection(conn) || !conn.appId || !conn.appSecret) {
+      return { ok: false, error: 'QQ 官方连接缺少 AppID / AppSecret，无法调用开放平台接口' };
+    }
+    try {
+      await this.ensureAccessToken();
+      return await qqOfficialApiRawRequest({
+        method: request.method,
+        path: request.path,
+        appId: conn.appId,
+        accessToken: this.accessToken,
+        sandbox: conn.sandbox,
+        body: request.body,
+        onRetry: (m) => this.logNetRetry(m),
+      });
+    } catch (err: unknown) {
+      // 网络层错误同样走返回值：代理层要把「超时」「网络错」做成一种结果
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  private async ensureAccessToken(): Promise<void> {
+    const conn = this.options.connection;
+    if (!isQqOfficialConnection(conn)) return;
+    if (!conn.appId || !conn.appSecret) {
+      throw new Error('QQ 官方连接缺少 AppID / AppSecret，无法获取 AccessToken');
+    }
+    const now = Date.now();
+    if (this.accessToken && now < this.tokenExpiresAt - 60_000) return;
+    const res = await fetchQqOfficialAccessToken(
+      conn.appId,
+      conn.appSecret,
+      (m) => this.logNetRetry(m),
+    );
+    this.accessToken = res.access_token;
+    this.tokenExpiresAt = now + res.expires_in * 1000;
+  }
+}
+
+function headerOne(
+  headers: Request['headers'],
+  name: string,
+): string | undefined {
+  const v = headers[name];
+  if (Array.isArray(v)) return v[0];
+  return typeof v === 'string' ? v : undefined;
+}
+
+function logWebhook(conn: ConnectionConfig, level: 'debug' | 'info' | 'warn' | 'error', message: string, detail?: string): void {
+  logQqOfficialEvent(`[官方:${conn.name}]`, message, { level, detail });
+}
+
+/** 挂到框架主 Express：POST /gfbot/:id */
+export function createQqOfficialHttpsWebhookMiddleware() {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const m = /^\/gfbot\/([^/]+)\/?$/.exec(req.path || '')
+      || /^\/gf_bot\/([^/]+)\/?$/.exec(req.path || '');
+    if (!m) {
+      next();
+      return;
+    }
+
+    const id = m[1];
+    const handler = webhookHandlers.get(id);
+    if (!handler) {
+      res.status(404).json({ message: 'qq official https webhook not active' });
+      return;
+    }
+
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      res.status(200).type('text').send('kakake qq official https webhook ok');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ message: 'Method Not Allowed' });
+      return;
+    }
+
+    void handleWebhookPost(req, res, handler);
+  };
+}
+
+async function handleWebhookPost(
+  req: Request,
+  res: Response,
+  handler: WebhookHandler,
+): Promise<void> {
+  const conn = handler.connection;
+  if (!isQqOfficialConnection(conn) || !conn.appSecret) {
+    res.status(500).json({ message: 'misconfigured' });
+    return;
+  }
+
+  const rawBodyField = (req as Request & { rawBody?: Buffer | string }).rawBody;
+  if (rawBodyField === undefined) {
+    // 没有原始报文就无法验签：正常只会在 express.json 之前被别的中间件吃掉 body 时出现
+    logWebhook(
+      conn,
+      'warn',
+      '[QQ官方HTTPS] 未取得原始报文（rawBody），签名校验可能失败',
+      'body 必须由 express.json({verify}) 解析，且不得在此之前被其它 body parser 处理',
+    );
+  }
+  const rawBody = rawBodyField
+    ?? (typeof req.body === 'string'
+      ? req.body
+      : JSON.stringify(req.body ?? {}));
+  const rawStr = typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8');
+  if (!rawStr.trim()) {
+    logWebhook(conn, 'warn', '[QQ官方HTTPS] 回调请求 body 为空，已拒绝');
+    res.status(400).json({ message: 'empty body' });
+    return;
+  }
+
+  let payload: { op?: number; t?: string; d?: unknown; id?: string; s?: number };
+  try {
+    payload = (typeof req.body === 'object' && req.body)
+      ? req.body as typeof payload
+      : JSON.parse(rawStr) as typeof payload;
+  } catch {
+    res.status(400).json({ message: 'invalid json' });
+    return;
+  }
+
+  const sig = headerOne(req.headers, 'x-signature-ed25519');
+  const ts = headerOne(req.headers, 'x-signature-timestamp');
+
+  // op=13 回调地址验证：平台要求用 AppSecret 派生密钥对 event_ts + plain_token 签名回包
+  if (payload.op === 13) {
+    // 校验请求带签名头时必须验：否则这就是一个“用机器人密钥签任意数据”的公开接口
+    if (sig && ts && !qqOfficialVerifyCallbackSignature(conn.appSecret, sig, ts, rawStr)) {
+      logWebhook(
+        conn,
+        'warn',
+        '[QQ官方HTTPS] 回调地址校验请求签名不合法，已拒绝',
+        '校验与事件用的是同一套签名（Ed25519(timestamp + body)，密钥由 AppSecret 派生）；'
+        + '若确认开放平台的校验请求不带签名头，把这段强制校验去掉即可（本文件 op=13 分支）',
+      );
+      res.status(401).json({ message: 'unauthorized' });
+      return;
+    }
+    if (!sig || !ts) {
+      // 签名 oracle 缓解：未带签名头的 op=13 等于「借用机器人密钥签任意数据」。
+      // ① 连接声明 requireValidationSignature 时直接拒绝（公网直挂 webhook 建议开启）；
+      // ② 兼容模式下限速放行——真实平台校验只在保存回调地址时发生几次，
+      //    超过阈值必是滥用。限速表按连接 id 记滑动窗口。
+      if (conn.requireValidationSignature) {
+        logWebhook(
+          conn,
+          'warn',
+          '[QQ官方HTTPS] 回调校验未带签名头，且连接已开启强制验签，已拒绝',
+        );
+        res.status(401).json({ message: 'unauthorized' });
+        return;
+      }
+      if (!consumeTokenlessValidationSlot(handler.connection.id)) {
+        logWebhook(
+          conn,
+          'warn',
+          '[QQ官方HTTPS] 无签名回调校验请求过于频繁，已限流拒绝',
+        );
+        res.status(429).json({ message: 'too many validation requests' });
+        return;
+      }
+      logWebhook(
+        conn,
+        'warn',
+        '[QQ官方HTTPS] 回调校验请求未带签名头，按平台文档直接回签名',
+        '建议在开放平台重新保存一次回调地址，让后续校验都带签名头；'
+        + '公网部署可在连接配置开启 requireValidationSignature 强制验签',
+      );
+    }
+    const d = (payload.d && typeof payload.d === 'object')
+      ? payload.d as { plain_token?: string; event_ts?: string }
+      : {};
+    const plainToken = String(d.plain_token ?? '');
+    const eventTs = String(d.event_ts ?? '');
+    if (!plainToken || !eventTs) {
+      res.status(400).json({ message: 'invalid validation payload' });
+      return;
+    }
+    if (plainToken.length > QQ_VALIDATION_PLAIN_TOKEN_MAX || eventTs.length > QQ_VALIDATION_EVENT_TS_MAX) {
+      logWebhook(conn, 'warn', '[QQ官方HTTPS] 回调校验载荷超长，已拒绝');
+      res.status(400).json({ message: 'validation payload too long' });
+      return;
+    }
+    try {
+      const signature = qqOfficialSignValidation(conn.appSecret, eventTs, plainToken);
+      res.status(200).json({ plain_token: plainToken, signature });
+      // 只有验签通过的校验才算“平台真的连通过来”
+      if (sig && ts) markWebhookVerified(handler);
+      logWebhook(conn, 'info', '[QQ官方HTTPS] 回调地址校验已响应');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logWebhook(conn, 'error', '[QQ官方HTTPS] 回调校验签名失败', msg);
+      res.status(500).json({ message: 'sign failed' });
+    }
+    return;
+  }
+
+  if (!sig || !ts || !qqOfficialVerifyCallbackSignature(conn.appSecret, sig, ts, rawStr)) {
+    logWebhook(conn, 'warn', '[QQ官方HTTPS] 签名校验失败');
+    res.status(401).json({ message: 'unauthorized' });
+    return;
+  }
+
+  // 时间戳校验（防重放）：本机时间不准会误伤，所以日志里直接点明排查方向
+  if (!qqOfficialTimestampFresh(ts)) {
+    logWebhook(
+      conn,
+      'warn',
+      `[QQ官方HTTPS] 回调时间戳超出允许偏差（±${QQ_CALLBACK_MAX_SKEW_SEC}s），已按过期/重放拒绝`,
+      `timestamp=${ts}，若本机时间不准请先校时（NTP）`,
+    );
+    res.status(401).json({ message: 'stale timestamp' });
+    return;
+  }
+
+  if (payload.op === 0) {
+    const eventId = String(payload.id ?? '').trim();
+    if (eventId && isDuplicateCallbackEvent(conn.id, eventId)) {
+      logWebhook(conn, 'warn', `[QQ官方HTTPS] 重复回调已忽略（平台重试或重放） id=${eventId}`);
+      res.status(200).json({ op: 12 });
+      return;
+    }
+    markWebhookVerified(handler);
+    const eventType = payload.t || 'UNKNOWN';
+    const data = payload.d;
+    const event = (typeof data === 'object' && data)
+      ? { ...data as object, t: eventType }
+      : { t: eventType, d: data };
+    const formatted = formatQqOfficialEvent(eventType, event, { appId: conn.appId });
+    logQqOfficialEvent(`[官方:${conn.name}]`, formatted.message, {
+      detail: formatted.detail,
+      raw: formatted.raw,
+      level: 'info',
+    });
+    recordDauFromQqEvent(conn.appId, eventType, event);
+
+    void eventBus.emit('qq_official/event', {
+      connectionId: conn.id,
+      eventType,
+      event,
+    });
+    handler.onEvent?.();
+    // HTTP Callback ACK
+    res.status(200).json({ op: 12 });
+    return;
+  }
+
+  // 其它 op：仍 ACK，避免平台重试
+  res.status(200).json({ op: 12 });
+}

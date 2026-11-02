@@ -1,0 +1,8 @@
+{
+  "name": "sssx-plugin-hello",
+  "displayName": "双生插件示例",
+  "author": "教程",
+  "version": "0.1.0",
+  "entry": "index.mjs",
+  "description": "双生插件（OneBot + QQ 官方）：回声 / 帮助 / ping / 签到 / 查积分"
+}

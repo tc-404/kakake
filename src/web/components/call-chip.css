@@ -1,0 +1,244 @@
+/*
+ * CallChip —— 调用状态胶囊。
+ * 与原版 CSS 的两处差异（见 call-chip.tsx 顶部注释）：
+ * 1. 填充不用 color-mix()：旧内核会把整块解析成透明，进度直接看不见。
+ *    这里拆成 background-color（色相）+ opacity（浓度），任何内核都渲染得出来；
+ * 2. 完成态用 @keyframes cc-wash 让绿色从底部升起铺满，
+ *    而不是把 clip-path 定死在 inset(100% 0 0 0) 让它排空。
+ */
+
+.call-chip {
+  --cc-size: 34px;
+  --cc-font: 13px;
+  --cc-pad: 12px;
+  --cc-gap: 7px;
+  --cc-radius: 10px;
+  --cc-color: hsl(var(--foreground));
+  /* 底色 / 描边 / 进度 / 结果色全部读主题令牌，组件 props 里传值时会覆盖这些默认值 */
+  --cc-surface: rgb(var(--kk-glass-base) / 0.82);
+  --cc-border: hsl(var(--border) / 0.6);
+  --cc-progress: rgb(var(--kk-comp-rgb));
+  --cc-progress-opacity: 0.08;
+  --cc-done: hsl(var(--success));
+  --cc-error: hsl(var(--destructive));
+  --cc-wash-opacity: 0.14;
+  --cc-expected: 2500ms;
+  --cc-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-gap);
+  box-sizing: border-box;
+  max-width: 100%;
+  height: var(--cc-size);
+  padding: 0 var(--cc-pad);
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius);
+  overflow: hidden;
+  background: var(--cc-surface);
+  color: var(--cc-color);
+  font-size: var(--cc-font);
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform 160ms var(--cc-ease-out);
+}
+
+.call-chip[data-status='error'] {
+  cursor: pointer;
+}
+
+/* 取消热区：盖在字形槽上的透明圆钮，只读位置不抢字形的事件流 */
+.call-chip__cancel {
+  position: absolute;
+  left: calc(var(--cc-pad) - 6px);
+  top: 50%;
+  z-index: 1;
+  width: calc(var(--cc-font) + 14px);
+  height: calc(var(--cc-font) + 14px);
+  transform: translateY(-50%);
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.call-chip__cancel:hover {
+  background: hsl(var(--destructive) / 0.14);
+}
+
+.call-chip[data-pressed] {
+  transform: scale(0.97);
+}
+
+.call-chip__fill {
+  position: absolute;
+  inset: 0;
+  background-color: var(--cc-progress);
+  opacity: var(--cc-progress-opacity);
+  transform: scaleX(0);
+  transform-origin: left center;
+  clip-path: inset(0 0 0 0);
+  pointer-events: none;
+}
+
+.call-chip[data-status='running'] .call-chip__fill {
+  transition: transform var(--cc-expected) linear;
+}
+
+/* 有外部实时进度时，每次更新只需一小段线性过渡把两段值接上，不要整体斜坡 */
+.call-chip[data-live][data-status='running'] .call-chip__fill {
+  transition: transform 140ms linear;
+}
+
+.call-chip[data-status='done'] .call-chip__fill {
+  background-color: var(--cc-done);
+  opacity: var(--cc-wash-opacity);
+  animation: cc-wash 420ms var(--cc-ease-out) 120ms both;
+  transition:
+    transform 200ms var(--cc-ease-out),
+    background-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.call-chip[data-status='error'] .call-chip__fill {
+  background-color: var(--cc-error);
+  opacity: var(--cc-wash-opacity);
+  transition:
+    background-color 200ms ease,
+    opacity 200ms ease;
+}
+
+/* 完成水波：从底部升起铺满整颗胶囊 */
+@keyframes cc-wash {
+  from { clip-path: inset(100% 0 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+.call-chip:not([data-mounted]) .call-chip__fill,
+.call-chip:not([data-mounted]) .call-chip__glyph {
+  transition: none !important;
+  animation: none !important;
+}
+
+.call-chip__slot {
+  position: relative;
+  flex: none;
+  width: calc(var(--cc-font) + 2px);
+  height: calc(var(--cc-font) + 2px);
+  overflow: hidden;
+}
+
+.call-chip__glyph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: translateY(70%);
+  filter: blur(3px);
+}
+
+.call-chip__glyph[data-state='in'] {
+  opacity: 1;
+  transform: none;
+  filter: blur(0);
+  transition:
+    opacity 240ms var(--cc-ease-out),
+    transform 240ms var(--cc-ease-out),
+    filter 240ms var(--cc-ease-out);
+}
+
+.call-chip__glyph[data-state='out'] {
+  transform: translateY(-70%);
+  transition:
+    opacity 160ms var(--cc-ease-out),
+    transform 160ms var(--cc-ease-out),
+    filter 160ms var(--cc-ease-out);
+}
+
+.call-chip[data-status='done'] .call-chip__glyph[data-state='in'] {
+  color: var(--cc-done);
+}
+
+.call-chip[data-status='error'] .call-chip__glyph[data-state='in'] {
+  color: var(--cc-error);
+}
+
+.call-chip__name,
+.call-chip__arg,
+.call-chip__meta,
+.call-chip__timer {
+  position: relative;
+}
+
+.call-chip__name {
+  flex: none;
+  font-weight: 500;
+}
+
+.call-chip__arg {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.72;
+}
+
+.call-chip__meta {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.55;
+}
+
+.call-chip__timer {
+  flex: none;
+  min-width: 6ch;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  opacity: 0.5;
+}
+
+.call-chip__retry {
+  position: absolute;
+  inset: -5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cc-radius);
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.call-chip__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .call-chip[data-status='done'] .call-chip__fill {
+    animation: none;
+    clip-path: inset(0 0 0 0);
+  }
+
+  .call-chip__glyph {
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .call-chip[data-pressed] {
+    transform: none;
+  }
+}
