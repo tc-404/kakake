@@ -10,12 +10,19 @@
  *   KAKAKE_NODE_MIRROR=https://npmmirror.com/mirrors/node  优先镜像（默认会回退国内镜像）
  *   KAKAKE_PACK_VERBOSE=1  直通子进程原始输出（不用转轮，便于排查构建/安装报错）
  *   KAKAKE_PACK_PLAIN=1 / NO_COLOR=1  关闭颜色与动画（纯文本，适合日志重定向 / CI）
+ *   KAKAKE_NPM_REGISTRY=https://registry.npmmirror.com  指定 npm 下载源（设置后跳过镜像选择菜单）
+ *   KAKAKE_PACK_ZIP_LEVEL=1  成品 zip 压缩级别（1 最快，9 最小；默认 1，失败自动回退系统工具）
  */
 import { spawnSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
+import net from 'node:net';
+import os from 'node:os';
+import readline from 'node:readline';
 import path from 'node:path';
+import zlib from 'node:zlib';
+import { Worker } from 'node:worker_threads';
 import { pipeline } from 'node:stream/promises';
 import { createWriteStream } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -231,7 +238,7 @@ function run(label, cmd, args, opts = {}) {
     const env = { ...process.env, ...(opts.env || {}) };
     const cwd = opts.cwd ?? ROOT;
 
-    if (VERBOSE || !IS_TTY) {
+    if (opts.live || VERBOSE || !IS_TTY) {
       console.log(`   ${c.cyan('▶')} ${label}`);
       const child = spawn(cmd, args, { cwd, stdio: 'inherit', env });
       child.on('error', (e) => reject(e));
@@ -587,7 +594,140 @@ async function buildProject() {
   if (!fs.existsSync(webIndex)) fail('缺少 packages/web/dist/index.html');
 }
 
-async function installProdDeps(prodRoot) {
+/* ─────────────────── npm 镜像测速与选择 ───────────────────
+ * npm install 每次都从零装生产依赖，走官方源在国内动辄数分钟。
+ * 这里在开工前测一轮 TCP 连接延迟，让用户选下载源；
+ * 选中的源通过 npm_config_registry 环境变量传给子进程，不改动用户的全局 npm 配置。
+ * 内置 Node 运行时的下载链路自带国内镜像优先（见 mirrorUrls），无需在此选择。
+ */
+const NPM_MIRRORS = [
+  { name: 'npmmirror（淘宝）', url: 'https://registry.npmmirror.com' },
+  { name: '腾讯云镜像', url: 'https://mirrors.cloud.tencent.com/npm/' },
+  { name: '华为云镜像', url: 'https://mirrors.huaweicloud.com/repository/npm/' },
+  { name: 'npm 官方源', url: 'https://registry.npmjs.org' },
+];
+
+/** TCP 连接延迟（ms）：对镜像主机 443 端口做握手计时；失败 / 超时返回 null */
+function tcpPingMs(host, timeoutMs = 2000) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const socket = net.connect({ host, port: 443 });
+    let settled = false;
+    const done = (v) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(v);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => done(Date.now() - started));
+    socket.once('timeout', () => done(null));
+    socket.once('error', () => done(null));
+  });
+}
+
+/** 测一个镜像：连 3 次取最小值（最小往返最能反映线路质量）；全失败返回 null */
+async function probeMirror(host) {
+  const samples = [];
+  for (let i = 0; i < 3; i++) {
+    const ms = await tcpPingMs(host);
+    if (ms !== null) samples.push(ms);
+  }
+  return samples.length ? Math.min(...samples) : null;
+}
+
+/** 当前 npm 配置的 registry（读不到 / 非法返回空串） */
+function currentNpmRegistry() {
+  try {
+    const npmCli = resolveNpmCli();
+    let r;
+    if (npmCli) {
+      r = spawnSync(process.execPath, [npmCli, 'config', 'get', 'registry'], { encoding: 'utf8', timeout: 15_000 });
+    } else if (isWin) {
+      r = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'npm config get registry'], { encoding: 'utf8', timeout: 15_000 });
+    } else {
+      r = spawnSync('npm', ['config', 'get', 'registry'], { encoding: 'utf8', timeout: 15_000 });
+    }
+    const out = String((r && r.stdout) || '').trim().replace(/\/$/, '');
+    return /^https?:\/\//.test(out) ? out : '';
+  } catch {
+    return '';
+  }
+}
+
+/** 单行问答（打包脚本是顺序流程，用完即关，不常驻） */
+function ask(question) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(question, (ans) => {
+      rl.close();
+      resolve(String(ans ?? '').trim());
+    });
+  });
+}
+
+/**
+ * 开工前选择 npm 下载源。
+ * 返回 registry URL（注入 npm_config_registry）或 null（保持当前配置）。
+ * KAKAKE_NPM_REGISTRY 环境变量显式指定时跳过菜单；非 TTY（CI / 重定向）同样跳过。
+ */
+async function pickNpmMirror() {
+  const envOverride = String(process.env.KAKAKE_NPM_REGISTRY || '').trim();
+  if (envOverride) {
+    okLine('npm 下载源', `环境变量指定 ${envOverride}`);
+    return envOverride;
+  }
+  if (!IS_TTY) return null;
+
+  const current = currentNpmRegistry();
+  const candidates = [...NPM_MIRRORS];
+  if (current && !candidates.some((m) => m.url.replace(/\/$/, '') === current)) {
+    candidates.unshift({ name: '当前 npm 配置', url: current });
+  }
+
+  console.log(`   ${c.cyan('i')} 本步骤需要下载：npm 生产依赖（数百个包，含 sharp 预编译二进制）`);
+  console.log(`   ${c.dim('内置 Node 运行时另有国内镜像加速与下载进度条，无需选择')}`);
+  console.log(`   ${c.dim('正在测速（TCP 连接延迟，3 次取最小值）…')}`);
+
+  const probed = await Promise.all(candidates.map(async (m) => ({
+    ...m,
+    ms: await probeMirror(new URL(m.url).host),
+  })));
+  probed.sort((a, b) => (a.ms ?? Number.POSITIVE_INFINITY) - (b.ms ?? Number.POSITIVE_INFINITY));
+
+  console.log('');
+  console.log('   请选择 npm 下载源：');
+  probed.forEach((m, i) => {
+    const ms = (m.ms === null || m.ms === undefined) ? c.red('超时') : `${m.ms}ms`;
+    const mark = [];
+    if (i === 0 && m.ms !== null) mark.push('最快');
+    if (current && m.url.replace(/\/$/, '') === current) mark.push('当前');
+    console.log(`   [${i + 1}] ${m.name}  ${ms}${mark.length ? c.dim(`（${mark.join(' · ')}）`) : ''}`);
+  });
+  console.log('   [0] 不切换，保持当前 npm 配置');
+
+  const ans = await ask(`   选择 [0-${probed.length}]（直接回车 = 用最快的）: `);
+  let picked = null;
+  if (ans === '') {
+    picked = probed[0];
+  } else if (/^\d+$/.test(ans)) {
+    const n = Number(ans);
+    if (n >= 1 && n <= probed.length) picked = probed[n - 1];
+  }
+
+  if (!picked) {
+    okLine('npm 下载源', '保持当前配置');
+    return null;
+  }
+  if (current && picked.url.replace(/\/$/, '') === current) {
+    okLine('npm 下载源', `${picked.name}（与当前配置一致）`);
+    return null;
+  }
+  okLine('npm 下载源', `${picked.name} · ${picked.url}`);
+  return picked.url;
+}
+
+async function installProdDeps(prodRoot, registryOverride) {
   rmrf(prodRoot);
   mkdirp(prodRoot);
   copyFile(path.join(ROOT, 'package.json'), path.join(prodRoot, 'package.json'));
@@ -598,17 +738,19 @@ async function installProdDeps(prodRoot) {
   // 让便携包自带一份可用的 sharp；运行时若没有共享副本，就会回退用这一份。
   injectPortableSharp(path.join(prodRoot, 'package.json'));
   const npmArgs = ['install', '--omit=dev', '--no-audit', '--no-fund'];
+  // 选中镜像时用 npm_config_registry 环境变量传给子进程，不改用户的全局 npm 配置
+  const npmEnv = registryOverride ? { npm_config_registry: registryOverride } : undefined;
+  // live = 像 start.bat 一样直通 npm 原生输出与进度条（转轮模式会吞掉全部进度，看着像卡死）
+  const npmOpts = { cwd: prodRoot, env: npmEnv, live: true };
   const npmCli = resolveNpmCli();
   const label = 'npm install 生产依赖（--omit=dev）';
   if (npmCli) {
-    await run(label, process.execPath, [npmCli, ...npmArgs], { cwd: prodRoot });
+    await run(label, process.execPath, [npmCli, ...npmArgs], npmOpts);
   } else if (isWin) {
     // 回退：cmd /c，且不把 args 交给 shell:true（避免 DEP0190）
-    await run(label, process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `npm ${npmArgs.join(' ')}`], {
-      cwd: prodRoot,
-    });
+    await run(label, process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `npm ${npmArgs.join(' ')}`], npmOpts);
   } else {
-    await run(label, 'npm', npmArgs, { cwd: prodRoot });
+    await run(label, 'npm', npmArgs, npmOpts);
   }
   if (!fs.existsSync(path.join(prodRoot, 'node_modules'))) {
     fail('生产 node_modules 安装失败');
@@ -916,15 +1058,227 @@ async function assembleLinux(prodDepsRoot, linuxTgz) {
   return staging;
 }
 
+/* ─────────────────── 多线程快速 zip ───────────────────
+ * 旧实现 bsdtar/zip 单线程 deflate level 6，几百 MB 成品要一分多钟。
+ * 这里用内置 zlib（级别 KAKAKE_PACK_ZIP_LEVEL，默认 1）+ worker_threads 按核数并行，
+ * 主线程按标准 zip 格式（本地头 + 中央目录 + EOCD）直接写文件：
+ * - 产物是标准 zip（deflate/store），Windows 资源管理器 / unzip / bsdtar 都能正常解压；
+ * - 压不掉的条目自动改 store；超过 zip 格式限制或任何异常，整体回退旧 bsdtar/zip 路径。
+ */
+const ZIP_LEVEL = Math.min(9, Math.max(1, Number(process.env.KAKAKE_PACK_ZIP_LEVEL) || 1));
+const ZIP_WORKER_SRC = `
+'use strict';
+const { parentPort, workerData } = require('node:worker_threads');
+const zlib = require('node:zlib');
+const fs = require('node:fs');
+const LEVEL = Math.min(9, Math.max(1, Number(workerData.level) || 1));
+parentPort.on('message', (jobs) => {
+  if (!jobs || !jobs.length) { parentPort.close(); return; }
+  const out = [];
+  for (const job of jobs) {
+    try {
+      const raw = fs.readFileSync(job.abs);
+      const crc = zlib.crc32(raw) >>> 0;
+      let method = 0;
+      let data = raw;
+      if (raw.length > 0) {
+        const deflated = zlib.deflateRawSync(raw, { level: LEVEL });
+        if (deflated.length < raw.length) { method = 8; data = deflated; }
+      }
+      out.push({ idx: job.idx, crc, method, usize: raw.length, data });
+    } catch (e) {
+      out.push({ idx: job.idx, error: String((e && e.message) || e) });
+    }
+  }
+  parentPort.postMessage(out);
+});
+`;
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let v = n;
+    for (let k = 0; k < 8; k++) v = (v & 1) ? (0xedb88320 ^ (v >>> 1)) : (v >>> 1);
+    t[n] = v >>> 0;
+  }
+  return t;
+})();
+
+function crc32Of(buf) {
+  // Node ≥ 20.15 有原生 zlib.crc32；没有就走查表（只在极老 Node 上才会发生）
+  if (typeof zlib.crc32 === 'function') return zlib.crc32(buf) >>> 0;
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function walkZipFiles(root) {
+  const out = [];
+  const walk = (dir, prefix) => {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, ent.name);
+      const rel = prefix ? `${prefix}/${ent.name}` : ent.name;
+      if (ent.isDirectory()) walk(abs, rel);
+      else if (ent.isFile()) {
+        const st = fs.statSync(abs);
+        out.push({ abs, rel, size: st.size, mtimeMs: st.mtimeMs });
+      }
+    }
+  };
+  walk(root, '');
+  out.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
+  return out;
+}
+
+function dosDateTime(mtimeMs) {
+  const d = new Date(mtimeMs);
+  return {
+    dosTime: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1),
+    dosDate: (((d.getFullYear() - 1980) & 0x7f) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(),
+  };
+}
+
+/** worker 池并行压缩，返回按输入顺序对齐的 {crc, method, usize, data} 数组；任一失败抛错 */
+async function runZipWorkers(files, level) {
+  const results = new Array(files.length);
+  const workerCount = Math.max(2, Math.min(16, os.cpus().length));
+  const BATCH = 32;
+  let next = 0;
+  let failed = null;
+  let idleWorkers = 0;
+
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    const trySettle = () => {
+      if (settled) return;
+      if (failed) { settled = true; reject(failed); return; }
+      if (idleWorkers >= workerCount) { settled = true; resolve(); }
+    };
+    const dispatch = (w) => {
+      if (failed) { w.postMessage(null); return; }
+      if (next < files.length) {
+        const batch = [];
+        while (batch.length < BATCH && next < files.length) {
+          batch.push({ idx: next, abs: files[next].abs });
+          next++;
+        }
+        w.postMessage(batch);
+        return;
+      }
+      idleWorkers++;
+      w.postMessage(null);
+      trySettle();
+    };
+    for (let i = 0; i < workerCount; i++) {
+      const w = new Worker(ZIP_WORKER_SRC, { eval: true, workerData: { level } });
+      w.on('message', (msgs) => {
+        for (const m of msgs) {
+          if (m.error) failed = failed || new Error(`${files[m.idx].rel}: ${m.error}`);
+          else results[m.idx] = m;
+        }
+        dispatch(w);
+      });
+      w.on('error', (e) => { failed = failed || e; trySettle(); });
+      dispatch(w);
+    }
+  });
+
+  for (let i = 0; i < files.length; i++) {
+    if (!results[i] || results[i].error) throw new Error(`缺少压缩结果: ${files[i].rel}`);
+  }
+  return results;
+}
+
+/**
+ * 多线程快速 zip：把 srcDir 压成标准 zip 写到 zipPath。
+ * 能处理返回 true；超出 zip 格式限制 / 环境不支持返回 false（调用方回退系统工具）；异常向上抛。
+ */
+async function zipDirFast(srcDir, zipPath) {
+  if (typeof zlib.crc32 !== 'function') return false;
+  const files = walkZipFiles(srcDir);
+  if (files.length === 0 || files.length > 65000) return false;
+  let total = 0;
+  for (const f of files) {
+    if (f.size >= 0x7fffffff) return false; // 单文件超 2GB：非 zip64 写不了，回退
+    total += f.size;
+  }
+  if (total >= 0xffff0000) return false;   // 总量逼近 4GB 上限：回退
+
+  const results = await runZipWorkers(files, ZIP_LEVEL);
+
+  const fd = fs.openSync(zipPath, 'w');
+  try {
+    const central = [];
+    let offset = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const r = results[i];
+      const nameBuf = Buffer.from(f.rel, 'utf8');
+      const { dosTime, dosDate } = dosDateTime(f.mtimeMs);
+      const local = Buffer.alloc(30 + nameBuf.length);
+      local.writeUInt32LE(0x04034b50, 0);   // local file header 签名
+      local.writeUInt16LE(20, 4);           // 解压所需版本
+      local.writeUInt16LE(0x0800, 6);       // 标志位：UTF-8 文件名
+      local.writeUInt16LE(r.method, 8);     // 0=store 8=deflate
+      local.writeUInt16LE(dosTime, 10);
+      local.writeUInt16LE(dosDate, 12);
+      local.writeUInt32LE(r.crc >>> 0, 14);
+      local.writeUInt32LE(r.data.length, 18);
+      local.writeUInt32LE(r.usize, 22);
+      local.writeUInt16LE(nameBuf.length, 26);
+      local.writeUInt16LE(0, 28);           // extra 长度
+      nameBuf.copy(local, 30);
+      fs.writeSync(fd, local);
+      fs.writeSync(fd, r.data);
+      central.push({ nameBuf, crc: r.crc, method: r.method, csize: r.data.length, usize: r.usize, dosTime, dosDate, offset });
+      offset += local.length + r.data.length;
+    }
+
+    const cdOffset = offset;
+    for (const e of central) {
+      const rec = Buffer.alloc(46 + e.nameBuf.length);
+      rec.writeUInt32LE(0x02014b50, 0);     // central directory 签名
+      rec.writeUInt16LE(20, 4);             // 创建方版本
+      rec.writeUInt16LE(20, 6);             // 解压所需版本
+      rec.writeUInt16LE(0x0800, 8);
+      rec.writeUInt16LE(e.method, 10);
+      rec.writeUInt16LE(e.dosTime, 12);
+      rec.writeUInt16LE(e.dosDate, 14);
+      rec.writeUInt32LE(e.crc >>> 0, 16);
+      rec.writeUInt32LE(e.csize, 20);
+      rec.writeUInt32LE(e.usize, 24);
+      rec.writeUInt16LE(e.nameBuf.length, 28);
+      rec.writeUInt32LE(0, 38);             // 外部属性
+      rec.writeUInt32LE(e.offset, 42);      // 本地头偏移
+      e.nameBuf.copy(rec, 46);
+      fs.writeSync(fd, rec);
+      offset += rec.length;
+    }
+
+    const eocd = Buffer.alloc(22);
+    eocd.writeUInt32LE(0x06054b50, 0);      // EOCD 签名
+    eocd.writeUInt16LE(files.length, 8);
+    eocd.writeUInt16LE(files.length, 10);
+    eocd.writeUInt32LE(offset - cdOffset, 12);
+    eocd.writeUInt32LE(cdOffset, 16);
+    fs.writeSync(fd, eocd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return true;
+}
+
 /**
  * 把成品目录压成同名 zip（省得手动压缩），带转轮动画。
- * 依次尝试：bsdtar（Windows 10+/macOS 自带，`tar -a` 按扩展名产出 zip）→ 系统 zip 命令（多数 Linux/macOS）。
+ * 优先走多线程快速压缩（Node zlib + worker_threads）；不可用 / 出错时依次尝试：
+ * bsdtar（Windows 10+/macOS 自带，`tar -a` 按扩展名产出 zip）→ 系统 zip 命令（多数 Linux/macOS）。
  * 都不可用时告警并返回 null，不影响已生成的目录，可事后自行压缩。
  */
 async function zipFolder(distDir, folderName) {
   const zipName = `${folderName}.zip`;
   const zipPath = path.join(distDir, zipName);
   rmrf(zipPath);
+  const srcDir = path.join(distDir, folderName);
 
   const trySpawn = (cmd, args, cwd) => new Promise((res) => {
     const child = spawn(cmd, args, { cwd, stdio: 'ignore' });
@@ -934,7 +1288,20 @@ async function zipFolder(distDir, folderName) {
   const good = () => fs.existsSync(zipPath) && fs.statSync(zipPath).size > 0;
 
   const sp = spinner(`压缩 ${zipName}`);
-  // 1) bsdtar：-a 依据 .zip 扩展名选 zip 格式；-C 切到 dist 再收 folderName，使 zip 内含顶层目录
+
+  // 1) 多线程快速压缩（标准 zip 格式，解压兼容性不变）
+  try {
+    if (await zipDirFast(srcDir, zipPath) && good()) {
+      sp.succeed(`${dirFileSizeMb(zipPath)} MB`);
+      return zipPath;
+    }
+    rmrf(zipPath);
+  } catch (e) {
+    try { rmrf(zipPath); } catch { /* ignore */ }
+    warnLine(`多线程压缩失败，回退系统工具：${e && e.message ? e.message : e}`);
+  }
+
+  // 2) bsdtar：-a 依据 .zip 扩展名选 zip 格式；-C 切到 dist 再收 folderName，使 zip 内含顶层目录
   //    先点名系统 bsdtar，再试 PATH 里的 tar（Git Bash 环境下 PATH 首位的 GNU tar 没有 -a）
   const zipArgs = ['-a', '-c', '-f', zipPath, '-C', distDir, folderName];
   let ok = await trySpawn(TAR_BIN, zipArgs, ROOT);
@@ -944,7 +1311,7 @@ async function zipFolder(distDir, folderName) {
   }
   if (!(ok && good())) {
     rmrf(zipPath);
-    // 2) 系统 zip 命令（GNU tar 不会做 zip，Linux 走这条）
+    // 3) 系统 zip 命令（GNU tar 不会做 zip，Linux 走这条）
     ok = await trySpawn('zip', ['-r', '-q', zipName, folderName], distDir);
   }
   if (ok && good()) {
@@ -978,7 +1345,8 @@ async function main() {
 
   phase('准备生产依赖');
   const prodDepsRoot = path.join(CACHE, 'prod-deps');
-  await installProdDeps(prodDepsRoot);
+  const npmRegistry = await pickNpmMirror();
+  await installProdDeps(prodDepsRoot, npmRegistry);
 
   phase('获取内置 Node 运行时');
   const winZip = await ensureCached(WIN_ZIP);
