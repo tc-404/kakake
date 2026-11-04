@@ -1,0 +1,9 @@
+{
+  "name": "kakake-plugin-panel",
+  "runtime": "kakake",
+  "displayName": "后台面板示例",
+  "author": "咔咔珂教程",
+  "version": "1.0.0",
+  "entry": "index.mjs",
+  "description": "配置项 / 插件路由 / 网页后台 / 权限 四合一示例，四类连接协议通用。"
+}

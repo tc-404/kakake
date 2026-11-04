@@ -1,0 +1,8 @@
+{
+  "name": "GF-plugin-hello",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "index.js",
+  "plugin": "官方机器人示例",
+  "description": "QQ 官方机器人（GF-）：回声 / 帮助 / 签到 / 查积分"
+}

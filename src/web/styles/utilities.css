@@ -1,0 +1,854 @@
+/* @layer utilities：滚动条、低性能档、页面入场动画等工具样式 */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* 数值输入框：去掉浏览器原生的上下步进（旋转）按钮，统一用纯净外观；
+     配置弹窗里的 maxTokens / 单价 / 超时 / 重试次数等都能受益，不再出现小箭头。 */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  /* 代码窗：可双向滚动；竖条隐藏；横条青绿圆角美化 */
+  .kk-code-scroll {
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--kk-comp-soft-rgb) / 0.35) transparent;
+  }
+
+  .kk-code-scroll::-webkit-scrollbar:vertical {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  .kk-code-scroll::-webkit-scrollbar:horizontal {
+    height: 8px;
+  }
+
+  .kk-code-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .kk-code-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.28);
+  }
+
+  .kk-code-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.45);
+  }
+
+  .kk-code-scroll::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* 通用主题化滚动条：替代浏览器默认（折叠面板 / 弹窗等），双向细圆角，跟随组件色 */
+  .kk-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--kk-comp-soft-rgb) / 0.38) transparent;
+  }
+
+  .kk-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .kk-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .kk-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.38);
+  }
+
+  .kk-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.6);
+  }
+
+  .kk-scroll::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  @keyframes kk-ambient-drift {
+    0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
+    100% { transform: translate3d(-2%, 1.5%, 0) scale(1.05); opacity: 1; }
+  }
+
+  /* 只呼吸亮度，不做位移：位移会让高光层与侧栏边框错开，顶部出现双层描边 */
+  @keyframes kk-sidebar-sheen {
+    0% { opacity: 0.55; }
+    100% { opacity: 0.9; }
+  }
+
+  @keyframes kk-glass-shine {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
+
+  @keyframes kk-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  .animate-kk-shake {
+    animation: kk-shake calc(0.42s * var(--kk-motion)) ease-in-out;
+  }
+
+  /* 下载悬浮窗：海水波浪。两层波形横向无缝平移（2 周期宽，位移一半即循环） */
+  @keyframes kk-wave-x {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  .kk-wave-strip {
+    position: absolute;
+    left: 0;
+    width: 200%;
+    height: 100%;
+    will-change: transform;
+    animation: kk-wave-x calc(2.3s * var(--kk-motion)) linear infinite;
+  }
+
+  .kk-wave-strip-back {
+    animation-duration: calc(3.6s * var(--kk-motion));
+    opacity: 0.5;
+  }
+
+  /* 下载悬浮窗：波浪铺到边缘，kk-glass-2 默认那圈白色描边 + 顶部白色内高光
+     会在满色波浪上显成一道刺眼的白边。这里换成极淡的中性描边，只留外投影定形。 */
+  .kk-download-toast {
+    border-color: rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.71));
+    box-shadow: 0 12px 34px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 1.29));
+  }
+
+  /*
+   * Toast 是纯提示，绝不能拦点击：
+   * sonner 的 toast 项默认 pointer-events:auto，且每条通知上方还常驻约 20px 缓冲区，
+   * 手机上顶部居中的气泡会盖住顶栏最左侧的「侧边栏呼出」按钮，导致怎么点都点不到。
+   * 这里让整条 toast（含缓冲区）穿透，点击直接落到下面的元素上。
+   * 代价是失去 toast 自身的交互（滑动关闭 / 悬停暂停），当前所有 toast 都是纯展示，无影响。
+   */
+  [data-sonner-toaster],
+  [data-sonner-toaster] * {
+    pointer-events: none !important;
+  }
+
+  /*
+   * toast 的 z-index 必须压在普通 Dialog 之上、但让全屏模态盖住它：
+   * 所有经 Portal 到 body 的浮层 z-index 阶梯是
+   *   dialog / alert-dialog(z-50) < update-center(z-60/70) < product-tour(z-80) < update-install(z-90)
+   * 而 #root 有 isolation:isolate，AppToaster 原本渲染在 #root 内，被整体困在 dialog 之下。
+   * 已把 Toaster 改 portal 到 body（见 main.tsx），这里再把 sonner 默认的 999999999 压到 55：
+   * 高于 dialog(z-50) → 气泡显示在弹窗之上；低于 z-60 → 更新 / 引导等全屏遮罩仍盖得住 toast。
+   */
+  [data-sonner-toaster] {
+    z-index: 55 !important;
+  }
+
+  /* 逃生舱：将来 toast 里若出现真正要点的元素（按钮 / 链接），在这里恢复可点 */
+  [data-sonner-toaster] button,
+  [data-sonner-toaster] a,
+  [data-sonner-toaster] [role='button'],
+  [data-sonner-toaster] input,
+  [data-sonner-toaster] [data-toast-interactive] {
+    pointer-events: auto !important;
+  }
+
+  /*
+   * toast 材质：与「组件2（悬浮层）」同一套推导。
+   * sonner 自己用内联的 --normal-bg / --normal-border 写死底色（白），
+   * 只有 !important + 更高特异性压得住；这层必须留在这里而不是组件里，
+   * 因为 utilities 层的 !bg-white/70 会被暗色预设的另一条覆盖规则打乱顺序。
+   */
+  [data-sonner-toast].kk-toast {
+    border-radius: 1rem !important;
+    border: 1px solid var(--glass-border) !important;
+    background: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card2-alpha) * 4.5))) !important;
+    box-shadow: var(--glass2-shadow) !important;
+    color: hsl(var(--foreground));
+    -webkit-backdrop-filter: blur(var(--kk-blur2)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--kk-blur2)) saturate(var(--glass-saturate));
+  }
+
+  @keyframes kk-fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* 卡片入场：不再逐张错峰、不再位移。整页统一做一个很快的淡入，
+     卡片从第一帧起就是最终样式（模糊 / 配色都在），不再“先透明再一张张成形”。 */
+  @keyframes kk-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* AI 执行状态文字：呼吸式闪烁（正在思考 / 正在编写 / 正在读取 / 正在访问） */
+  @keyframes kk-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  .kk-blink {
+    animation: kk-blink 1.1s ease-in-out infinite;
+  }
+
+  /* 拖动液态时跨项溅出的水花：由小放大、淡出，带一点横向铺开 */
+  @keyframes kk-nav-ripple {
+    0% { transform: scale(0.35, 0.9); opacity: 0.9; }
+    55% { transform: scale(2.1, 1.15); opacity: 0.4; }
+    100% { transform: scale(3.4, 0.6); opacity: 0; }
+  }
+
+  /* 湿痕变干：往下沉一点、压扁、淡出 */
+  @keyframes kk-nav-wet {
+    0% { opacity: 0.9; transform: scaleY(1.06); }
+    45% { opacity: 0.36; transform: scaleY(0.98); }
+    100% { opacity: 0; transform: scaleY(0.72) translateY(7px); }
+  }
+
+  /* 起始透明度交给 animation 的 backwards 填充，不写静态 opacity: 0。
+     否则一旦动画因故没跑起来（--kk-motion 被设成非法值导致 calc() 失效等），
+     卡片会被静态的 opacity: 0 永久锁死，整页内容不可见——看起来就是白屏。
+     ⚠️ 填充方式只能是 backwards，不能是 both / forwards。
+     这类元素经常被当「容器」用（如 DashboardPage 里
+     `<SystemMonitorPanel className="kk-stagger-item …">` 包住系统监控与磁盘、
+     OpenPlatformPage 里每个账号卡外面套一层）。一旦 forwards 填充，容器会**一直**
+     挂着一个「动画产生的 opacity 效果」，成为 **backdrop root**：里面所有卡片的
+     backdrop-filter 只能在该层内取样、取不到页面背景与背景图 —— 表现为
+     「这些卡片的模糊度完全不受外观设置控制」（实测 std 恒 120，改成 backwards 后 120→2）。
+     末帧 opacity: 1 本来就等于元素常态，forwards 填充没有视觉收益。 */
+  .kk-stagger-item {
+    animation: kk-fade-in calc(0.22s * var(--kk-motion, 1)) ease-out backwards;
+  }
+
+  /* 错峰延迟全部归零：所有卡片同时淡入，视觉上等于整页一次淡入 */
+  .kk-stagger-1, .kk-stagger-2, .kk-stagger-3, .kk-stagger-4,
+  .kk-stagger-5, .kk-stagger-6, .kk-stagger-7, .kk-stagger-8,
+  .kk-stagger-slow-1, .kk-stagger-slow-2, .kk-stagger-slow-3,
+  .kk-stagger-slow-4, .kk-stagger-slow-5, .kk-stagger-slow-6 {
+    animation-delay: 0s;
+  }
+
+  /* —— 悬浮窗 / 下拉 / 弹窗：统一的开合动画 ——
+     只做透明度淡入淡出，不缩放、不位移：带 backdrop-filter 的表面一旦有几何位移，
+     浏览器要逐帧重算模糊（视频背景下尤其卡），纯淡入既顺滑又干净。
+     时长跟随「组件速度」（--kk-motion）。 */
+  @keyframes kk-pop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes kk-pop-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  .kk-pop[data-state='open'] {
+    animation: kk-pop-in calc(0.2s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .kk-pop[data-state='closed'] {
+    animation: kk-pop-out calc(0.14s * var(--kk-motion)) ease-in forwards;
+  }
+
+  /* —— 在线更新弹窗：遮罩淡入 + 面板轻微放大入场 + 倒计时数字每秒弹跳 —— */
+  @keyframes kk-modal-in {
+    from { opacity: 0; transform: scale(0.96) translateY(6px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .kk-modal-in {
+    animation: kk-modal-in calc(0.26s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .kk-overlay-in {
+    animation: kk-fade-in calc(0.2s * var(--kk-motion)) ease-out;
+  }
+  @keyframes kk-count-pop {
+    0% { opacity: 0; transform: scale(0.55); }
+    45% { opacity: 1; transform: scale(1.14); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .kk-count-num {
+    display: inline-block;
+    animation: kk-count-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* 新日志追加：像终端输出新行那样自左侧轻微滑入并淡入，不做上下位移 */
+  @keyframes kk-log-append {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .kk-log-append {
+    animation: kk-log-append calc(0.26s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* 批量入场：纯粹的淡入，顺序由 index 决定（自顶部向下），不叠加位移 */
+  @keyframes kk-log-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .kk-log-batch {
+    opacity: 0;
+    animation: kk-log-in calc(0.28s * var(--kk-motion)) ease-out forwards;
+  }
+
+  /* 磁盘液位数字：轻描边阴影让数字压在彩色水面上仍清晰。
+     晕色跟玻璃基底走（亮色=白晕、暗色=深晕），不再写死纯白 */
+  .kk-disk-value {
+    text-shadow: 0 1px 2px rgb(var(--kk-glass-base) / 0.6);
+  }
+
+  .kk-md-prose {
+    @apply text-[15px] text-slate-800;
+    line-height: 1.8;
+    /* 长串无空格内容（URL / base64 / 长 token）必须能断行，否则横溢出并触发页面左右滑动 */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .kk-md-prose h1 {
+    @apply mb-5 text-[1.35rem] font-bold tracking-tight text-slate-900;
+  }
+  .kk-md-prose h2 {
+    @apply mb-4 mt-8 border-b pb-2 text-lg font-bold text-slate-800;
+    /* 分隔线跟语义描边色（原来写死 border-white/50，深色主题与自定义配色下都是条白线） */
+    border-color: hsl(var(--border) / 0.7);
+  }
+  .kk-md-prose h3 {
+    @apply mb-3 mt-6 text-base font-semibold text-slate-800;
+  }
+  .kk-md-prose p {
+    @apply mb-3.5;
+  }
+  .kk-md-prose ul,
+  .kk-md-prose ol {
+    @apply mb-4 list-outside space-y-1 pl-5;
+  }
+  .kk-md-prose ul {
+    @apply list-disc;
+  }
+  .kk-md-prose ol {
+    @apply list-decimal;
+  }
+  .kk-md-prose li {
+    @apply pb-1 pl-0.5;
+  }
+  .kk-md-prose li > ul,
+  .kk-md-prose li > ol {
+    @apply mt-1.5 mb-0;
+  }
+  .kk-md-prose li > p {
+    @apply mb-1.5;
+  }
+  /* 首个元素不留上间距、末个元素不留底间距：卡片的留白交给外层容器 */
+  .kk-md-prose > :first-child {
+    @apply mt-0;
+  }
+  .kk-md-prose > :last-child {
+    @apply mb-0;
+  }
+  /* GFM 任务列表 */
+  .kk-md-prose li.task-list-item {
+    @apply list-none pl-0;
+  }
+  .kk-md-prose li > input[type='checkbox'] {
+    @apply mr-1.5 h-3.5 w-3.5 align-[-2px];
+    accent-color: hsl(var(--primary));
+  }
+  .kk-md-prose strong {
+    @apply font-semibold text-slate-900;
+  }
+  .kk-md-prose a {
+    @apply text-teal-700 underline underline-offset-2 hover:text-teal-800;
+  }
+  .kk-md-prose code {
+    @apply rounded-md px-1 py-0.5 font-mono text-[0.85em] text-slate-800;
+    background: rgb(var(--kk-glass-base) / 0.55);
+  }
+  .kk-md-prose hr {
+    @apply my-6;
+    border-color: hsl(var(--border) / 0.7);
+  }
+  .kk-md-prose blockquote {
+    @apply my-4 rounded-r-xl border-l-4 border-teal-400/70 py-2.5 pl-4 text-slate-600;
+    background: rgb(var(--kk-glass-base) / 0.35);
+  }
+  /* 表格：外层负责横向滚动，表格自身按内容宽度自适应 */
+  .kk-md-prose .kk-md-table-wrap {
+    @apply mb-5 overflow-x-auto;
+  }
+  .kk-md-prose table {
+    @apply text-[0.9em];
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+  }
+  .kk-md-prose thead {
+    background: rgb(var(--kk-glass-base) / 0.55);
+  }
+  .kk-md-prose th {
+    @apply whitespace-nowrap px-3 py-2 text-left font-semibold text-slate-700;
+    border-bottom: 1px solid hsl(var(--border) / 0.75);
+  }
+  .kk-md-prose td {
+    @apply px-3 py-2 align-top text-slate-700;
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+  }
+  .kk-md-prose tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .kk-md-prose pre {
+    @apply mb-5 overflow-x-auto rounded-xl p-3.5 text-[0.85em] leading-relaxed;
+    background: rgb(var(--kk-glass-base) / 0.6);
+    border: 1px solid hsl(var(--border) / 0.55);
+  }
+  .kk-md-prose pre code {
+    @apply bg-transparent p-0 font-mono whitespace-pre text-[1em] text-foreground;
+  }
+  /* 围栏代码块：顶部语言标签 + 复制按钮（结构见 components/markdown-content.tsx） */
+  .kk-md-prose .kk-md-code {
+    @apply mb-5 overflow-hidden rounded-xl;
+    background: rgb(var(--kk-glass-base) / 0.55);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+  .kk-md-prose .kk-md-code-head {
+    @apply flex items-center justify-between gap-2 border-b px-3 py-1.5;
+    border-color: hsl(var(--border) / 0.55);
+  }
+  .kk-md-prose .kk-md-code-lang {
+    @apply font-mono text-[11px] tracking-wide text-muted-foreground uppercase;
+  }
+  .kk-md-prose .kk-md-code-copy {
+    @apply inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition;
+    background: rgb(var(--kk-glass-base) / 0.5);
+  }
+  .kk-md-prose .kk-md-code-copy:hover {
+    background: rgb(var(--kk-glass-base) / 0.9);
+  }
+  .kk-md-prose .kk-md-code-body {
+    @apply m-0 max-h-[min(60vh,460px)] overflow-auto rounded-none border-0 p-3.5 text-[0.85em] leading-relaxed;
+    background: transparent;
+  }
+  .kk-md-prose .kk-md-code-body code {
+    @apply bg-transparent p-0 font-mono whitespace-pre text-[1em] text-foreground;
+  }
+  .kk-md-prose img {
+    @apply my-3 max-w-full rounded-xl;
+  }
+
+  /* 光晕取组件色通道（原来写死 rgba(13,148,136,…)，换配色不跟） */
+  @keyframes kk-agree-pop {
+    0% { transform: translateY(6px); opacity: 0.7; box-shadow: 0 0 0 rgb(var(--kk-comp-soft-rgb) / 0); }
+    60% { transform: translateY(-2px); }
+    100% { transform: translateY(0); opacity: 1; box-shadow: 0 8px 20px rgb(var(--kk-comp-soft-rgb) / calc(var(--kk-shadow-alpha) * 1.79)); }
+  }
+  .kk-agree-unlock {
+    animation: kk-agree-pop calc(0.45s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes kk-btn-ready {
+    0% { transform: scale(0.96); box-shadow: 0 0 0 0 rgb(var(--kk-comp-soft-rgb) / 0.35); }
+    55% { transform: scale(1.03); box-shadow: 0 0 0 8px rgb(var(--kk-comp-soft-rgb) / 0); }
+    100% { transform: scale(1); box-shadow: 0 8px 20px rgb(var(--kk-comp-soft-rgb) / calc(var(--kk-shadow-alpha) * 1.57)); }
+  }
+  .kk-btn-ready {
+    animation: kk-btn-ready calc(0.5s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .kk-plugin-card {
+    transition:
+      transform calc(0.3s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow calc(0.3s * var(--kk-motion)) ease,
+      background calc(0.3s * var(--kk-motion)) ease,
+      border-color calc(0.3s * var(--kk-motion)) ease;
+  }
+  .kk-plugin-card:hover {
+    transform: translateY(-2px);
+  }
+  .kk-plugin-card:active {
+    transform: scale(0.985) translateY(0);
+  }
+
+  .kk-resource-grid {
+    display: grid;
+    gap: 0.75rem;
+    /* 手机默认两列 */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (min-width: 768px) {
+    .kk-resource-grid {
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    }
+  }
+  @media (orientation: landscape) and (max-width: 767px) {
+    .kk-resource-grid {
+      grid-template-columns: repeat(auto-fill, minmax(max(11.5rem, calc((100% - 2rem) / 3)), 1fr));
+    }
+  }
+
+  .kk-resource-card {
+    container-type: inline-size;
+    container-name: kk-resource-card;
+  }
+  .kk-resource-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .kk-resource-card-actions .kk-resource-card-btns {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.375rem;
+    margin-left: auto;
+  }
+  @container kk-resource-card (max-width: 11.5rem) {
+    .kk-resource-card-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .kk-resource-card-actions .kk-resource-card-btns {
+      margin-left: 0;
+      width: 100%;
+    }
+    .kk-resource-card-actions .kk-resource-card-btns > * {
+      flex: 1;
+    }
+  }
+
+  /* —— 工具页专用内容框（非原生 textarea 观感） —— */
+  .kk-tool-field {
+    position: relative;
+    display: flex;
+    min-height: 7.5rem;
+    overflow: hidden;
+    border-radius: 1.05rem;
+    border: 1px solid rgb(var(--kk-hi-base) / 0.58);
+    background:
+      linear-gradient(165deg, rgb(var(--kk-glass-base) / 0.52) 0%, rgb(var(--kk-glass-base) / 0.22) 48%, rgb(var(--kk-comp-soft-rgb) / 0.1) 100%);
+    /* 圆角 + 1px 描边：渐变按边框盒定位，边框环里不再重复出方角 */
+    background-origin: border-box;
+    box-shadow:
+      inset 0 1px 0 rgb(var(--kk-hi-base) / calc(var(--kk-shadow-alpha) * 5.36)),
+      inset 0 -1px 0 rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.29)),
+      0 1px 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.29));
+    -webkit-backdrop-filter: blur(14px) saturate(1.45);
+    backdrop-filter: blur(14px) saturate(1.45);
+    transition:
+      border-color calc(0.2s * var(--kk-motion)) ease,
+      box-shadow calc(0.2s * var(--kk-motion)) ease,
+      background calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-tool-field--fill {
+    height: 100%;
+    min-height: 7.5rem;
+  }
+
+  .kk-tool-field--fill .kk-tool-field__input {
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .kk-tool-field::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      125deg,
+      rgb(var(--kk-glass-base) / 0.45) 0%,
+      transparent 32%,
+      transparent 68%,
+      rgb(var(--kk-comp-soft-rgb) / 0.06) 100%
+    );
+    opacity: 0.7;
+  }
+
+  .kk-tool-field__accent {
+    position: absolute;
+    left: 0;
+    top: 14%;
+    bottom: 14%;
+    width: 3px;
+    border-radius: 0 999px 999px 0;
+    background: linear-gradient(180deg, rgb(var(--kk-comp-soft-rgb) / 0.15), rgb(var(--kk-comp-soft-rgb) / 0.55), rgb(var(--kk-comp-soft-rgb) / 0.15));
+    opacity: 0.55;
+    transition: opacity calc(0.2s * var(--kk-motion)) ease, transform calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-tool-field:hover {
+    border-color: rgb(var(--kk-hi-base) / 0.72);
+    background:
+      linear-gradient(165deg, rgb(var(--kk-glass-base) / 0.58) 0%, rgb(var(--kk-glass-base) / 0.28) 48%, rgb(var(--kk-comp-soft-rgb) / 0.12) 100%);
+    /* background 简写会把 origin 重置回 padding-box，这里补回来 */
+    background-origin: border-box;
+  }
+
+  .kk-tool-field:hover .kk-tool-field__accent {
+    opacity: 0.85;
+  }
+
+  .kk-tool-field:focus-within {
+    border-color: rgb(var(--kk-comp-soft-rgb) / 0.45);
+    box-shadow:
+      inset 0 1px 0 rgb(var(--kk-hi-base) / calc(var(--kk-shadow-alpha) * 5.71)),
+      inset 0 -1px 0 rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.29)),
+      0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.14),
+      0 8px 24px rgb(15 80 90 / calc(var(--kk-shadow-alpha) * 0.43));
+  }
+
+  .kk-tool-field:focus-within .kk-tool-field__accent {
+    opacity: 1;
+    transform: scaleY(1.06);
+  }
+
+  /* 只读态：不再写死白灰两层，改用玻璃基底（暗色主题自动变深玻璃） */
+  .kk-tool-field--readonly {
+    background:
+      linear-gradient(165deg, rgb(var(--kk-glass-base) / 0.55) 0%, rgb(var(--kk-glass-base) / 0.35) 100%);
+    background-origin: border-box;
+  }
+
+  .kk-tool-field--readonly .kk-tool-field__accent {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--muted-foreground) / 0.12),
+      hsl(var(--muted-foreground) / 0.4),
+      hsl(var(--muted-foreground) / 0.12)
+    );
+  }
+
+  .kk-tool-field--readonly:focus-within {
+    border-color: rgb(var(--kk-hi-base) / 0.58);
+    box-shadow:
+      inset 0 1px 0 rgb(var(--kk-hi-base) / calc(var(--kk-shadow-alpha) * 5.36)),
+      inset 0 -1px 0 rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.29)),
+      0 1px 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.29));
+  }
+
+  .kk-tool-field--disabled {
+    opacity: 0.58;
+    pointer-events: none;
+  }
+
+  .kk-tool-field--dragover {
+    border-color: rgb(var(--kk-comp-soft-rgb) / 0.55) !important;
+    box-shadow:
+      inset 0 1px 0 rgb(var(--kk-hi-base) / calc(var(--kk-shadow-alpha) * 5.71)),
+      0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.18),
+      0 8px 24px rgb(15 80 90 / calc(var(--kk-shadow-alpha) * 0.57)) !important;
+  }
+
+  .kk-tool-field__input {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    min-height: inherit;
+    margin: 0;
+    padding: 0.85rem 1rem 0.85rem 1.15rem;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    /* 正文色跟随「全局字体」角色（原来写死 #1e293b，调了字体色这里不跟） */
+    color: hsl(var(--foreground));
+    font: inherit;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    letter-spacing: 0.01em;
+    resize: none;
+    outline: none;
+    box-shadow: none;
+    -webkit-appearance: none;
+    appearance: none;
+    caret-color: hsl(var(--kk-comp-h) min(100%, calc(var(--kk-comp-s) * 1.05)) min(96%, calc(32% * var(--kk-comp-lmul))));
+  }
+
+  .kk-tool-field__input::placeholder {
+    color: hsl(var(--muted-foreground) / 0.8);
+    letter-spacing: 0.02em;
+  }
+
+  .kk-tool-field__input::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .kk-tool-field__input::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 8px 0;
+  }
+
+  .kk-tool-field__input::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.28);
+  }
+
+  .kk-tool-field__input::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--kk-comp-soft-rgb) / 0.45);
+  }
+
+  /* 降低透明 / 无 backdrop-filter 时的可读回退 */
+  @media (prefers-reduced-transparency: reduce) {
+    .kk-glass,
+    .kk-glass-nav,
+    .kk-sidebar,
+    .kk-card,
+    .kk-glass-strong,
+    .kk-glass-soft,
+    .kk-nav-liquid,
+    .kk-mobile-liquid {
+      background: rgb(var(--kk-glass-base) / 0.92) !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+    .kk-ambient::before,
+    .kk-sidebar::before,
+    .kk-sidebar::after {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kk-ambient::before,
+    .kk-login-ambient::before,
+    .kk-sidebar::after {
+      animation: none;
+    }
+    .kk-stagger-item,
+    .kk-log-append,
+    .kk-log-batch {
+      animation: none;
+      opacity: 1;
+    }
+    .kk-nav-liquid,
+    .kk-mobile-liquid {
+      transition: none !important;
+    }
+  }
+
+  /* 性能模式（低端设备自动判定或用户手动开启）：关实时模糊、关氛围动画、停视频背景。
+     与 prefers-reduced-* 系统档位同款降级，由 lib/device-tier.ts 挂到 html 根元素。 */
+  /* 性能模式：卡片阴影整体关掉，三层一次全灭。
+     JS 把 --kk-shadow-alpha 写在 html 的行内样式上，这里必须用 !important
+     才能盖过它（行内样式输给样式表里的 !important）。 */
+  html.kk-lowtier {
+    --kk-shadow-alpha: 0 !important;
+  }
+
+  html.kk-lowtier .kk-glass,
+  html.kk-lowtier .kk-glass-nav,
+  html.kk-lowtier .kk-sidebar,
+  html.kk-lowtier .kk-card,
+  html.kk-lowtier .kk-glass-strong,
+  html.kk-lowtier .kk-glass-soft,
+  html.kk-lowtier .kk-nav-liquid,
+  html.kk-lowtier .kk-mobile-liquid {
+    background: rgb(var(--kk-glass-base) / 0.92) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html.kk-lowtier .kk-ambient::before,
+  html.kk-lowtier .kk-login-ambient::before,
+  html.kk-lowtier .kk-sidebar::before,
+  html.kk-lowtier .kk-sidebar::after {
+    display: none;
+  }
+  html.kk-lowtier .kk-stagger-item,
+  html.kk-lowtier .kk-log-append,
+  html.kk-lowtier .kk-log-batch {
+    animation: none;
+    opacity: 1;
+  }
+  html.kk-lowtier .kk-nav-liquid,
+  html.kk-lowtier .kk-mobile-liquid {
+    transition: none !important;
+  }
+  html.kk-lowtier .kk-ambient-video {
+    display: none;
+  }
+  /* 背景预设（波浪）是 WebGL 全屏绘制，性能档直接不显示；组件侧也不渲染，双保险 */
+  html.kk-lowtier .kk-bg-preset {
+    display: none;
+  }
+
+  /* 界面切换入场动画：侧边栏换页时整页淡入 + 上滑 + 微缩放，
+     时长受设置页「组件速度」(--kk-motion) 控制；低端档与系统减动效下关闭 */
+  @keyframes kk-page-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.996);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  /*
+   * 页面入场动画：**只挂在 Suspense 之内的内容层**（见 App.tsx 的 LazyPage），
+   * 不挂在页面外层容器上。
+   *
+   * 以前它挂在最外层 `.kk-page-enter` 上，于是切界面时先淡入一个**空壳**
+   * （懒加载 chunk 还没到，里面只有一个转圈），内容随后才补进来 ——
+   * 观感就是「先显示、再渲染」。挪到内容层后，只有真正的内容挂载了才开始淡入，
+   * 也就是「渲染好再显示」。
+   *
+   * fill-mode 用 backwards，不用 both / forwards：
+   * 末帧（opacity:1 / transform:none）本来就等于本元素的常态样式，forwards 填充没有视觉收益，
+   * 却会让元素在动画结束后**一直保留一个「动画产生的 transform」**（实测计算值
+   * matrix(1,0,0,1,0,0)，不是 none）。带 transform 的祖先会成为 backdrop root，
+   * 后代 backdrop-filter 只能在这一层内取样 —— 最小复现里这会让层内所有卡片的毛玻璃彻底失效。
+   * 注：在咔咔珂当前真实页面结构下复测**没有复现**这个失效，所以别拿它当模糊问题的答案；
+   * 仍用 backwards，是因为去掉这个游离 transform 是纯收益。
+   */
+  .kk-page-in {
+    animation: kk-page-in calc(300ms * var(--kk-motion, 1)) cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kk-page-in {
+      animation: none;
+    }
+  }
+  html.kk-lowtier .kk-page-in {
+    animation: none;
+  }
+}

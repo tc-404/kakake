@@ -1,0 +1,41 @@
+packages/
+
+src/**/node_modules/
+src/**/.next/
+
+node_modules/
+data/runtime-deps/
+dist/
+*.log
+.DS_Store
+*.tsbuildinfo
+.env
+.env.*
+
+# 更新/插件离线验签私钥：绝不可入库！只留本地 + GitHub Actions Secret。
+# 配套公钥在 src/update/verify-keys.ts（公钥可公开）。
+kakake-sign.key
+
+# 接口代理：上游仓库的解压副本（约 1.5MB）。三份 *.json 快照是构建产物，必须入库；
+# _napcat/ _botdocs/ _raw/ 只是它们的解析输入，删掉后跑 build-proxy-sources.mjs 前需重新下载。
+src/proxy/registry/_sources/_napcat/
+src/proxy/registry/_sources/_botdocs/
+src/proxy/registry/_sources/_raw/
+
+# 运行时数据目录：启动后由程序生成（config / auth-key / connections / agreement 等），
+# 含本地凭据与配置，绝不入库。用户首次运行会自动重建。
+data/
+config/
+log/
+plugins/
+plugins_two/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+
+# 签名私钥相关：ban 本身不再内嵌密钥，但也不要上传
+打包并签名.bat
