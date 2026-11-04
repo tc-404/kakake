@@ -1,6 +1,6 @@
 # Kakake (咔咔珂)
 
-[![version](https://img.shields.io/badge/version-0.6.10--beta.2-2dd4bf?style=flat-square)](../../releases)
+[![version](https://img.shields.io/badge/version-0.6.10--beta.3-2dd4bf?style=flat-square)](../../releases)
 [![download](https://img.shields.io/badge/Download-Releases-0ea5e9?style=flat-square&logo=github&logoColor=white)](../../releases/latest)
 [![Node](https://img.shields.io/badge/Node-%E2%89%A5%2020%20%C2%B7%2022%20LTS%20recommended-3c873a?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20x64%20portable%20%7C%20macOS%20source--only-64748b?style=flat-square)](#requirements)
@@ -226,7 +226,7 @@ When NapCat runs in Docker and Kakake on the host, the container-side host gatew
 - Per-account isolated copies: `plugins_two/<QQ or AppID>/<pluginId>/`
 - Compatible with the NapCat plugin package layout (`package.json` / `plugin.json` etc.)
 - Manage enablement and plugin config from the console; connections and plugins can be bound per account
-- Plugin types are distinguished by directory prefix: `kakake-` (OneBot), `GF-` (official QQ bot), `sssx-plugin-` (**dual**: the same code attached to both OneBot and official QQ), `WX-` (WeChat), `ss-plugin-` (KOOK etc.)
+- Plugin types are distinguished by directory prefix: `kakake-` (OneBot), `GF-` (official QQ bot), `sssx-plugin-` (**dual**: the same code attached to both OneBot and official QQ), `WX-` (WeChat), `ss-plugin-` (KOOK etc.), `kz-plugin-` (**extension**: bound to no connection, toggled only by the master switch, data under `data/<pluginId>`)
 
 When developing / installing plugins:
 
@@ -355,7 +355,7 @@ By using this project you confirm you have read and understood the agreement. If
 
 ## Version
 
-- Current `package.json` version: `0.6.10-beta.2`
+- Current `package.json` version: `0.6.10-beta.3`
 - GitHub Release assets ship with Ed25519 signatures (`<asset>.sig`), generated automatically by a CI workflow after each release
 - Docs update with the repo; for connection steps refer to `使用教程/连接教程.txt`; for the `mk` script refer to `使用教程/MK工具教程.txt` (both in Chinese)
 

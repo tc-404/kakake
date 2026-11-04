@@ -9,10 +9,11 @@ import { isGfPluginDir, toGfPluginDirName } from './gf-plugin-id.js';
 import { isWxPluginDir, toWxPluginDirName } from './wx-plugin-id.js';
 import { isSsPluginDir, toSsPluginDirName } from './ss-plugin-id.js';
 import { isSssxPluginDir, toSssxPluginDirName } from './sssx-plugin-id.js';
+import { isKzPluginDir, toKzPluginDirName } from './kz-plugin-id.js';
 import { writeJsonAtomic } from '../storage/atomic-file.js';
 
-/** 'sssx' = 双生插件：一包代码同时挂 OneBot 与 QQ 官方机器人两条协议 */
-export type ImportPluginKind = 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx';
+/** 'sssx' = 双生插件：一包代码同时挂 OneBot 与 QQ 官方机器人两条协议；'kz' = 扩展插件：不挂任何连接 */
+export type ImportPluginKind = 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
 
 export interface ImportResult {
   ok: boolean;
@@ -37,6 +38,7 @@ export class PluginImporter {
   private readonly wxLoader: PluginLoader;
   private readonly ssLoader: PluginLoader;
   private readonly sssxLoader: PluginLoader;
+  private readonly kzLoader: PluginLoader;
 
   constructor(private readonly logger: Logger) {
     this.kakakeLoader = new PluginLoader(PATHS.plugins, PATHS.pluginsStatus, logger);
@@ -44,6 +46,7 @@ export class PluginImporter {
     this.wxLoader = new PluginLoader(PATHS.plugins, PATHS.wxPluginsStatus, logger, isWxPluginDir);
     this.ssLoader = new PluginLoader(PATHS.plugins, PATHS.ssPluginsStatus, logger, isSsPluginDir);
     this.sssxLoader = new PluginLoader(PATHS.plugins, PATHS.sssxPluginsStatus, logger, isSssxPluginDir);
+    this.kzLoader = new PluginLoader(PATHS.plugins, PATHS.kzPluginsStatus, logger, isKzPluginDir);
   }
 
   async importFromZip(zipPath: string): Promise<ImportResult> {
@@ -65,7 +68,9 @@ export class PluginImporter {
             ? toWxPluginDirName(rawId)
             : kind === 'ss'
               ? toSsPluginDirName(rawId)
-              : toKakakePluginDirName(rawId);
+              : kind === 'kz'
+                ? toKzPluginDirName(rawId)
+                : toKakakePluginDirName(rawId);
       const pluginsRoot = PATHS.plugins;
       const loader = kind === 'sssx'
         ? this.sssxLoader
@@ -75,7 +80,9 @@ export class PluginImporter {
             ? this.wxLoader
             : kind === 'ss'
               ? this.ssLoader
-              : this.kakakeLoader;
+              : kind === 'kz'
+                ? this.kzLoader
+                : this.kakakeLoader;
       const targetDir = path.join(pluginsRoot, pluginId);
       // 目录断言兜底：ID 消毒之外，最终落点必须仍在插件根内
       if (!path.resolve(targetDir).startsWith(path.resolve(pluginsRoot) + path.sep)) {
@@ -121,7 +128,9 @@ export class PluginImporter {
             ? '微信机器人'
             : kind === 'ss'
               ? '其他（KOOK）'
-              : 'OneBot';
+              : kind === 'kz'
+                ? '扩展（不绑连接）'
+                : 'OneBot';
       return {
         ok: true,
         pluginId,
@@ -147,6 +156,15 @@ export class PluginImporter {
   private detectKind(rawId: string, sourceDir: string): ImportPluginKind {
     const name = rawId.trim();
     const base = path.basename(sourceDir);
+    // 扩展插件前缀 kz-plugin- 与其它几套不重叠，先判
+    if (
+      isKzPluginDir(name)
+      || isKzPluginDir(base)
+      || /^kz[-_]?plugin/i.test(name)
+      || /^kz[-_]?plugin/i.test(base)
+    ) {
+      return 'kz';
+    }
     if (
       isWxPluginDir(name)
       || isWxPluginDir(base)

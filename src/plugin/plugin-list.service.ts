@@ -64,7 +64,7 @@ function mapOneManager(
     isMasterEnabled: (id: string) => boolean;
     getLoadedAccountKeys?: (id: string) => string[];
   },
-  kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx',
+  kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz',
   connectionId?: string,
 ) {
   const extensionPages: Array<Record<string, unknown>> = [];
@@ -157,21 +157,24 @@ function mapOneManager(
   return { plugins, extensionPages };
 }
 
-/** 全局列表：合并 OneBot + GF + 微信 + KOOK + 双生插件 */
+/** 全局列表：合并 OneBot + GF + 微信 + KOOK + 双生 + 扩展插件 */
 export function buildGlobalPluginListPayload() {
   const a = mapOneManager(kakakeApp.pluginManager, 'kakake');
   const b = mapOneManager(kakakeApp.gfPluginManager, 'gf');
   const c = mapOneManager(kakakeApp.wxPluginManager, 'wx');
   const d = mapOneManager(kakakeApp.ssPluginManager, 'ss');
   const e = mapOneManager(kakakeApp.sssxPluginManager, 'sssx');
+  // 扩展插件不绑连接：只出现在总列表，不参与任何 connectionId 作用域的列表
+  const f = mapOneManager(kakakeApp.kzPluginManager, 'kz');
   return {
-    plugins: [...a.plugins, ...b.plugins, ...c.plugins, ...d.plugins, ...e.plugins],
+    plugins: [...a.plugins, ...b.plugins, ...c.plugins, ...d.plugins, ...e.plugins, ...f.plugins],
     extensionPages: [
       ...a.extensionPages,
       ...b.extensionPages,
       ...c.extensionPages,
       ...d.extensionPages,
       ...e.extensionPages,
+      ...f.extensionPages,
     ],
     pluginManagerNotFound: false,
   };

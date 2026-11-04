@@ -96,8 +96,8 @@ export interface PluginItem {
   connectionEnabled?: boolean;
   /** 插件总开关（plugins.json / gf-plugins.json / wx-plugins.json） */
   masterEnabled?: boolean;
-  /** 插件类型；'sssx' = 双生插件（OneBot + QQ 官方双协议） */
-  kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx';
+  /** 插件类型；'sssx' = 双生插件（OneBot + QQ 官方双协议）；'kz' = 扩展插件（不绑连接） */
+  kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
   /** 连接作用域：账号是否已锁定（QQ / AppID / 微信账号） */
   accountReady?: boolean;
   accountKey?: string;

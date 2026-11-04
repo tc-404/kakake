@@ -29,19 +29,20 @@ registerMessages({
   'plugin-store.filterByCategory': { zh: '按分类筛选', en: 'Filter by category' },
   'plugin-store.category': { zh: '分类', en: 'Category' },
   'plugin-store.clickAgainToCancel': { zh: '再次点击可取消', en: 'Click again to clear' },
-  'plugin-store.categoryClearHint': { zh: '再次点击已选分类可取消；刷新或离开本页后自动清空', en: 'Click the selected category again to clear; auto-cleared after refresh or leaving this page' },
 
   // 分类名（顶栏筛选与下拉菜单共用）
   'plugin-store.cat-wild': { zh: '野鸡', en: 'Community' },
   'plugin-store.cat-official': { zh: '官方', en: 'Official' },
   'plugin-store.cat-twin': { zh: '双生', en: 'Twin' },
   'plugin-store.cat-wechat': { zh: '微信', en: 'WeChat' },
+  'plugin-store.cat-extension': { zh: '扩展', en: 'Extension' },
   'plugin-store.cat-other': { zh: '其他', en: 'Other' },
   // 角标（卡片右上角）
   'plugin-store.badge-wild': { zh: '野生', en: 'Community' },
   'plugin-store.badge-official': { zh: '官方', en: 'Official' },
   'plugin-store.badge-twin': { zh: '双生', en: 'Twin' },
   'plugin-store.badge-wechat': { zh: '微信', en: 'WeChat' },
+  'plugin-store.badge-extension': { zh: '扩展', en: 'Extension' },
   'plugin-store.badge-other': { zh: '其他', en: 'Other' },
 
   // ───────── 排序 ─────────

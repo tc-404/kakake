@@ -65,6 +65,7 @@ function findPluginEntryLoose(pluginId: string): PluginEntry | undefined {
     kakakeApp.wxPluginManager,
     kakakeApp.sssxPluginManager,
     kakakeApp.ssPluginManager,
+    kakakeApp.kzPluginManager,
   ].filter(Boolean);
   for (const pm of managers) {
     const hit = pm.getPluginInfo(trimmed);
@@ -104,7 +105,9 @@ function listLoadedAccounts(pluginId: string): string[] {
   const c = kakakeApp.wxPluginManager?.getLoadedAccountKeys?.(id) ?? [];
   const e = kakakeApp.sssxPluginManager?.getLoadedAccountKeys?.(id) ?? [];
   const d = kakakeApp.ssPluginManager?.getLoadedAccountKeys?.(id) ?? [];
-  return [...new Set([...a, ...b, ...c, ...d, ...e])];
+  // 扩展插件没有账号层，管理器给出唯一的占位键（local），保证单账号解析路径不变
+  const f = kakakeApp.kzPluginManager?.getLoadedAccountKeys?.(id) ?? [];
+  return [...new Set([...a, ...b, ...c, ...d, ...e, ...f])];
 }
 
 function resolveWebuiHtmlFile(pluginDir: string, preferred?: string): string | undefined {
@@ -130,13 +133,15 @@ export function createDefaultPluginHttpHost(): PluginHttpHost {
         kakakeApp.pluginManager?.getPluginRouter(id, accountKey)
         ?? kakakeApp.gfPluginManager?.getPluginRouter(id, accountKey)
         ?? kakakeApp.wxPluginManager?.getPluginRouter(id, accountKey)
-        ?? kakakeApp.sssxPluginManager?.getPluginRouter(id, accountKey)
+        ??         kakakeApp.sssxPluginManager?.getPluginRouter(id, accountKey)
         ?? kakakeApp.ssPluginManager?.getPluginRouter(id, accountKey)
+        ?? kakakeApp.kzPluginManager?.getPluginRouter(id, accountKey)
         ?? kakakeApp.pluginManager?.getPluginRouter(pluginId, accountKey)
         ?? kakakeApp.gfPluginManager?.getPluginRouter(pluginId, accountKey)
         ?? kakakeApp.wxPluginManager?.getPluginRouter(pluginId, accountKey)
         ?? kakakeApp.sssxPluginManager?.getPluginRouter(pluginId, accountKey)
         ?? kakakeApp.ssPluginManager?.getPluginRouter(pluginId, accountKey)
+        ?? kakakeApp.kzPluginManager?.getPluginRouter(pluginId, accountKey)
       );
     },
     getPluginInfo(pluginId: string) {
@@ -152,8 +157,9 @@ export function createDefaultPluginHttpHost(): PluginHttpHost {
         kakakeApp.pluginManager?.getRuntimeEntry?.(id, accountKey)
         ?? kakakeApp.gfPluginManager?.getRuntimeEntry?.(id, accountKey)
         ??         kakakeApp.wxPluginManager?.getRuntimeEntry?.(id, accountKey)
-        ?? kakakeApp.sssxPluginManager?.getRuntimeEntry?.(id, accountKey)
+        ??         kakakeApp.sssxPluginManager?.getRuntimeEntry?.(id, accountKey)
         ?? kakakeApp.ssPluginManager?.getRuntimeEntry?.(id, accountKey)
+        ?? kakakeApp.kzPluginManager?.getRuntimeEntry?.(id, accountKey)
       );
     },
     isLoadedForAccount(pluginId: string, accountKey: string) {
@@ -165,6 +171,7 @@ export function createDefaultPluginHttpHost(): PluginHttpHost {
         ||         kakakeApp.wxPluginManager?.isLoadedForAccount?.(id, accountKey)
         || kakakeApp.sssxPluginManager?.isLoadedForAccount?.(id, accountKey)
         || kakakeApp.ssPluginManager?.isLoadedForAccount?.(id, accountKey)
+        || kakakeApp.kzPluginManager?.isLoadedForAccount?.(id, accountKey)
       );
     },
   };

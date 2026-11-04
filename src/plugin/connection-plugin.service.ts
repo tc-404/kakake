@@ -9,12 +9,17 @@ import { resolveGfPluginId, isGfPluginDir } from './gf-plugin-id.js';
 import { resolveWxPluginId, isWxPluginDir } from './wx-plugin-id.js';
 import { resolveSsPluginId, isSsPluginDir } from './ss-plugin-id.js';
 import { resolveSssxPluginId, isSssxPluginDir } from './sssx-plugin-id.js';
+import { resolveKzPluginId, isKzPluginDir } from './kz-plugin-id.js';
 import { PATHS } from '../paths.js';
 
 /** 'sssx' = 双生插件：同一份代码同时可挂在 OneBot 与 QQ 官方机器人两条协议上 */
-export type PluginKind = 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx';
+export type PluginKind = 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
 
 function resolvePluginKind(pluginId: string): PluginKind {
+  // 扩展插件不挂任何连接（connectionTypesForKind 返回空），识别它只是为了别被兜底成普通插件
+  if (isKzPluginDir(pluginId) || /^kz[-_]?plugin/i.test(pluginId)) {
+    return 'kz';
+  }
   // sssx 必须早于 ss：sssx-plugin-foo 的宽松别名正则会被 ss 的规则误吞
   if (isSssxPluginDir(pluginId) || /^sssx[-_]?plugin/i.test(pluginId)) {
     return 'sssx';
@@ -33,9 +38,11 @@ function resolvePluginKind(pluginId: string): PluginKind {
 
 /**
  * 该种类插件能挂在哪些连接类型上。
- * 双生插件（sssx）返回两种——这正是「双路由」的唯一真相来源。
+ * 双生插件（sssx）返回两种——这正是「双路由」的唯一真相来源；
+ * 扩展插件（kz）返回空——它不属于任何连接，只有总开关。
  */
 function connectionTypesForKind(kind: PluginKind): ConnectionType[] {
+  if (kind === 'kz') return [];
   if (kind === 'sssx') return ['onebot', 'qq_official'];
   if (kind === 'gf') return ['qq_official'];
   if (kind === 'wx') return ['weixin_bot'];
@@ -55,6 +62,7 @@ class ConnectionPluginService {
 
   private resolvePluginId(pluginId: string, kind?: PluginKind): string {
     const k = kind ?? resolvePluginKind(pluginId);
+    if (k === 'kz') return resolveKzPluginId(pluginId);
     if (k === 'sssx') return resolveSssxPluginId(pluginId);
     if (k === 'gf') return resolveGfPluginId(pluginId);
     if (k === 'wx') return resolveWxPluginId(pluginId);

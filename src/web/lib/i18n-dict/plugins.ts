@@ -21,6 +21,13 @@ registerMessages({
   'plugins.kindWechat': { zh: '微信', en: 'WeChat' },
   'plugins.kindOther': { zh: 'KOOK', en: 'KOOK' },
   'plugins.kindOnebot': { zh: 'OneBot', en: 'OneBot' },
+  'plugins.kindExtension': { zh: '扩展', en: 'Extension' },
+  'plugins.openConfig': { zh: '打开配置', en: 'Open config' },
+  'plugins.configPickAccount': { zh: '选择账号', en: 'Choose account' },
+  'plugins.configPickAccountDesc': {
+    zh: '{name} 在多个账号上已加载，各账号的配置相互独立，请选择要查看哪一个。',
+    en: '{name} is loaded on multiple accounts. Each account keeps its own config — choose one to open.',
+  },
   'plugins.installSuccess': { zh: '安装成功', en: 'Installed' },
   'plugins.installFailed': { zh: '安装失败', en: 'Install failed' },
   'plugins.allDone': { zh: '全部完成，成功 {n} 个', en: 'All done, {n} succeeded' },

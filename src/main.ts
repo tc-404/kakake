@@ -47,6 +47,7 @@ import { GfPluginManager } from './plugin/gf-plugin.manager.js';
 import { WxPluginManager } from './plugin/wx-plugin.manager.js';
 import { SsPluginManager } from './plugin/ss-plugin.manager.js';
 import { SssxPluginManager } from './plugin/sssx-plugin.manager.js';
+import { KzPluginManager } from './plugin/kz-plugin.manager.js';
 import { PluginConfigService } from './plugin/plugin-config.service.js';
 import { PluginImporter } from './plugin/plugin.importer.js';
 import { createPluginHttpMiddleware } from './plugin/plugin-http.handler.js';
@@ -372,6 +373,12 @@ async function bootstrap() {
     config.port,
     true,
   );
+  const kzPluginManager = new KzPluginManager(
+    rootLogger.child('[扩展插件] '),
+    config.host,
+    config.port,
+    true,
+  );
 
   kakakeApp.connectionManager = connectionManager;
   kakakeApp.pluginManager = pluginManager;
@@ -379,12 +386,14 @@ async function bootstrap() {
   kakakeApp.wxPluginManager = wxPluginManager;
   kakakeApp.ssPluginManager = ssPluginManager;
   kakakeApp.sssxPluginManager = sssxPluginManager;
+  kakakeApp.kzPluginManager = kzPluginManager;
   kakakeApp.pluginConfigService = new PluginConfigService(
     pluginManager,
     gfPluginManager,
     wxPluginManager,
     ssPluginManager,
     sssxPluginManager,
+    kzPluginManager,
   );
   kakakeApp.pluginImporter = new PluginImporter(rootLogger.child('[导入] '));
 
@@ -479,11 +488,13 @@ async function bootstrap() {
   wxPluginManager.bindEvents();
   ssPluginManager.bindEvents();
   sssxPluginManager.bindEvents();
+  kzPluginManager.bindEvents();
   await pluginManager.open();
   await gfPluginManager.open();
   await wxPluginManager.open();
   await ssPluginManager.open();
   await sssxPluginManager.open();
+  await kzPluginManager.open();
 
   connectionManager.reload();
 
@@ -513,6 +524,7 @@ async function bootstrap() {
         wxPluginManager.close(),
         ssPluginManager.close(),
         sssxPluginManager.close(),
+        kzPluginManager.close(),
       ]).finally(() => {
         try { flushDau(); } catch { /* ignore */ }
         try { closeLogStream(); } catch { /* ignore */ }

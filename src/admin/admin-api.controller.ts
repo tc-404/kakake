@@ -49,7 +49,7 @@ import {
   removeConnectionAvatar,
 } from '../connection/connection-avatar.store.js';
 
-import { warnProxyDenied, resolveConnectionPluginKindFromConn, resolvePluginManager } from './admin-api.shared.js';
+import { warnProxyDenied, resolveConnectionPluginKindFromConn, resolvePluginManager, registerImportedPluginByKind } from './admin-api.shared.js';
 
 @Controller('api')
 export class AdminApiController {
@@ -209,15 +209,7 @@ export class AdminApiController {
     }
     const result = await kakakeApp.pluginImporter.importFromZip(uploaded.path);
     if (result.ok && result.pluginId) {
-      const registered = result.kind === 'sssx'
-        ? await kakakeApp.sssxPluginManager.registerImportedPlugin(result.pluginId)
-        : result.kind === 'gf'
-          ? await kakakeApp.gfPluginManager.registerImportedPlugin(result.pluginId)
-          : result.kind === 'wx'
-            ? await kakakeApp.wxPluginManager.registerImportedPlugin(result.pluginId)
-            : result.kind === 'ss'
-              ? await kakakeApp.ssPluginManager.registerImportedPlugin(result.pluginId)
-              : await kakakeApp.pluginManager.registerImportedPlugin(result.pluginId);
+      const registered = await registerImportedPluginByKind(result.pluginId, result.kind);
       if (!registered) {
         return {
           ok: false,
@@ -239,10 +231,11 @@ export class AdminApiController {
       const c = await kakakeApp.wxPluginManager.rescanPlugins();
       const d = await kakakeApp.ssPluginManager.rescanPlugins();
       const e = await kakakeApp.sssxPluginManager.rescanPlugins();
+      const f = await kakakeApp.kzPluginManager.rescanPlugins();
       return {
         code: 0,
         message: 'ok',
-        data: { count: a + b + c + d + e, ...buildPluginListPayload() },
+        data: { count: a + b + c + d + e + f, ...buildPluginListPayload() },
       };
     }
     const kind = resolveConnectionPluginKindFromConn(connectionId);

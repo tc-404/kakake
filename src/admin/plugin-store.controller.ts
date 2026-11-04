@@ -15,6 +15,7 @@ import {
 } from '../plugin/plugin-store.service.js';
 import { mirrorPrefixFor, getActiveMirrorId } from './update-check.service.js';
 import { readSessionId } from './auth.middleware.js';
+import { registerImportedPluginByKind } from './admin-api.shared.js';
 
 /**
  * 错误码透传：商城的超时 / 网络失败 / HTTP 状态码都带 code，
@@ -182,15 +183,7 @@ export class PluginStoreController {
 
       const result = await kakakeApp.pluginImporter.importFromZip(zipPath);
       if (result.ok && result.pluginId) {
-        const registered = result.kind === 'sssx'
-          ? await kakakeApp.sssxPluginManager.registerImportedPlugin(result.pluginId)
-          : result.kind === 'gf'
-            ? await kakakeApp.gfPluginManager.registerImportedPlugin(result.pluginId)
-            : result.kind === 'wx'
-              ? await kakakeApp.wxPluginManager.registerImportedPlugin(result.pluginId)
-              : result.kind === 'ss'
-                ? await kakakeApp.ssPluginManager.registerImportedPlugin(result.pluginId)
-                : await kakakeApp.pluginManager.registerImportedPlugin(result.pluginId);
+        const registered = await registerImportedPluginByKind(result.pluginId, result.kind);
         if (!registered) {
           return {
             ok: false,

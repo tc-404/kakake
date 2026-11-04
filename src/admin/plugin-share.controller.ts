@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { kakakeApp } from '../kakake-app.js';
 import { logAction } from '../core/log-store.js';
-import { resolvePluginManager } from './admin-api.shared.js';
+import { resolvePluginManager, registerImportedPluginByKind } from './admin-api.shared.js';
 import { pluginStoreService, StoreInstallCancelledError, withInstallSlot } from '../plugin/plugin-store.service.js';
 import type { PluginEntry } from '../plugin/plugin.types.js';
 import {
@@ -141,15 +141,7 @@ export class PluginShareController {
       if (!result.ok || !result.pluginId) {
         return { ok: false, message: result.message || '导入失败' };
       }
-      const registered = result.kind === 'sssx'
-        ? await kakakeApp.sssxPluginManager.registerImportedPlugin(result.pluginId)
-        : result.kind === 'gf'
-          ? await kakakeApp.gfPluginManager.registerImportedPlugin(result.pluginId)
-          : result.kind === 'wx'
-            ? await kakakeApp.wxPluginManager.registerImportedPlugin(result.pluginId)
-            : result.kind === 'ss'
-              ? await kakakeApp.ssPluginManager.registerImportedPlugin(result.pluginId)
-              : await kakakeApp.pluginManager.registerImportedPlugin(result.pluginId);
+      const registered = await registerImportedPluginByKind(result.pluginId, result.kind);
       if (!registered) {
         return {
           ok: false,

@@ -1,4 +1,5 @@
 import { isSsPluginDir } from './ss-plugin-id.js';
+import { isKzPluginDir } from './kz-plugin-id.js';
 import { assertSafePluginDirName } from './plugin-dir-safety.js';
 
 /** 咔咔珂插件目录命名前缀，例如 kakake-plugin-mkbot */
@@ -23,8 +24,11 @@ export function toKakakePluginDirName(name: string): string {
 
   if (isKakakePluginDir(trimmed)) return trimmed;
 
-  // 其他类型（ss-plugin-*）已是规范目录名，原样保留
+  // 其他类型（ss-plugin-* / kz-plugin-*）已是规范目录名，原样保留。
+  // 扩展插件必须在这里短路：否则会被兜底加成本文不存在的 kakake-plugin-kz-plugin-*，
+  // 连带把 kz-plugins.json 里的开关键迁移掉。
   if (isSsPluginDir(trimmed)) return trimmed;
+  if (isKzPluginDir(trimmed)) return trimmed;
 
   if (trimmed.startsWith(LEGACY_NAPCAT_PLUGIN_DIR_PREFIX)) {
     // 旧前缀插件目录 → kakake-plugin-*（须保留 plugin- 段，不能变成 kakake-mkbot）

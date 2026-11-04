@@ -1,6 +1,6 @@
 \---  
 name: Kakake 插件开发  
-description: 咔咔珂（kakake）插件开发与框架答疑技能，自带完整知识、不依赖本地 kakake 目录即可工作。覆盖 5 种插件前缀（kakake-/GF-/sssx-plugin-/WX-/ss-plugin-）的开发全流程：协议选择、双生路由、接口代理、TS/CJS/MJS 语法三选一、插件配置与 WebUI 控制台、模拟自检。内嵌 OneBot11 / QQ 官方 / KOOK / 微信四套协议的事件与接口速查。也负责解答 kakake 框架本身的安装、连接、使用问题。触发词：咔咔珂插件、kakake 插件、双生插件、GF-插件、写个机器人插件、kakake 框架。  
+description: 咔咔珂（kakake）插件开发与框架答疑技能，自带完整知识、不依赖本地 kakake 目录即可工作。覆盖 6 种插件前缀（kakake-/GF-/sssx-plugin-/WX-/ss-plugin-/kz-plugin-）的开发全流程：协议选择、双生路由、扩展插件（不绑连接，只做后台/工具）、接口代理、TS/CJS/MJS 语法三选一、插件配置与 WebUI 控制台、模拟自检。内嵌 OneBot11 / QQ 官方 / KOOK / 微信四套协议的事件与接口速查。也负责解答 kakake 框架本身的安装、连接、使用问题。触发词：咔咔珂插件、kakake 插件、双生插件、GF-插件、扩展插件、kz-plugin、写个机器人插件、kakake 框架。  
 \---
 
 # Kakake 插件开发技能
@@ -29,12 +29,12 @@ description: 咔咔珂（kakake）插件开发与框架答疑技能，自带完�
 2. **在线 GitHub**（仓库 `github.com/tc-404/kakake`，默认分支 `main`）：
    - `https://raw.githubusercontent.com/tc-404/kakake/main/README.md`
    - `https://raw.githubusercontent.com/tc-404/kakake/main/使用教程/连接教程.txt`（中文路径需 URL 编码）
-   - 插件开发教程：`.../main/使用教程/插件开发/前言.md`、`GF-官方机器人/说明.md`、`SS-双生插件/说明.md`、`进阶/kakake-plugin-panel/index.mjs`
+   - 插件开发教程：`.../main/使用教程/插件开发/前言.md`、`GF-官方机器人/说明.md`、`SS-双生插件/说明.md`、`KZ-扩展插件/说明.md`、`进阶/kakake-plugin-panel/index.mjs`
 3. **纯内置知识**：本文件 §5~§8 已内嵌四套协议的事件结构、常用接口、发送形态与高频坑，**不查任何外部资料也能写出能跑的插件**。
 
 ---
 
-## 1. 五种插件前缀与协议兼容（硬规则）
+## 1. 六种插件前缀与协议兼容（硬规则）
 
 插件类型按**目录名前缀**区分，写错前缀框架认不出来（大小写敏感）：
 
@@ -45,8 +45,17 @@ description: 咔咔珂（kakake）插件开发与框架答疑技能，自带完�
 | `sssx-plugin-` | **双生**：一份代码同挂 OneBot + QQ 官方        | 两种都有，按 `ctx.frameworkEnv.protocol` 分路                 | `actions.call` 自动分流                                    |
 | `WX-`          | 微信 AI×BOT（iLink）                    | `event.weixin_bot === true`                           | `send_msg` + `to_user_id` + `text`                     |
 | `ss-plugin-`   | KOOK                                | `event.kook === true`，`event.t`/`channel_id`          | `send_msg` + `target_id`(频道)/`user_id`(私聊) + `content` |
+| `kz-plugin-`   | **扩展**：不绑任何连接                       | **不接事件**（`plugin_onevent`/`plugin_onmessage` 永不调用）    | **不能发消息**（`actions.call` 抛错、`kakake_api` 为 undefined）   |
 
 注意：`sssx-` 与 `ss-` 是两个家族。写 `ss-plugin-hello` 会被判成 KOOK 插件；双生必须写全 `sssx-plugin-`。zip 导入时框架按包名前缀自动识别类型，旧前缀 `napcat-plugin-` 会自动改成 `kakake-`。
+
+**扩展插件（`kz-plugin-`）的硬规则**：
+- 只有**总开关**（`data/kz-plugins.json`），没有连接级子开关，连接面板里不会列出它；
+- 数据目录直接是 `data/<插件ID>`，**没有账号层**，全局一份实例；
+- 入口仍需导出 `plugin_init`（必须）和 `plugin_cleanup`（推荐）；`plugin_onmessage`/`plugin_onevent` 写了也不会被调用；
+- 能用的 ctx：`logger`、`dataPath`、`configPath`、`pluginPath`、`router`、`NapCatConfig`、`getPluginExports`、`pluginManager`；**不能**用 `actions.call`（抛错）与 `kakake_api`（不注入）；
+- 典型用途：网页后台 / 本机工具 / 定时任务 / 对接外部接口，**不是**「群里发指令 → 回消息」；
+- 配置项与 WebUI 机制与其它插件完全一致（列表卡片右下角齿轮打开配置弹窗）。
 
 **选型规则**：用户要开发 napcat/snowluma（OneBot 11 野生）插件或 QQ 官方机器人插件时，**优先推荐双生协议（`sssx-plugin-`）**——一份代码两条协议都能跑，日后换载体不用重写。用户明确只要单协议时才用 `kakake-` 或 `GF-`。KOOK / 微信只能用各自前缀。
 
@@ -115,7 +124,8 @@ async function sendText(ctx, params) {
 
 1. **选协议**：目标载体是什么？
    - NapCat / snowluma（OneBot 11 野生）或 QQ 官方 → 按第 1 节规则推荐双生；
-   - KOOK → `ss-plugin-`；微信 → `WX-`；纯 OneBot 且确定不做官方 → 可选 `kakake-`。
+   - KOOK → `ss-plugin-`；微信 → `WX-`；纯 OneBot 且确定不做官方 → 可选 `kakake-`；
+   - **不跟机器人交互**（只要网页后台 / 定时任务 / 本机工具 / 对接外部接口）→ `kz-plugin-` 扩展插件，此时跳过第 2、3 步（双生与接口代理都与它无关）。
 2. **（仅官方/野生机器人）是否用双生路由**：说明双生的收益（一份代码双协议、按账号隔离实例）与代价（两套事件结构要自己分路、数据两份不互通）。用双生则目录前缀 `sssx-plugin-`，并交代 §7 的分路要点。
 3. **是否启用接口代理（kakake_api）**：先核对宿主版本（§0.1）——≥ 0.6.6 推荐启用；< 0.6.6 或要求最大兼容老宿主时用原生 `ctx.actions.call`。
 4. **选语法实现**：ts / cjs / mjs 三选一，附第 3 节的优缺点说明。
@@ -277,6 +287,28 @@ async function plugin_onmessage(ctx, event) {
 - 微信：事件 `event.weixin_bot === true`，用户标识 `event.from_user_id ?? event.user_id`；发送 `ctx.actions.call('send_msg', { to_user_id, text })`。
 - 兼容四协议的取文字写法：OneBot 遍历 `event.message` 段数组；官方剥 @ 后取 `event.content`；KOOK/微信直接取字符串 `event.message ?? event.raw_message`。
 
+## 8.5 扩展插件要点（`kz-plugin-`，不写机器人交互时选它）
+
+完整教程：[`KZ-扩展插件/说明.md`](./KZ-扩展插件/说明.md)（含完整示例 `kz-plugin-hello/`：便签板 + 配置项 + 网页后台）。
+
+- **定位**：不绑连接、不接事件，只跑在本机。适合网页后台、定时任务、本机接口、外部系统对接。
+- **生命周期**：`plugin_init`（总开关打开 / 启动时）→ `plugin_cleanup`（关开关 / 重载 / 退出）。`plugin_onmessage` / `plugin_onevent` 不会被调用。
+- **数据目录**：`data/<插件ID>/`（无账号层，全局一份）；配置 `ctx.configPath` = `data/<插件ID>/config.json`；宿主另建 `config/plugins/<插件ID>` 联接指向它。
+- **不可用**：`ctx.actions.call`（调用抛错）、`ctx.kakake_api`（undefined）、`ctx.connectionId`、`frameworkEnv.protocol`；`frameworkEnv.ob11Mode` 固定 `'none'`。
+- **地址规则**（`<ID>` = 插件目录名）：
+  - 页面 `ctx.router.page(...)` → `/plugin/<ID>/page/admin`
+  - 需登录接口 → `/api/Plugin/ext/<ID>/<路径>`
+  - 免登录接口 → `/plugin/<ID>/api/<路径>`（**公网可达**，禁放敏感数据）
+  - 静态 `ctx.router.static('/static','webui')` → `/plugin/<ID>/files/static/...`
+  - 页面里用宿主注入的 `window.__KAKAKE_PLUGIN_ID__` 拼绝对接口路径。
+- **高频坑**：
+  1. 定时器 / 监听器不在 `plugin_cleanup` 里清 → 关了开关还在跑；
+  2. 实现了 `plugin_set_config` 就**必须自己写** `ctx.configPath`（宿主不再代写），否则重启丢配置；
+  3. 只导出 schema、不导出 get/set → 保存会写文件并**重载一次**插件；
+  4. 配置项在 `plugin_init` 里才填充时，插件没加载（总开关关着）→ 卡片没有齿轮按钮或弹窗为空；
+  5. `getNoAuth` 路由没有登录态，别把读写接口挂上去。
+- **安装**：目录放进 `plugins/`，或 zip / 商店安装（按 `kz-plugin-` 前缀自动识别）；卸载时可选是否连 `data/<插件ID>` 一起删。
+
 ## 9. 插件配置 vs WebUI 控制台（两个独立功能，不可混淆）
 
 |     | 插件配置                                             | WebUI 控制台（插件后台）                     |
@@ -346,7 +378,7 @@ plugins/<前缀插件目录名>/
 插件代码完成后，**必须询问用户是否执行自检**：
 
 1. 自检 = 控制台「模拟消息」功能：本地模拟群聊 / 私聊上报，**真实触发已加载插件**；插件的发送与 API 调用被拦截展示、不外发（模拟模式下 `send_*` 返回仿真 `message_id`，`get_login_info` 返回模拟账号）。
-2. 步骤：插件夹放入 `plugins/` → 控制台开**总开关** + 对应**连接开关**（双生要在两条连接上分别开子开关）→ 用模拟消息逐条触发指令 → 检查日志页有无报错。
+2. 步骤：插件夹放入 `plugins/` → 控制台开**总开关** + 对应**连接开关**（双生要在两条连接上分别开子开关；**扩展插件只需总开关，没有连接开关**，也不需要「模拟消息」，直接用网页后台或日志验证）→ 用模拟消息逐条触发指令 → 检查日志页有无报错。
 3. 检查项：能否加载（有无「缺少 plugin_init」）、**插件列表里中文名/简介/版本号是否正常显示**（不正常 = 两个 JSON 没写好）、「查看说明」按钮在不在（没有 = 缺 `插件文档.md`）、指令是否命中、回复是否发出（模拟回执）、配置项保存是否即时生效、后台页面能否打开、`plugin_cleanup` 是否正常。
 4. 发现报错或不合理设计 → 立即整改 → 再次自检，**循环直至通过**。
 

@@ -50,6 +50,10 @@ export function initDataDirs(): void {
     writeJsonAtomic(PATHS.wxPluginsStatus, {}, { trailingNewline: true });
   }
 
+  if (!fs.existsSync(PATHS.kzPluginsStatus)) {
+    writeJsonAtomic(PATHS.kzPluginsStatus, {}, { trailingNewline: true });
+  }
+
   // 登录密钥文件在 bootstrap 中 ensureAuthKey，此处仅保证 data 目录已就绪
 
   // 收紧既有敏感文件权限：历史上这些文件按 umask 生成（Linux 上多为 0644），
@@ -68,7 +72,19 @@ export function initDataDirs(): void {
  * 联接指向 data/<account|tmp>/<pluginId>
  */
 export function ensurePluginDataLink(pluginId: string, accountKey?: string | null): void {
-  const target = pluginAccountService.pluginDataDir(pluginId, accountKey);
+  ensureDataLink(pluginId, pluginAccountService.pluginDataDir(pluginId, accountKey));
+}
+
+/**
+ * 扩展插件（kz-plugin-*）没有账号层，数据目录就是 data/<pluginId>，
+ * 对应的 config/plugins/<id> 联接要单独指向它。
+ */
+export function ensureExtensionDataLink(pluginId: string): void {
+  ensureDataLink(pluginId, path.join(PATHS.data, pluginId));
+}
+
+/** 把 config/plugins/<id> 的联接指向 target（已一致则原样保留） */
+function ensureDataLink(pluginId: string, target: string): void {
   const link = path.join(PATHS.root, 'config', 'plugins', pluginId);
   const linkParent = path.dirname(link);
   if (!fs.existsSync(linkParent)) fs.mkdirSync(linkParent, { recursive: true });

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useLang, useT } from '@/lib/i18n';
 import {
   Loader2, Package, Puzzle, RefreshCw, Upload, BookOpen, ExternalLink, Github, Search, Activity, Trash2, X,
-  ChevronDown, ChevronUp, Share2, Download,
+  ChevronDown, ChevronUp, Share2, Download, Settings2,
 } from 'lucide-react';
 import { QuietExternal } from '@/components/quiet-link';
 import { api, UPLOAD_TIMEOUT_MS } from '@/lib/api';
@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { PluginDocsDialog } from '@/components/plugin-docs-dialog';
 import { PluginShareDialog } from '@/components/plugin-share-dialog';
+import { PluginConfigDialog } from '@/components/plugin-config-dialog';
 import { PluginImportLinkDialog, type PluginLinkImportResult } from '@/components/plugin-import-link-dialog';
 import {
   Dialog,
@@ -191,10 +192,14 @@ export default function PluginsPage() {
   const [plugins, setPlugins] = useState<PluginItem[]>([]);
   const [pages, setPages] = useState<ExtensionPage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx'>('all');
+  const [filter, setFilter] = useState<'all' | 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz'>('all');
   const [query, setQuery] = useState('');
   const [docsPlugin, setDocsPlugin] = useState<PluginItem | null>(null);
   const [sharePlugin, setSharePlugin] = useState<PluginItem | null>(null);
+  /** 配置弹窗目标：多账号插件要带上被选中的账号 */
+  const [configTarget, setConfigTarget] = useState<{ plugin: PluginItem; accountKey?: string } | null>(null);
+  /** 多账号时先问「打开哪个账号的配置」，与 WebUI 按钮同口径 */
+  const [configAccountPick, setConfigAccountPick] = useState<PluginItem | null>(null);
   const [importLinkOpen, setImportLinkOpen] = useState(false);
   /** 链接导入装完本体且包里带数据时，带着安装结果重开对话框问「是否连数据」 */
   const [importLinkResume, setImportLinkResume] = useState<PluginLinkImportResult | null>(null);
@@ -249,6 +254,7 @@ export default function PluginsPage() {
     wx: plugins.filter((p) => p.kind === 'wx').length,
     ss: plugins.filter((p) => p.kind === 'ss').length,
     sssx: plugins.filter((p) => p.kind === 'sssx').length,
+    kz: plugins.filter((p) => p.kind === 'kz').length,
   }), [plugins]);
 
   const filterTabs = useMemo(() => (
@@ -259,13 +265,21 @@ export default function PluginsPage() {
       { id: 'wx' as const, label: t('plugins.filterWechat'), count: counts.wx },
       { id: 'ss' as const, label: t('plugins.kindOther'), count: counts.ss },
       { id: 'sssx' as const, label: t('plugins.filterTwin'), count: counts.sssx },
+      // 扩展插件有才出现：没人装扩展时保持六格布局（六格是中英文都不挤的上限）
+      ...(counts.kz > 0
+        ? [{ id: 'kz' as const, label: t('plugins.kindExtension'), count: counts.kz }]
+        : []),
     ]
   ), [counts, lang]);
 
-  const filterIndex = Math.max(0, filterTabs.findIndex((t) => t.id === filter));
+  // 计数归零时标签会消失：兜底回「全部」，避免停在一个不可达的筛选上
+  const activeFilter = filterTabs.some((tab) => tab.id === filter) ? filter : 'all';
+  const filterIndex = Math.max(0, filterTabs.findIndex((tab) => tab.id === activeFilter));
   // lang 也要进 key：中英切换会改变标签宽度/换行，指示条必须重测
-  const layoutKey = `${lang}-${counts.all}-${counts.kakake}-${counts.gf}-${counts.wx}-${counts.ss}-${counts.sssx}`;
+  const layoutKey = `${lang}-${counts.all}-${counts.kakake}-${counts.gf}-${counts.wx}-${counts.ss}-${counts.sssx}-${counts.kz}`;
   const { navRef, setItemRef, box } = useLiquidIndicator(filterIndex, filterTabs.length, layoutKey);
+  // 六格是中英文手机端都不挤的上限；出现第七格（扩展）时改为换行排布，避免互相压字
+  const tabsWrapped = lang === 'en' || filterTabs.length > 6;
 
   const stats = useMemo(() => {
     const masterOn = plugins.filter((p) => p.masterEnabled !== false).length;
@@ -276,12 +290,12 @@ export default function PluginsPage() {
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return plugins.filter((p) => {
-      if (filter !== 'all' && (p.kind ?? 'kakake') !== filter) return false;
+      if (activeFilter !== 'all' && (p.kind ?? 'kakake') !== activeFilter) return false;
       if (!q) return true;
       const hay = `${p.name} ${p.id} ${p.description} ${p.author}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [plugins, filter, query]);
+  }, [plugins, activeFilter, query]);
 
   const refresh = async () => {
     setLoading(true);
@@ -391,15 +405,17 @@ export default function PluginsPage() {
         });
         if (r.ok) {
           success += 1;
-          const hint = r.kind === 'sssx'
-            ? t('plugins.kindTwin')
-            : r.kind === 'gf'
-              ? t('plugins.kindOfficial')
-              : r.kind === 'wx'
-                ? t('plugins.kindWechat')
-                : r.kind === 'ss'
-                  ? t('plugins.kindOther')
-                  : t('plugins.kindOnebot');
+          const hint = r.kind === 'kz'
+            ? t('plugins.kindExtension')
+            : r.kind === 'sssx'
+              ? t('plugins.kindTwin')
+              : r.kind === 'gf'
+                ? t('plugins.kindOfficial')
+                : r.kind === 'wx'
+                  ? t('plugins.kindWechat')
+                  : r.kind === 'ss'
+                    ? t('plugins.kindOther')
+                    : t('plugins.kindOnebot');
           setQueueItems((prev) => prev.map((q) => (
             q.id === item.id
               ? {
@@ -641,8 +657,9 @@ export default function PluginsPage() {
             // 中文：不换行 + 等分，四个（六个）按钮永远在同一行且宽度一致
             // 英文：文案明显更长（Third-party / Official / WeChat …），手机上挤一行会互相重叠，
             //       所以英文模式在手机端放开换行、每行 3 个自动折成两行；sm+ 恢复等分单行
+            // 中文出现第七格（扩展）时同样换行：每行 4 个，sm+ 恢复单行
             'relative flex items-stretch gap-1 rounded-[1.15rem] p-1 sm:gap-1.5 sm:p-1.5',
-            lang === 'en' ? 'flex-wrap sm:flex-nowrap' : 'flex-nowrap',
+            tabsWrapped ? 'flex-wrap sm:flex-nowrap' : 'flex-nowrap',
             GLASS_CTRL,
           )}
         >
@@ -656,7 +673,7 @@ export default function PluginsPage() {
             }}
           />
           {filterTabs.map((t, index) => {
-            const active = filter === t.id;
+            const active = activeFilter === t.id;
             return (
               <button
                 key={t.id}
@@ -666,11 +683,14 @@ export default function PluginsPage() {
                 className={cn(
                   // 中文：basis-0 + flex-1 等宽均分，宽度与文字长短无关；whitespace-nowrap 保证单行
                   // 英文手机端：每行 3 个（折两行），字号也收一档，避免长单词撑破按钮后互相压字
+                  // 中文七格：每行 4 个，sm+ 恢复等分单行
                   'relative z-[1] flex min-w-0 items-center justify-center gap-1',
                   'rounded-xl px-1.5 py-1.5 font-medium transition-colors duration-300 sm:gap-1.5 sm:px-2',
-                  lang === 'en'
-                    ? 'basis-[calc(33.333%_-_0.5rem)] grow whitespace-normal break-words text-center text-[13px] leading-tight sm:flex-1 sm:basis-0 sm:whitespace-nowrap sm:text-sm'
-                    : 'flex-1 basis-0 whitespace-nowrap text-sm',
+                  !tabsWrapped
+                    ? 'flex-1 basis-0 whitespace-nowrap text-sm'
+                    : lang === 'en'
+                      ? 'basis-[calc(33.333%_-_0.5rem)] grow whitespace-normal break-words text-center text-[13px] leading-tight sm:flex-1 sm:basis-0 sm:whitespace-nowrap sm:text-sm'
+                      : 'basis-[calc(25%_-_0.375rem)] grow whitespace-normal break-words text-center text-[13px] leading-tight sm:flex-1 sm:basis-0 sm:whitespace-nowrap sm:text-sm',
                   active
                     ? 'border border-transparent text-teal-700'
                     : 'border border-transparent bg-transparent text-slate-500 hover:bg-white/20 hover:text-slate-700',
@@ -709,28 +729,32 @@ export default function PluginsPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
             {visible.map((plugin, index) => {
               const masterOn = plugin.masterEnabled !== false;
-              const kindLabel = plugin.kind === 'sssx'
-                ? t('plugins.kindTwin')
-                : plugin.kind === 'gf'
-                  ? t('plugins.kindOfficial')
-                  : plugin.kind === 'wx'
-                    ? t('plugins.kindWechat')
-                    : plugin.kind === 'ss'
-                      ? t('plugins.kindOther')
-                      : t('plugins.kindOnebot');
+              const kindLabel = plugin.kind === 'kz'
+                ? t('plugins.kindExtension')
+                : plugin.kind === 'sssx'
+                  ? t('plugins.kindTwin')
+                  : plugin.kind === 'gf'
+                    ? t('plugins.kindOfficial')
+                    : plugin.kind === 'wx'
+                      ? t('plugins.kindWechat')
+                      : plugin.kind === 'ss'
+                        ? t('plugins.kindOther')
+                        : t('plugins.kindOnebot');
               const hasAdmin = (plugin.hasPages || pagesOf(plugin.id).length > 0)
                 && masterOn
                 && plugin.status === 'active';
               // 类型标签配色：按路线区分，避免与说明按钮的灰色系混淆
-              const kindTone = plugin.kind === 'gf'
-                ? 'border-sky-300/60 bg-sky-400/10 text-sky-700'
-                : plugin.kind === 'wx'
-                  ? 'border-emerald-300/60 bg-emerald-400/10 text-emerald-700'
-                  : plugin.kind === 'ss'
-                    ? 'border-purple-300/60 bg-purple-400/10 text-purple-700'
-                    : plugin.kind === 'sssx'
-                      ? 'border-fuchsia-300/60 bg-fuchsia-400/10 text-fuchsia-700'
-                      : 'border-teal-300/60 bg-teal-400/10 text-teal-700';
+              const kindTone = plugin.kind === 'kz'
+                ? 'border-amber-300/60 bg-amber-400/10 text-amber-700'
+                : plugin.kind === 'gf'
+                  ? 'border-sky-300/60 bg-sky-400/10 text-sky-700'
+                  : plugin.kind === 'wx'
+                    ? 'border-emerald-300/60 bg-emerald-400/10 text-emerald-700'
+                    : plugin.kind === 'ss'
+                      ? 'border-purple-300/60 bg-purple-400/10 text-purple-700'
+                      : plugin.kind === 'sssx'
+                        ? 'border-fuchsia-300/60 bg-fuchsia-400/10 text-fuchsia-700'
+                        : 'border-teal-300/60 bg-teal-400/10 text-teal-700';
               const showDesc = hasRealDescription(plugin.description);
               return (
                 <article
@@ -829,6 +853,26 @@ export default function PluginsPage() {
                           <Github className="h-4 w-4" />
                         </QuietExternal>
                       ) : null}
+                      {/* 配置按钮：只在插件确实有配置窗口时出现，位置固定在 WebUI 跳转按钮左侧 */}
+                      {plugin.hasConfig ? (
+                        <button
+                          type="button"
+                          title={t('plugins.openConfig')}
+                          aria-label={t('plugins.openConfig')}
+                          onClick={() => {
+                            const accounts = plugin.loadedAccounts || [];
+                            // 多账号：先问打开哪个账号的配置（各账号各有 config.json）
+                            if (accounts.length > 1) {
+                              setConfigAccountPick(plugin);
+                              return;
+                            }
+                            setConfigTarget({ plugin, accountKey: accounts[0] });
+                          }}
+                          className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-white/40 hover:text-teal-700 active:scale-95"
+                        >
+                          <Settings2 className="h-4 w-4" />
+                        </button>
+                      ) : null}
                       {hasAdmin ? (
                         <button
                           type="button"
@@ -888,6 +932,41 @@ export default function PluginsPage() {
         open={!!sharePlugin}
         onClose={() => setSharePlugin(null)}
       />
+
+      {/* 卡片上的配置入口：与连接面板同一个弹窗，多账号时先选账号 */}
+      <PluginConfigDialog
+        plugin={configTarget?.plugin ?? null}
+        open={!!configTarget}
+        accountKey={configTarget?.accountKey}
+        onClose={() => setConfigTarget(null)}
+        onReload={() => void load({ silent: true })}
+      />
+
+      <Dialog open={!!configAccountPick} onOpenChange={(v) => !v && setConfigAccountPick(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('plugins.configPickAccount')}</DialogTitle>
+            <DialogDescription>
+              {t('plugins.configPickAccountDesc', { name: configAccountPick?.name ?? '' })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            {(configAccountPick?.loadedAccounts || []).map((account) => (
+              <Button
+                key={account}
+                variant="outline"
+                onClick={() => {
+                  const plugin = configAccountPick;
+                  setConfigAccountPick(null);
+                  if (plugin) setConfigTarget({ plugin, accountKey: account });
+                }}
+              >
+                {account}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <PluginImportLinkDialog
         open={importLinkOpen}

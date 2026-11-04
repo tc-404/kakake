@@ -41,7 +41,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -106,7 +105,7 @@ function detailMetaLine(
  * `label` 是筛选用的叫法，`badge` 是卡片角标上的叫法——「野鸡 / 野生」是同一档，
  * 只是两个源的原始字段名不同（`resource_type` 用野鸡、`type` 用野生），这里统一归一到同一档。
  */
-type StoreCategoryId = 'wild' | 'official' | 'twin' | 'wechat' | 'other';
+type StoreCategoryId = 'wild' | 'official' | 'twin' | 'wechat' | 'extension' | 'other';
 
 interface StoreCategory {
   id: StoreCategoryId;
@@ -202,6 +201,16 @@ const STORE_CATEGORIES: StoreCategory[] = [
     textClass: 'text-emerald-600',
     chipClass: 'bg-white/45 text-emerald-600 ring-1 ring-inset ring-emerald-300/60',
     raw: ['微信', 'wxbot'],
+  },
+  {
+    id: 'extension',
+    label: '扩展',
+    badge: '扩展',
+    // 扩展 = kz-plugin-*，不绑连接、只有总开关。配色用琥珀，与列表页卡片上的类型徽标一致
+    badgeClass: 'border-amber-300/50 bg-amber-500/90 text-white',
+    textClass: 'text-amber-600',
+    chipClass: 'bg-white/45 text-amber-600 ring-1 ring-inset ring-amber-300/60',
+    raw: ['扩展', '扩展插件', 'kz', 'kz-plugin', 'extension', 'ext'],
   },
   {
     id: 'other',
@@ -720,10 +729,6 @@ export default function PluginStorePage() {
                   <span className={cn(category === c.id && c.textClass)}>{t(`plugin-store.cat-${c.id}`)}</span>
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <p className="px-2.5 py-1 text-[11px] leading-snug text-slate-400">
-                {t('plugin-store.categoryClearHint')}
-              </p>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>

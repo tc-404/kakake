@@ -3,6 +3,7 @@ import type { GfPluginManager } from './gf-plugin.manager.js';
 import type { WxPluginManager } from './wx-plugin.manager.js';
 import type { SsPluginManager } from './ss-plugin.manager.js';
 import type { SssxPluginManager } from './sssx-plugin.manager.js';
+import type { KzPluginManager } from './kz-plugin.manager.js';
 import type { PluginConfigSchema, PluginEntry } from './plugin.types.js';
 import { readJsonSafe, writeJsonAtomic } from '../storage/atomic-file.js';
 
@@ -15,11 +16,17 @@ export interface PluginConfigView {
   hasConfig: boolean;
 }
 
-type PluginKind = 'ob' | 'gf' | 'wx' | 'ss' | 'sssx';
+type PluginKind = 'ob' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
 
 type ResolvedPlugin = {
   entry: PluginEntry;
   kind: PluginKind;
+};
+
+/** 配置视图只需要管理器的这两项能力，避免为六套类型写六个分支 */
+type ConfigRuntimeHost = {
+  getRuntimeEntry?(pluginId: string, accountKey: string): PluginEntry | undefined;
+  getPluginConfigPath?(pluginId: string, accountKey?: string | null): string;
 };
 
 export class PluginConfigService {
@@ -29,9 +36,13 @@ export class PluginConfigService {
     private readonly wxPluginManager?: WxPluginManager,
     private readonly ssPluginManager?: SsPluginManager,
     private readonly sssxPluginManager?: SssxPluginManager,
+    private readonly kzPluginManager?: KzPluginManager,
   ) {}
 
   private resolvePlugin(pluginId: string): ResolvedPlugin | null {
+    // 扩展插件前缀与其它几套不重叠，先判
+    const kz = this.kzPluginManager?.getPluginInfo(pluginId);
+    if (kz) return { entry: kz, kind: 'kz' };
     const ob = this.pluginManager.getPluginInfo(pluginId);
     if (ob) return { entry: ob, kind: 'ob' };
     const gf = this.gfPluginManager?.getPluginInfo(pluginId);
@@ -44,6 +55,35 @@ export class PluginConfigService {
     const ss = this.ssPluginManager?.getPluginInfo(pluginId);
     if (ss) return { entry: ss, kind: 'ss' };
     return null;
+  }
+
+  private managerFor(kind: PluginKind): ConfigRuntimeHost | undefined {
+    const manager = kind === 'gf'
+      ? this.gfPluginManager
+      : kind === 'wx'
+        ? this.wxPluginManager
+        : kind === 'sssx'
+          ? this.sssxPluginManager
+          : kind === 'ss'
+            ? this.ssPluginManager
+            : kind === 'kz'
+              ? this.kzPluginManager
+              : this.pluginManager;
+    return manager as unknown as ConfigRuntimeHost | undefined;
+  }
+
+  /**
+   * 配置本来就在 `data/<账号>/<插件>/config.json`，所以指定账号时必须用**该账号的运行实例**
+   * 取 schema / 读写。不指定账号时退回目录条目——它的 runtime 指向首个已加载实例，
+   * 与旧行为一致（单账号时两者等价）。
+   */
+  private resolveRuntime(pluginId: string, accountKey?: string | null): ResolvedPlugin | null {
+    const base = this.resolvePlugin(pluginId);
+    if (!base) return null;
+    const key = String(accountKey || '').trim();
+    if (!key) return base;
+    const runtimeEntry = this.managerFor(base.kind)?.getRuntimeEntry?.(base.entry.id, key);
+    return runtimeEntry ? { entry: runtimeEntry, kind: base.kind } : base;
   }
 
   private async reloadByKind(kind: PluginKind, pluginId: string): Promise<void> {
@@ -63,17 +103,21 @@ export class PluginConfigService {
       await this.ssPluginManager?.reloadPlugin(pluginId);
       return;
     }
+    if (kind === 'kz') {
+      await this.kzPluginManager?.reloadPlugin(pluginId);
+      return;
+    }
     await this.pluginManager.reloadPlugin(pluginId);
   }
 
-  getConfigView(pluginId: string): PluginConfigView | null {
-    const resolved = this.resolvePlugin(pluginId);
+  getConfigView(pluginId: string, accountKey?: string | null): PluginConfigView | null {
+    const resolved = this.resolveRuntime(pluginId, accountKey);
     if (!resolved) return null;
 
-    const { entry } = resolved;
+    const { entry, kind } = resolved;
     const module = entry.runtime.module;
     const schema = this.resolveSchema(entry);
-    const config = this.readConfig(pluginId, entry);
+    const config = this.readConfig(pluginId, entry, kind, accountKey);
     const hasConfig = schema.length > 0
       || !!module?.plugin_get_config
       || !!module?.plugin_set_config
@@ -102,7 +146,12 @@ export class PluginConfigService {
     return [];
   }
 
-  private readConfig(pluginId: string, entry: PluginEntry): Record<string, unknown> {
+  private readConfig(
+    pluginId: string,
+    entry: PluginEntry,
+    kind: PluginKind,
+    accountKey?: string | null,
+  ): Record<string, unknown> {
     const ctx = entry.runtime.context;
     const mod = entry.runtime.module;
 
@@ -117,15 +166,18 @@ export class PluginConfigService {
       } catch { /* fall through */ }
     }
 
-    const configPath = ctx?.configPath || this.pluginManager.getPluginConfigPath(pluginId);
+    // 未加载时没有 ctx：按插件类型回落到各自的配置路径（扩展插件是 data/<id>/config.json）
+    const configPath = ctx?.configPath
+      || this.managerFor(kind)?.getPluginConfigPath?.(pluginId, accountKey)
+      || this.pluginManager.getPluginConfigPath(pluginId);
     return readJsonSafe<Record<string, unknown>>(configPath, {}, { label: `${pluginId}/config.json` });
   }
 
-  async readConfigAsync(pluginId: string): Promise<Record<string, unknown>> {
-    const resolved = this.resolvePlugin(pluginId);
+  async readConfigAsync(pluginId: string, accountKey?: string | null): Promise<Record<string, unknown>> {
+    const resolved = this.resolveRuntime(pluginId, accountKey);
     if (!resolved) return {};
 
-    const { entry } = resolved;
+    const { entry, kind } = resolved;
     const ctx = entry.runtime.context;
     const mod = entry.runtime.module;
 
@@ -138,11 +190,15 @@ export class PluginConfigService {
       } catch { /* fall through */ }
     }
 
-    return this.readConfig(pluginId, entry);
+    return this.readConfig(pluginId, entry, kind, accountKey);
   }
 
-  async saveConfig(pluginId: string, config: Record<string, unknown>): Promise<void> {
-    const resolved = this.resolvePlugin(pluginId);
+  async saveConfig(
+    pluginId: string,
+    config: Record<string, unknown>,
+    accountKey?: string | null,
+  ): Promise<void> {
+    const resolved = this.resolveRuntime(pluginId, accountKey);
     if (!resolved) throw new Error('插件不存在');
 
     const { entry, kind } = resolved;
@@ -154,7 +210,9 @@ export class PluginConfigService {
       return;
     }
 
-    const configPath = ctx?.configPath || this.pluginManager.getPluginConfigPath(pluginId);
+    const configPath = ctx?.configPath
+      || this.managerFor(kind)?.getPluginConfigPath?.(pluginId, accountKey)
+      || this.pluginManager.getPluginConfigPath(pluginId);
     writeJsonAtomic(configPath, config);
     await this.reloadByKind(kind, pluginId);
   }

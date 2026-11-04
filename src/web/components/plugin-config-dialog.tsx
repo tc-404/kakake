@@ -53,12 +53,15 @@ export function PluginConfigDialog({
   onReload,
   /** 传入时：卸载仅删本连接 plugins_two 副本，不影响 plugins/ */
   connectionId,
+  /** 多账号插件：读写指定账号的 data/<账号>/<插件>/config.json */
+  accountKey,
 }: {
   plugin: PluginItem | null;
   open: boolean;
   onClose: () => void;
   onReload: () => void;
   connectionId?: string;
+  accountKey?: string;
 }) {
   const pluginId = plugin?.id ?? null;
   const scopedToConnection = Boolean(connectionId);
@@ -74,13 +77,13 @@ export function PluginConfigDialog({
     if (!open || !pluginId) return;
     setLoading(true);
     api.plugins
-      .getConfig(pluginId)
+      .getConfig(pluginId, accountKey)
       .then((res) => {
         setSchema(res.data.schema.filter((i) => !i.key.startsWith('_') && !i.hidden));
         setValues(res.data.config || {});
       })
       .finally(() => setLoading(false));
-  }, [open, pluginId]);
+  }, [open, pluginId, accountKey]);
 
   const setField = (key: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -95,7 +98,7 @@ export function PluginConfigDialog({
         if (item.type === 'html' || item.type === 'text') continue;
         payload[item.key] = values[item.key];
       }
-      await api.plugins.saveConfig(pluginId, payload);
+      await api.plugins.saveConfig(pluginId, payload, accountKey);
       toast.success(t('plugins.cfg.saved'));
       onClose();
     } catch (e) {

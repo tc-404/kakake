@@ -452,6 +452,80 @@
           "language": "json"
         }
       ]
+    },
+    {
+      "id": "kz-extension",
+      "label": "扩展插件（kz-）",
+      "cardTitle": "扩展插件（kz-）",
+      "cardSubtitle": "不绑连接 · 不接消息 · 只有总开关",
+      "cardDescription": "想挂一个本机网页后台、定时任务或对外小工具，而不是「群里发指令机器人」，选这条。文件夹必须以 kz-plugin- 开头；数据目录直接是 data/<插件ID>，没有账号层，也没有连接子开关——列表上的总开关就是唯一开关。",
+      "dir": "KZ-扩展插件",
+      "guide": "说明.md",
+      "files": [
+        {
+          "heading": "分步 ①：最小可运行（plugin_init + dataPath）",
+          "path": "分步例子/01-最小可运行.mjs",
+          "title": "01-最小可运行.mjs",
+          "downloadName": "01-最小可运行.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ②：配置项（schema + get/set config）",
+          "path": "分步例子/02-配置项-schema.mjs",
+          "title": "02-配置项-schema.mjs",
+          "downloadName": "02-配置项-schema.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ③：网页后台与两类 HTTP 接口",
+          "path": "分步例子/03-挂后台页面与接口.mjs",
+          "title": "03-挂后台页面与接口.mjs",
+          "downloadName": "03-挂后台页面与接口.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ④：定时任务与收尾（plugin_cleanup）",
+          "path": "分步例子/04-定时任务与收尾.mjs",
+          "title": "04-定时任务与收尾.mjs",
+          "downloadName": "04-定时任务与收尾.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "完整可运行（整个文件夹放进 plugins/，名字必须 kz-plugin- 开头）",
+          "path": "kz-plugin-hello/index.mjs",
+          "title": "kz-plugin-hello/index.mjs",
+          "downloadName": "index.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "完整插件 · package.json",
+          "path": "kz-plugin-hello/package.json",
+          "title": "package.json",
+          "downloadName": "package.json",
+          "language": "json"
+        },
+        {
+          "heading": "完整插件 · plugin.json",
+          "path": "kz-plugin-hello/plugin.json",
+          "title": "plugin.json",
+          "downloadName": "plugin.json",
+          "language": "json"
+        },
+        {
+          "heading": "完整插件 · 网页后台 webui/admin.html（原生 HTML，不用构建）",
+          "path": "kz-plugin-hello/webui/admin.html",
+          "title": "webui/admin.html",
+          "downloadName": "admin.html",
+          "language": "html"
+        },
+        {
+          "heading": "完整插件 · 插件文档.md（列表「查看说明」读它）",
+          "path": "kz-plugin-hello/插件文档.md",
+          "title": "插件文档.md",
+          "downloadName": "插件文档.md",
+          "language": "markdown"
+        }
+      ]
     }
   ]
 }

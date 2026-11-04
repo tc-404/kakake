@@ -84,6 +84,8 @@ export const PATHS = {
   ssPluginsStatus: path.join(DATA_DIR, 'ss-plugins.json'),
   /** 双生插件（sssx-plugin-*，OneBot + QQ 官方双协议）启停总开关 */
   sssxPluginsStatus: path.join(DATA_DIR, 'sssx-plugins.json'),
+  /** 扩展插件（kz-plugin-*，不绑连接）启停总开关 */
+  kzPluginsStatus: path.join(DATA_DIR, 'kz-plugins.json'),
   connectionPlugins: path.join(DATA_DIR, 'connection-plugins.json'),
   connections: path.join(DATA_DIR, 'connections.json'),
   /** 连接头像 base64 缓存（统一 JSON，非图片文件） */

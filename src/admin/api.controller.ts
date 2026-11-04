@@ -55,7 +55,7 @@ async function toggleMaster(
   manager: ToggleManager,
   pluginId: string,
   enable: boolean,
-  kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx',
+  kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz',
 ): Promise<ToggleResult> {
   await manager.setMasterPluginStatus(pluginId, enable);
   const entry = manager.getPluginInfo(pluginId);
@@ -572,10 +572,11 @@ export class PluginApiController {
       const c = await kakakeApp.wxPluginManager.rescanPlugins();
       const d = await kakakeApp.ssPluginManager.rescanPlugins();
       const e = await kakakeApp.sssxPluginManager.rescanPlugins();
+      const f = await kakakeApp.kzPluginManager.rescanPlugins();
       return {
         code: 0,
         message: 'ok',
-        data: { count: a + b + c + d + e, ...buildPluginListPayload() },
+        data: { count: a + b + c + d + e + f, ...buildPluginListPayload() },
       };
     }
     const kind = resolveConnectionPluginKind(connectionId);
@@ -639,11 +640,13 @@ export class PluginApiController {
   async getConfig(@Req() req: Request, @Res() res: Response) {
     const id = String(req.query.id || '');
     if (!id) return res.status(400).json({ code: -1, message: 'id required' });
+    // 可选账号：多账号插件按账号读各自的 data/<账号>/<插件>/config.json
+    const accountKey = typeof req.query.account === 'string' ? req.query.account : undefined;
 
-    const view = kakakeApp.pluginConfigService.getConfigView(id);
+    const view = kakakeApp.pluginConfigService.getConfigView(id, accountKey);
     if (!view) return res.status(404).json({ code: -1, message: 'Plugin not found' });
 
-    const config = await kakakeApp.pluginConfigService.readConfigAsync(id);
+    const config = await kakakeApp.pluginConfigService.readConfigAsync(id, accountKey);
     view.config = kakakeApp.pluginConfigService.mergeDefaults(view.schema, config);
 
     return res.json({
@@ -657,10 +660,13 @@ export class PluginApiController {
   }
 
   @Post('Config')
-  async setConfig(@Body() body: { id: string; config: Record<string, unknown> }, @Res() res: Response) {
+  async setConfig(
+    @Body() body: { id: string; config: Record<string, unknown>; account?: string },
+    @Res() res: Response,
+  ) {
     if (!body.id || !body.config) return res.status(400).json({ code: -1, message: 'id and config required' });
     try {
-      await kakakeApp.pluginConfigService.saveConfig(body.id, body.config);
+      await kakakeApp.pluginConfigService.saveConfig(body.id, body.config, body.account);
       return res.json({ code: 0, message: 'Config updated' });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Error';

@@ -815,7 +815,7 @@ export const api = {
       if (res.code !== 0) throw new Error(res.message || '操作失败');
       return res;
     },
-    getConfig: (id: string) =>
+    getConfig: (id: string, accountKey?: string) =>
       request<{
         code: number;
         data: {
@@ -823,12 +823,15 @@ export const api = {
           config: Record<string, unknown>;
           supportReactive: boolean;
         };
-      }>(`/api/Plugin/Config?id=${encodeURIComponent(id)}`),
-    saveConfig: (id: string, config: Record<string, unknown>) =>
+      }>(
+        `/api/Plugin/Config?id=${encodeURIComponent(id)}`
+        + (accountKey ? `&account=${encodeURIComponent(accountKey)}` : ''),
+      ),
+    saveConfig: (id: string, config: Record<string, unknown>, accountKey?: string) =>
       request('/api/Plugin/Config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, config }),
+        body: JSON.stringify({ id, config, ...(accountKey ? { account: accountKey } : {}) }),
       }),
     reload: (id: string) => request(`/api/plugins/${id}/reload`, { method: 'POST' }),
     getDocs: (id: string) =>
@@ -884,7 +887,7 @@ export const api = {
       new Promise<{
         ok: boolean;
         pluginId?: string;
-        kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx';
+        kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
         message: string;
       }>((resolve, reject) => {
         const fd = new FormData();
@@ -899,14 +902,14 @@ export const api = {
           if (e.lengthComputable) onProgress?.(e.loaded, e.total);
         };
         xhr.onload = () => {
-          let data: { ok?: boolean; message?: string; pluginId?: string; kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' } | null = null;
+          let data: { ok?: boolean; message?: string; pluginId?: string; kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' } | null = null;
           try {
             data = JSON.parse(xhr.responseText) as typeof data;
           } catch {
             /* 非 JSON 响应按 HTTP 状态处理 */
           }
           if (xhr.status >= 200 && xhr.status < 300) {
-            if (data) resolve(data as { ok: boolean; pluginId?: string; kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx'; message: string });
+            if (data) resolve(data as { ok: boolean; pluginId?: string; kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz'; message: string });
             else reject(new Error(`HTTP ${xhr.status}`));
           } else {
             reject(new Error(data?.message || `HTTP ${xhr.status}`));
@@ -987,7 +990,7 @@ export const api = {
         code?: string;
         message?: string;
         pluginId?: string;
-        kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx';
+        kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
         name?: string;
         hasData?: boolean;
         accounts?: string[];

@@ -321,10 +321,14 @@ function stableId(key: string): number {
  */
 function normalizeType(t?: string): string {
   const v = (t || '').trim();
-  if (v === '野生' || v === '官方' || v === '微信' || v === '其他') return v;
+  if (v === '野生' || v === '官方' || v === '微信' || v === '其他' || v === '扩展') return v;
   const low = v.toLowerCase();
   if (v === '双生' || v === '双生插件' || low === 'sssx' || low === 'sssx-plugin' || low === 'twin') {
     return '双生';
+  }
+  // 扩展插件（kz-plugin-*，不绑任何连接）：与列表页的类型徽标同口径
+  if (v === '扩展插件' || low === 'kz' || low === 'kz-plugin' || low === 'extension' || low === 'ext' || low.startsWith('kz-plugin')) {
+    return '扩展';
   }
   return '其他';
 }

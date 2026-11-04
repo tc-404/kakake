@@ -5,6 +5,7 @@ import { isGfPluginDir } from '../plugin/gf-plugin-id.js';
 import { isWxPluginDir } from '../plugin/wx-plugin-id.js';
 import { isSsPluginDir } from '../plugin/ss-plugin-id.js';
 import { isSssxPluginDir } from '../plugin/sssx-plugin-id.js';
+import { isKzPluginDir } from '../plugin/kz-plugin-id.js';
 
 /**
  * 媒体代理被域名白名单拒绝时告警：同一主机只报一次。
@@ -48,11 +49,21 @@ export function syncAllPluginManagers(): void {
   void kakakeApp.wxPluginManager?.syncAllPluginRuntimes();
   void kakakeApp.sssxPluginManager?.syncAllPluginRuntimes();
   void kakakeApp.ssPluginManager?.syncAllPluginRuntimes();
+  // 扩展插件不依赖连接，这里只是保持「连接变化后各管理器对齐一次」的形状一致
+  void kakakeApp.kzPluginManager?.syncAllPluginRuntimes();
 }
 
-/** 按 ID 路由到 双生 / GF / 微信 / KOOK / 普通插件管理器 */
+/** 按 ID 路由到 扩展 / 双生 / GF / 微信 / KOOK / 普通插件管理器 */
 export function resolvePluginManager(id: string) {
   const trimmed = String(id || '').trim();
+  // 扩展插件前缀与其它几套不重叠，先判省得被兜底成普通插件
+  if (
+    kakakeApp.kzPluginManager?.getPluginInfo(trimmed)
+    || isKzPluginDir(trimmed)
+    || /^kz[-_]?plugin/i.test(trimmed)
+  ) {
+    return { kind: 'kz' as const, manager: kakakeApp.kzPluginManager };
+  }
   if (
     kakakeApp.wxPluginManager?.getPluginInfo(trimmed)
     || isWxPluginDir(trimmed)
@@ -84,4 +95,22 @@ export function resolvePluginManager(id: string) {
     return { kind: 'gf' as const, manager: kakakeApp.gfPluginManager };
   }
   return { kind: 'kakake' as const, manager: kakakeApp.pluginManager };
+}
+
+/**
+ * 导入 / 商店安装 / 分享包还原后的统一登记入口：按导入器识别出的类型
+ * 交给对应管理器（六套类型各一处，别再在三个控制器里各抄一份三元链）。
+ */
+export async function registerImportedPluginByKind(
+  pluginId: string,
+  kind: string | undefined,
+): Promise<boolean> {
+  switch (kind) {
+    case 'sssx': return kakakeApp.sssxPluginManager.registerImportedPlugin(pluginId);
+    case 'gf': return kakakeApp.gfPluginManager.registerImportedPlugin(pluginId);
+    case 'wx': return kakakeApp.wxPluginManager.registerImportedPlugin(pluginId);
+    case 'ss': return kakakeApp.ssPluginManager.registerImportedPlugin(pluginId);
+    case 'kz': return kakakeApp.kzPluginManager.registerImportedPlugin(pluginId);
+    default: return kakakeApp.pluginManager.registerImportedPlugin(pluginId);
+  }
 }

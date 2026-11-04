@@ -2,7 +2,7 @@
 
 简体中文 | [English](./README.en-US.md)
 
-[![version](https://img.shields.io/badge/version-0.6.10--beta.2-2dd4bf?style=flat-square)](../../releases)
+[![version](https://img.shields.io/badge/version-0.6.10--beta.3-2dd4bf?style=flat-square)](../../releases)
 [![download](https://img.shields.io/badge/下载-Releases-0ea5e9?style=flat-square&logo=github&logoColor=white)](../../releases/latest)
 [![Node](https://img.shields.io/badge/Node-%E2%89%A5%2020%20%C2%B7%20%E6%8E%A8%E8%8D%90%2022%20LTS-3c873a?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![platform](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-Windows%20%7C%20Linux%20x64%20%E4%BE%BF%E6%90%BA%20%7C%20macOS%20%E6%BA%90%E7%A0%81-64748b?style=flat-square)](#环境要求)
@@ -144,7 +144,7 @@ kakake/
 ├── log/                     # 运行日志
 ├── packages/                # Web 依赖与 Vite dist（可整夹删除，启动会重建）
 ├── 使用教程/                # 连接教程、插件开发教程原文等
-│   └── 插件开发/            # 控制台「工具 → 插件开发」数据源（总览 / 野鸡 TS / 野鸡 JS-ESM / 野鸡 JS-CJS + manifest.json）
+│   └── 插件开发/            # 控制台「工具 → 插件开发」数据源（总览 / 野鸡 TS / 野鸡 JS-ESM / 野鸡 JS-CJS / 双生 / QQ 官方 / 扩展 + manifest.json）
 └── README.md
 ```
 
@@ -233,7 +233,7 @@ NapCat 在 Docker、咔咔在宿主机时，容器内访问宿主机常见网关
 - 按机器人账号隔离的运行副本：`plugins_two/<QQ或AppID>/<pluginId>/`
 - 兼容 NapCat 插件包结构（`package.json` / `plugin.json` 等）
 - 可通过控制台管理启用状态与插件配置；连接与插件可按账号绑定
-- 插件类型按目录名前缀区分：`kakake-`（OneBot）、`GF-`（QQ 官方机器人）、`sssx-plugin-`（**双生**：同一份代码同时挂 OneBot 与 QQ 官方两条协议）、`WX-`（微信）、`ss-plugin-`（KOOK 等）
+- 插件类型按目录名前缀区分：`kakake-`（OneBot）、`GF-`（QQ 官方机器人）、`sssx-plugin-`（**双生**：同一份代码同时挂 OneBot 与 QQ 官方两条协议）、`WX-`（微信）、`ss-plugin-`（KOOK 等）、`kz-plugin-`（**扩展**：不绑任何连接，只由总开关启停，数据目录为 `data/<插件id>`）
 
 开发 / 安装插件时请注意：
 
@@ -367,7 +367,7 @@ Linux `mk` 脚本用法见 [`使用教程/MK工具教程.txt`](./使用教程/MK
 
 ## 版本
 
-- 当前 `package.json` 版本：`0.6.10-beta.2`
+- 当前 `package.json` 版本：`0.6.10-beta.3`
 - GitHub Release 资产附有 Ed25519 签名（`<资产>.sig`），由 CI 工作流在发版后自动生成
 - 文档随仓库更新；连接步骤以 `使用教程/连接教程.txt` 为准；`mk` 脚本以 `使用教程/MK工具教程.txt` 为准
 
