@@ -2,7 +2,7 @@
 
 简体中文 | [English](./README.en-US.md)
 
-[![version](https://img.shields.io/badge/version-0.6.10--beta.3-2dd4bf?style=flat-square)](../../releases)
+[![version](https://img.shields.io/badge/version-0.6.10--beta.4-2dd4bf?style=flat-square)](../../releases)
 [![download](https://img.shields.io/badge/下载-Releases-0ea5e9?style=flat-square&logo=github&logoColor=white)](../../releases/latest)
 [![Node](https://img.shields.io/badge/Node-%E2%89%A5%2020%20%C2%B7%20%E6%8E%A8%E8%8D%90%2022%20LTS-3c873a?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![platform](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-Windows%20%7C%20Linux%20x64%20%E4%BE%BF%E6%90%BA%20%7C%20macOS%20%E6%BA%90%E7%A0%81-64748b?style=flat-square)](#环境要求)
@@ -367,7 +367,7 @@ Linux `mk` 脚本用法见 [`使用教程/MK工具教程.txt`](./使用教程/MK
 
 ## 版本
 
-- 当前 `package.json` 版本：`0.6.10-beta.3`
+- 当前 `package.json` 版本：`0.6.10-beta.4`
 - GitHub Release 资产附有 Ed25519 签名（`<资产>.sig`），由 CI 工作流在发版后自动生成
 - 文档随仓库更新；连接步骤以 `使用教程/连接教程.txt` 为准；`mk` 脚本以 `使用教程/MK工具教程.txt` 为准
 

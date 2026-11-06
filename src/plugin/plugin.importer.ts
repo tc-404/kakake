@@ -4,6 +4,7 @@ import { extractArchive } from './archive.js';
 import { PATHS } from '../paths.js';
 import type { Logger } from '../core/logger.js';
 import { PluginLoader } from './plugin.loader.js';
+import { copyTreeSync } from './plugin-account.service.js';
 import { toKakakePluginDirName } from './plugin-id.js';
 import { isGfPluginDir, toGfPluginDirName } from './gf-plugin-id.js';
 import { isWxPluginDir, toWxPluginDirName } from './wx-plugin-id.js';
@@ -249,7 +250,7 @@ export class PluginImporter {
     } catch (renameErr) {
       // EXDEV（跨盘）或 Windows EPERM：改为复制
       try {
-        fs.cpSync(sourceDir, targetDir, { recursive: true, force: true });
+        copyTreeSync(sourceDir, targetDir);
       } catch (cpErr) {
         throw renameErr instanceof Error ? renameErr : cpErr;
       }

@@ -23,6 +23,7 @@ import { triggerAutoCheck, pingSession, getSessionUpdateView } from './update-ch
 import { startInstall, getInstallView, cancelInstall } from './update-install.service.js';
 import { getSharpEnvView, startSharpInstall } from './sharp-install.service.js';
 import { requestRestart } from './restart.service.js';
+import { runMaintenance, readLastReport } from './maintenance.service.js';
 import { collectSystemMetrics, collectLiveMetrics } from '../core/system-monitor.js';
 import { SESSION_ABSOLUTE_MS, SESSION_IDLE_MS, getSessionRecord, isValidSession, readSessionId } from './auth.middleware.js';
 import {
@@ -406,6 +407,8 @@ export class ApiController {
   /**
    * 在线更新 · 确定重启：仅受管启动器（KAKAKE_MANAGED_RELAUNCH=1）可用。
    * 有暂存更新则重启时应用之，否则为普通重启。未受管时返回 canRestart=false 并提示手动重启。
+   * 响应带 Clear-Site-Data: "cache"：让浏览器清掉该站点全部 HTTP 缓存——
+   * 更新后旧入口/旧产物即使被个别浏览器缓存策略留住也会被强制清掉（storage 不动，登录态与设置保留）。
    */
   @Post('update/restart')
   updateRestart(@Req() req: Request, @Res() res: Response) {
@@ -414,7 +417,48 @@ export class ApiController {
       return;
     }
     const r = requestRestart();
+    res.setHeader('Clear-Site-Data', '"cache"');
     res.status(r.ok ? 200 : 400).json(r);
+  }
+
+  /** 轻量版本号（免鉴权）：前端据此检测「服务端已更新而页面还是旧版」的漂移并提示刷新 */
+  @Get('version')
+  getVersion() {
+    return { ok: true, version: getFrameworkVersion() };
+  }
+
+  /**
+   * 维护与重启（设置页「维护与重启」卡）：清理临时缓存 + 全方面自检 + 重启进程。
+   * 清理红线写死在 maintenance.service（用户数据绝不触碰）；body 可带：
+   *   cleanTemp          清理 data/tmp 与打包缓存（默认 true）
+   *   clearBrowserStorage 连浏览器 localStorage 等存储一起清（默认 false；登录态 Cookie 不动）
+   * 响应带 Clear-Site-Data：勾选了浏览器存储则连 storage 一起清，否则只清 HTTP 缓存。
+   */
+  @Post('maintenance/restart')
+  maintenanceRestart(@Req() req: Request, @Body() body: { cleanTemp?: unknown; clearBrowserStorage?: unknown } = {}, @Res() res: Response) {
+    if (!checkApiAuth(req)) {
+      res.status(401).json({ code: -1, message: 'Unauthorized' });
+      return;
+    }
+    const report = runMaintenance({ cleanTemp: body?.cleanTemp === true });
+    const r = requestRestart();
+    res.setHeader('Clear-Site-Data', body?.clearBrowserStorage === true ? '"cache", "storage"' : '"cache"');
+    res.status(r.ok ? 200 : 400).json({
+      ok: r.ok,
+      canRestart: r.canRestart,
+      willApplyUpdate: r.willApplyUpdate,
+      message: r.message,
+      report,
+    });
+  }
+
+  /** 最近一次维护自检报告（重启后新进程里读取展示） */
+  @Get('maintenance/last-report')
+  maintenanceLastReport(@Req() req: Request) {
+    if (!checkApiAuth(req)) {
+      return { code: -1, message: 'Unauthorized' };
+    }
+    return { ok: true, report: readLastReport() };
   }
 
   /**

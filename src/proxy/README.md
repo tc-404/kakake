@@ -143,6 +143,11 @@ NapCat 与 SnowLuma 都自称 OneBot v11，但部分接口的 action 名与参�
 5. 补齐 `examples.request / success / error`，**示例要来自实测，不要编造**。
 6. 跑 `npm run check:proxy` 确认没引入孤立引用。
 
+**框架本地接口**（`framework: true`，如 `restart_kakake`）是例外：不经协议端分发，
+没有 impl 块（留空 `{}`），由分发器第 1.5 步调用注入的 `frameworkAction` 处理器执行
+（`setFrameworkActionHandler` 在 main.ts 接线）。这类条目豁免「孤立引用对账」与
+「support/impl 一致性」检查，但其余形状检查照常。
+
 ---
 
 ## 已知硬限制

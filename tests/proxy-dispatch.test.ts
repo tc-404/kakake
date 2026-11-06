@@ -631,3 +631,49 @@ test('stripPathKeys：只摘路径键，其余原样保留', () => {
   );
   assert.deepEqual(stripPathKeys({ a: 1 }, []), { a: 1 }, '没有路径键时原样返回');
 });
+
+/* ─────────────────────────── 框架本地接口 ─────────────────────────── */
+
+test('框架本地接口：分发器第 1.5 步直接执行，不经协议端', async () => {
+  let called = 0;
+  const deps = {
+    ...makeDeps(stubTransport([]), NAPCAT),
+    frameworkAction: async (name: string) => {
+      called++;
+      return { ok: true, data: { ok: true, canRestart: true, willApplyUpdate: false, message: 'stub' }, message: 'stub' };
+    },
+  };
+  const r = await dispatch(deps as DispatchDeps, { api: 'restart_kakake', method: 'POST', params: {} });
+  assert.equal(called, 1, '框架动作处理器应被调用一次');
+  assert.equal(r.status, 'ok');
+  assert.equal((r.data as { ok: boolean }).ok, true);
+  assert.equal(r._proxy.native, 'restart_kakake');
+});
+
+test('框架本地接口：被拒绝时返回 framework 失败信封', async () => {
+  const deps = {
+    ...makeDeps(stubTransport([]), NAPCAT),
+    frameworkAction: async () => ({ ok: false, message: '当前启动方式不支持自动重启，请手动重启进程后生效。' }),
+  };
+  const r = await dispatch(deps as DispatchDeps, { api: 'restart_kakake', method: 'POST', params: {} });
+  assert.equal(r.status, 'failed');
+  assert.equal(r.retcode, PROXY_RETCODE.framework);
+  assert.equal(r._proxy.failure, 'framework');
+});
+
+test('框架本地接口：运行时未接线时返回失败而不是崩掉', async () => {
+  const deps = makeDeps(stubTransport([]), NAPCAT); // frameworkAction 缺省
+  const r = await dispatch(deps as DispatchDeps, { api: 'restart_kakake', method: 'POST', params: {} });
+  assert.equal(r.status, 'failed');
+  assert.equal(r._proxy.failure, 'framework');
+});
+
+test('框架本地接口：别名 restart_process 同样命中', async () => {
+  const deps = {
+    ...makeDeps(stubTransport([]), NAPCAT),
+    frameworkAction: async () => ({ ok: true, data: { ok: true }, message: '' }),
+  };
+  const r = await dispatch(deps as DispatchDeps, { api: 'restart_process', method: 'POST', params: {} });
+  assert.equal(r.status, 'ok');
+  assert.equal(r._proxy.native, 'restart_kakake');
+});

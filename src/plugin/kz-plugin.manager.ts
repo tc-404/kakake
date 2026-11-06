@@ -374,6 +374,10 @@ export class KzPluginManager implements IPluginManager {
       this.logger.warn(`[KzPluginManager] 导入后无法扫描插件: ${pluginId}`);
       return false;
     }
+    // 覆盖导入（更新同名插件）时先卸掉旧实例：否则旧 ESM 图 + 旧代码继续跑，
+    // 表现为「更新插件后用的还是旧行为」。卸载会把代次 +1，新实例吃到全新模块图。
+    const old = this.plugins.get(id);
+    if (old) await this.unloadEntry(old);
     this.plugins.set(entry.id, entry);
     this.loader.setMasterEnabled(entry.id, true);
     await this.syncPlugin(entry.id);

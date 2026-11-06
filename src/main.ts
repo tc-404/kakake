@@ -65,6 +65,8 @@ import { trafficGuard, jsonBodyReader } from './admin/traffic-guard.js';
 import { testFeatureAssets, testFeaturePage } from './admin/test-feature.middleware.js';
 import { getFrameworkVersion } from './admin/agreement.service.js';
 import { NODE_SAFE_BASELINE, printNodeSecurityNotice } from './core/node-version-guard.js';
+import { setFrameworkActionHandler } from './proxy/runtime/facade.js';
+import { requestRestart } from './admin/restart.service.js';
 
 function isFrameworkPassthroughPath(p: string): boolean {
   return (
@@ -281,6 +283,13 @@ function printTicketLogin(
 
 async function bootstrap() {
   initDataDirs();
+
+  // 框架本地动作接线：接口代理里的 restart_kakake（kakake_api / 外放 API 可调）
+  // 走这里转到 requestRestart——受管启动器（86 退出码循环）才会真正执行重启。
+  setFrameworkActionHandler(async () => {
+    const r = requestRestart();
+    return { ok: r.ok, data: r, message: r.message };
+  });
 
   const legacyToken = configService.getConfig().token?.trim();
   const auth = ensureAuthKey(legacyToken || undefined);

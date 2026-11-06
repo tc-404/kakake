@@ -83,6 +83,7 @@ if (res.status === 'ok') { /* res.data */ } else { /* res.message + res._proxy.f
 - 钩子：`ctx.kakake_api.before/after/error(fn)`（或 `.on.before(fn)`），返回注销函数，作用域随插件生命周期自动释放。
 - 逃生舱 `ctx.kakake_api.native(target, params)`：跳过翻译直连原生接口（OneBot 传 action 名，官方传 `/v2/...` 路径），返回值同样带 `_proxy`。
 - `ctx.kakake_api.list()` / `.get(name)` 可查注册表自检。
+- **框架本地接口** `restart_kakake`（重启框架进程）：不经协议端、不需要连接，插件 / 外放 HTTP API（`/api/v1/restart_kakake`）调用等价。`res.data` 返回 `{ ok, canRestart, willApplyUpdate, message }`；非受管启动方式（手动 `node main`）会返回 `failed`（`_proxy.failure = 'framework'`）并提示手动重启。与 `restart_service`（重启机器人协议端）不同——这条重启的是咔咔珂自身。
 
 ### 版本 < 0.6.6：用原生写法 `ctx.actions.call`
 

@@ -39,6 +39,7 @@ function failureKeyOf(failure: ProxyFailure): keyof typeof PROXY_RETCODE {
     case 'not-connected': return 'notConnected';
     case 'network': return 'network';
     case 'intercepted': return 'intercepted';
+    case 'framework': return 'framework';
     case 'upstream':
     default: return 'network';
   }
@@ -82,6 +83,7 @@ export function wordingOf(failure: ProxyFailure): string {
     case 'missing-param': return '参数缺失';
     case 'unknown-api': return '未知接口';
     case 'not-connected': return '未连接';
+    case 'framework': return '框架本地动作不可用';
     default: return '调用失败';
   }
 }

@@ -262,8 +262,8 @@ function checkEntryShape(file, src, seenNames) {
     const text = b.text;
     const name = (/\bname\s*:\s*'([a-z0-9_]+)'/.exec(text) ?? [])[1] ?? '?';
 
-    // support 与 impl 的协议键必须完全一致（逃生舱 call_native 不做映射，豁免）
-    const isNative = /\bscope\s*:\s*'native'/.test(text);
+    // support 与 impl 的协议键必须完全一致（逃生舱 call_native 与框架本地接口不做映射，豁免）
+    const isNative = /\bscope\s*:\s*'native'/.test(text) || /\bframework\s*:\s*true/.test(text);
     const support = (/\bsupport\s*:\s*\[([^\]]*)\]/.exec(text)?.[1] ?? '')
       .split(',').map((s) => s.trim().replace(/['"`]/g, '')).filter(Boolean);
     const implProtos = isNative

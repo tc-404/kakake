@@ -205,9 +205,17 @@ export type UpdateStateResp = {
   versions: UpdateVersionInfo[];
 };
 
+/** 维护自检报告（重启前由当前进程生成并落盘，重启后设置页读取展示） */
+export type MaintenanceCheck = { key: string; label: string; ok: boolean; detail: string };
+export type MaintenanceReport = {
+  at: number;
+  version: string;
+  ok: boolean;
+  checks: MaintenanceCheck[];
+};
+
 /** 在线安装（下载+校验+暂存）任务快照 */
-export type UpdateInstallJob = {
-  phase: 'idle' | 'resolving' | 'downloading' | 'verifying' | 'staged' | 'error';
+export type UpdateInstallJob = {  phase: 'idle' | 'resolving' | 'downloading' | 'verifying' | 'staged' | 'error';
   tag: string;
   version: string;
   percent: number;
@@ -639,6 +647,28 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled }),
       }),
+  },
+
+  maintenance: {
+    restart: (opts: { cleanTemp?: boolean; clearBrowserStorage?: boolean }) =>
+      request<{
+        ok: boolean;
+        canRestart: boolean;
+        willApplyUpdate: boolean;
+        message: string;
+        report: MaintenanceReport;
+      }>('/api/maintenance/restart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(opts),
+      }),
+    lastReport: () =>
+      request<{ ok: boolean; report: MaintenanceReport | null }>('/api/maintenance/last-report'),
+  },
+
+  version: {
+    /** 轻量版本号（公开）：供前端检测「服务端已更新而页面还是旧版」的漂移 */
+    get: () => request<{ ok: boolean; version: string }>('/api/version'),
   },
 
   connections: {

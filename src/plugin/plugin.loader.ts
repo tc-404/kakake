@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import { register as registerEsmHook } from 'node:module';
 import type { Logger } from '../core/logger.js';
 import type {
   PluginEntry,
@@ -18,6 +19,7 @@ import {
   toKakakePluginDirName,
 } from './plugin-id.js';
 import { writeJsonAtomic } from '../storage/atomic-file.js';
+import { PATHS } from '../paths.js';
 
 const require = createRequire(import.meta.url);
 
@@ -189,8 +191,17 @@ function installCjsJsExtensionHook(): boolean {
 
 /** 插件加载器：扫描、验证与动态 import 插件模块 */
 export class PluginLoader {
-  /** 入口绝对路径 → 最近一次成功 import 的 URL / mtime（用于稳定复用，避免 ?t= 堆积） */
-  private readonly loadedMetaByEntry = new Map<string, { url: string; mtimeMs: number }>();
+  /**
+   * ESM 代次（per 插件目录）：卸载 / 清缓存 / 副本刷新时 +1。
+   * 加载入口 URL 带 `?kkg=<代次>`，配合 ESM 钩子把代次传播给同插件子树内的
+   * 相对 import —— 让整棵模块图（含 CJS 子树）按代次整体失效，重载才能真正吃进新代码。
+   * 旧实现只把入口的 mtime 放进 URL：改子文件（src/*.js、vendor/*.cjs）不动入口时，
+   * URL 不变 → 整棵子模块图命中首次缓存 → 「重载不彻底，只能靠重启进程」。
+   */
+  private readonly dirGenerations = new Map<string, number>();
+
+  /** ESM 钩子是否已注册（整个进程注册一次即可，影响该线程的全部 ESM 加载） */
+  private static esmHooksRegistered = false;
 
   /**
    * CJS 兼容层：需要按 CommonJS 求值的入口（绝对路径 → 判定时的 mtime）。
@@ -206,7 +217,71 @@ export class PluginLoader {
     private readonly statusConfigPath: string,
     private readonly logger: Logger,
     private readonly isAllowedDir: (dirName: string) => boolean = isKakakePluginDir,
-  ) {}
+  ) {
+    this.ensureEsmHooks();
+  }
+
+  /** ESM 代次（per 插件目录）：卸载 / 清缓存 / 副本刷新时 +1，加载 URL 随之整体失效 */
+  generationOf(dir: string): number {
+    return this.dirGenerations.get(path.resolve(dir)) ?? 0;
+  }
+
+  bumpGeneration(dir: string): number {
+    const key = path.resolve(dir);
+    const next = (this.dirGenerations.get(key) ?? 0) + 1;
+    this.dirGenerations.set(key, next);
+    return next;
+  }
+
+  /**
+   * 注册 ESM 解析钩子（进程内一次）：把入口 URL 上的 kkg=<代次> 传播给同一插件
+   * 子树内的相对 import。钩子文件是运行期生成到 data/runtime/ 的纯 JS（module
+   * customization hooks 要求一个真实模块文件，且必须独立于 TS 编译体系），
+   * 内容不变则跳过重写。
+   */
+  private ensureEsmHooks(): void {
+    if (PluginLoader.esmHooksRegistered) return;
+    PluginLoader.esmHooksRegistered = true;
+    try {
+      const hooksPath = path.join(PATHS.data, 'runtime', 'plugin-esm-hooks.mjs');
+      const source = [
+        "import { fileURLToPath } from 'node:url';",
+        "import path from 'node:path';",
+        '',
+        '// 咔咔珂插件 ESM 代次传播钩子（由 plugin.loader.ts 运行期生成，勿手改）：',
+        '// 把父模块 URL 上的 kkg=<代次> 传播给同一插件子树内的相对 import，',
+        '// 让整棵模块图随代次失效——没有它，重载插件时只有入口是新的，',
+        '// 入口 import 进来的子模块永远命中按 URL 的 ESM 缓存（多文件插件重载失效的根因）。',
+        'export async function resolve(specifier, context, next) {',
+        '  const r = await next(specifier, context);',
+        '  try {',
+        "    if (!r || typeof r.url !== 'string' || !r.url.startsWith('file:')) return r;",
+        "    const parent = context.parentURL || '';",
+        "    const m = /[?&]kkg=(\\d+)/.exec(parent);",
+        "    if (!m) return r;",
+        "    if (/[?&]kkg=/.test(r.url)) return r;",
+        "    const parentPath = fileURLToPath(parent.replace(/[?&]kkg=\\d+/g, ''));",
+        '    const targetPath = fileURLToPath(r.url);',
+        '    const parentDir = path.dirname(parentPath);',
+        "    if (targetPath.startsWith(parentDir + path.sep)) {",
+        "      const sep = r.url.includes('?') ? '&' : '?';",
+        "      return { ...r, url: `${r.url}${sep}kkg=${m[1]}`, shortCircuit: true };",
+        '    }',
+        '  } catch { /* 任何异常都按原结果放行 */ }',
+        '  return r;',
+        '}',
+        '',
+      ].join('\n');
+      fs.mkdirSync(path.dirname(hooksPath), { recursive: true });
+      if (!fs.existsSync(hooksPath) || fs.readFileSync(hooksPath, 'utf8') !== source) {
+        fs.writeFileSync(hooksPath, source, 'utf8');
+      }
+      registerEsmHook(pathToFileURL(hooksPath).href, import.meta.url);
+    } catch (e) {
+      // 钩子注册失败不致命：退化为旧行为（重载可能不彻底），但加载照常
+      this.logger.warn('[PluginLoader] ESM 代次钩子注册失败，插件重载退化为旧行为:', e);
+    }
+  }
 
   loadPluginStatusConfig(): PluginStatusConfig {
     let stamp = '-';
@@ -465,10 +540,10 @@ export class PluginLoader {
   }
 
   /**
-   * 动态加载插件模块（ESM 或 CJS，见 CJS 兼容层说明）。ESM 用 `?v=<mtimeMs>` 而非 `?t=Date.now()`：
-   * 同文件未改时复用同一 URL，避免关开插件时 ESM 图线性堆积（Node 无法驱逐已加载 ESM，只保证
-   * 「同版本占一份」）；CJS 入口走 `require.cache`（见 evaluateAsCjs），clearCache() 能真正热重载。
-   * @param scopeDir 插件包根目录；判定为 CJS 时按它登记兼容范围，不传则退回入口所在目录
+   * 动态加载插件模块（ESM 或 CJS，见 CJS 兼容层说明）。ESM 入口 URL 带 `?kkg=<代次>`：
+   * 代次随卸载 / 清缓存 / 副本刷新递增，配合 ESM 钩子让整棵模块图按代次失效；
+   * CJS 入口走 `require.cache`（见 evaluateAsCjs），clearCache() 能真正热重载。
+   * @param scopeDir 插件包根目录；代次按它登记，判定为 CJS 时按它登记兼容范围，不传则退回入口所在目录
    */
   async importModule(filePath: string, scopeDir?: string): Promise<PluginModule> {
     const abs = path.resolve(filePath);
@@ -478,13 +553,13 @@ export class PluginLoader {
       return this.normalizeModuleShape(this.evaluateAsCjs(abs, scopeDir)) as PluginModule;
     }
 
-    const prev = this.loadedMetaByEntry.get(abs);
-    const href = prev && prev.mtimeMs === mtimeMs
-      ? prev.url
-      : `${pathToFileURL(abs).href}?v=${mtimeMs}`;
+    // ESM：入口 URL 带 ?kkg=<代次>。代次随卸载 / 清缓存 / 副本刷新递增；
+    // 相对 import 的代次传播由 ESM 钩子完成——这样整棵模块图（含 CJS 子树）
+    // 都会随代次失效，而不是只有入口模块自己是新的（旧版重载不彻底的根因）。
+    const scopeRoot = path.resolve(scopeDir || path.dirname(abs));
+    const href = `${pathToFileURL(abs).href}?kkg=${this.generationOf(scopeRoot)}`;
     try {
       const mod = await import(href) as PluginModule;
-      this.loadedMetaByEntry.set(abs, { url: href, mtimeMs });
       return this.normalizeModuleShape(mod) as PluginModule;
     } catch (error: unknown) {
       // CJS 兼容层：ESM 那条路撞上「CJS 写法的 .js」时，Node 的报错文案不一定好认
@@ -833,19 +908,17 @@ export class PluginLoader {
 
   /**
    * 清理插件目录相关缓存。CJS：删 require.cache 中 pluginPath 下的条目（CJS 热重载真正靠它），
-   * 并撤销该目录的 CJS 兼容登记——插件改写成 ESM 后包内 `.js` 回归 Node 原本判定。ESM：Node
-   * 无法驱逐已 import 的模块图，仅清 loadedMetaByEntry，下次按新 mtime 选 URL（同 mtime 复用）。
+   * 并撤销该目录的 CJS 兼容登记——插件改写成 ESM 后包内 `.js` 回归 Node 原本判定。
+   * ESM：Node 无法驱逐已 import 的模块图，靠代次 +1 让加载 URL 整体失效——
+   * 配合 ESM 钩子把代次传播给子模块，整棵图在下次加载时全部重新求值。
    */
   clearCache(pluginPath: string): void {
     try {
       const normalized = path.resolve(pluginPath);
+      // 代次 +1：加载 URL 整体失效（这是「重载真正吃进新代码」的核心机制）
+      this.bumpGeneration(normalized);
       for (const id of Object.keys(require.cache)) {
         if (id.startsWith(normalized)) delete require.cache[id];
-      }
-      for (const abs of [...this.loadedMetaByEntry.keys()]) {
-        if (abs === normalized || abs.startsWith(normalized + path.sep)) {
-          this.loadedMetaByEntry.delete(abs);
-        }
       }
       for (const abs of [...this.cjsEntriesByEntry.keys()]) {
         if (abs === normalized || abs.startsWith(normalized + path.sep)) {

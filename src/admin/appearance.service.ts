@@ -57,6 +57,18 @@ export interface AppearanceSettings {
   watermarkDensity: number;
   /** 页面水印字号（px） */
   watermarkSize: number;
+  /** 准星光标：自转一圈的秒数（越小转得越快） */
+  cursorSpin: number;
+  /** 准星光标：吸附到目标的时长（秒） */
+  cursorHover: number;
+  /** 准星光标：整体大小（px） */
+  cursorSize: number;
+  /** 准星光标：四角框尺寸（px） */
+  cursorCorner: number;
+  /** 准星光标：边框粗细（px） */
+  cursorThickness: number;
+  /** 准星光标：中心圆点直径（px），0 = 不画 */
+  cursorDot: number;
 }
 
 export interface BackgroundMeta {
@@ -77,6 +89,10 @@ export interface AppearanceState extends AppearanceSettings {
    * 空串 = 关闭。颜色跟随「全局字体」角色，不单独配色。
    */
   watermarkText: string;
+  /** 准星光标自定义颜色（#hex），空串 = 跟随「品牌 Logo」配色 */
+  cursorColor: string;
+  /** 准星光标悬停到目标上时的颜色（#hex），空串 = 跟随「品牌 Logo」渐变端色 */
+  cursorTargetColor: string;
   /** 背景适配方式：铺满裁切 / 拉伸铺满 / 完整显示 */
   bgFit: BackgroundFit;
   /** 背景预设：default = 出厂氛围底，waves = 波浪线背景。有自定义背景时不生效 */
@@ -160,6 +176,19 @@ export function normalizeWatermark(value: unknown): string {
   const flat = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
   if (!flat) return '';
   return Array.from(flat).slice(0, WATERMARK_MAX_LEN).join('');
+}
+
+/**
+ * 准星光标自定义颜色：只收 #rgb / #rrggbb 十六进制，统一成小写 #rrggbb；
+ * 其它取值（含空串 / 非法色值）一律空串 = 跟随「品牌 Logo」配色。
+ */
+export function normalizeCursorColor(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const str = value.trim().toLowerCase();
+  if (/^#[0-9a-f]{3}$/.test(str)) {
+    return `#${str[1]}${str[1]}${str[2]}${str[2]}${str[3]}${str[3]}`;
+  }
+  return /^#[0-9a-f]{6}$/.test(str) ? str : '';
 }
 
 /* —— 渐变色收口 —— */
@@ -296,6 +325,10 @@ interface AppearanceMetaPatch {
   bgFit?: BackgroundFit;
   bgPreset?: BackgroundPreset;
   gradients?: { inkGradient: string; compGradient: string; logoGradient: string };
+  /** 准星光标自定义颜色（空串 = 跟随品牌 Logo，落盘时删键保持文件干净） */
+  cursorColor?: string;
+  /** 准星光标悬停到目标上时的颜色（空串 = 跟随品牌 Logo 渐变端色） */
+  cursorTargetColor?: string;
 }
 
 /**
@@ -308,6 +341,8 @@ export type AppearanceSaveInput = Partial<AppearanceSettings> & GradientFields &
   watermarkText?: unknown;
   bgFit?: unknown;
   bgPreset?: unknown;
+  cursorColor?: unknown;
+  cursorTargetColor?: unknown;
 };
 
 /** 从原始对象里收口三个渐变字段 */
@@ -350,6 +385,13 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   watermarkAngle: -22,
   watermarkDensity: 60,
   watermarkSize: 16,
+  // 准星光标出厂值：与前端 TargetCursorLayer 旧硬编码参数一致
+  cursorSpin: 1.9,
+  cursorHover: 0.22,
+  cursorSize: 34,
+  cursorCorner: 11,
+  cursorThickness: 2.5,
+  cursorDot: 4,
 };
 
 /** [最小值, 最大值, 保留小数位]，与前端滑动条区间保持一致 */
@@ -382,6 +424,14 @@ const RANGES: Record<keyof AppearanceSettings, [number, number, number]> = {
   watermarkAngle: [-60, 60, 0],
   watermarkDensity: [0, 100, 0],
   watermarkSize: [8, 48, 0],
+  // 准星光标六项（与前端 APPEARANCE_RANGES 一致）：自转 0.5–5s、吸附 0–1s、
+  // 整体 16–80px、四角 4–30px、边框 1–6px（半像素步进）、圆点 0–20px
+  cursorSpin: [0.5, 5, 1],
+  cursorHover: [0, 1, 2],
+  cursorSize: [16, 80, 0],
+  cursorCorner: [4, 30, 0],
+  cursorThickness: [1, 6, 1],
+  cursorDot: [0, 20, 0],
 };
 
 function clampSetting(key: keyof AppearanceSettings, value: unknown): number {
@@ -558,6 +608,16 @@ export class AppearanceService {
     return normalizeWatermark(this.readRawFile().watermarkText);
   }
 
+  /** 准星光标自定义颜色（空串 = 跟随品牌 Logo） */
+  getCursorColor(): string {
+    return normalizeCursorColor(this.readRawFile().cursorColor);
+  }
+
+  /** 准星光标悬停到目标上时的颜色（空串 = 跟随品牌 Logo 渐变端色） */
+  getCursorTargetColor(): string {
+    return normalizeCursorColor(this.readRawFile().cursorTargetColor);
+  }
+
   /** 水印完整渲染参数：文字 + 倾斜度 / 密集度 / 字号（插件 WebUI 注入用） */
   getWatermarkConfig(): { text: string; angle: number; density: number; size: number } {
     const settings = this.getSettings();
@@ -593,6 +653,14 @@ export class AppearanceService {
     }
     if (patch.bgFit !== undefined) payload.bgFit = patch.bgFit;
     if (patch.bgPreset !== undefined) payload.bgPreset = patch.bgPreset;
+    if (patch.cursorColor !== undefined) {
+      if (patch.cursorColor) payload.cursorColor = patch.cursorColor;
+      else delete payload.cursorColor;
+    }
+    if (patch.cursorTargetColor !== undefined) {
+      if (patch.cursorTargetColor) payload.cursorTargetColor = patch.cursorTargetColor;
+      else delete payload.cursorTargetColor;
+    }
     if (patch.gradients) {
       payload.inkGradient = patch.gradients.inkGradient;
       payload.compGradient = patch.gradients.compGradient;
@@ -611,7 +679,7 @@ export class AppearanceService {
   ): AppearanceSettings {
     const {
       inkGradient, compGradient, logoGradient,
-      customTitle, bgFit, bgPreset, watermarkText,
+      customTitle, bgFit, bgPreset, watermarkText, cursorColor, cursorTargetColor,
       ...numeric
     } = raw ?? {};
     const next = normalizeAppearance({ ...this.getSettings(), ...(numeric as Partial<AppearanceSettings>) });
@@ -629,6 +697,8 @@ export class AppearanceService {
       bgFit: bgFit === undefined ? undefined : normalizeBackgroundFit(bgFit),
       bgPreset: bgPreset === undefined ? undefined : normalizeBackgroundPreset(bgPreset),
       watermarkText: watermarkText === undefined ? undefined : normalizeWatermark(watermarkText),
+      cursorColor: cursorColor === undefined ? undefined : normalizeCursorColor(cursorColor),
+      cursorTargetColor: cursorTargetColor === undefined ? undefined : normalizeCursorColor(cursorTargetColor),
     });
     return next;
   }
@@ -713,6 +783,8 @@ export class AppearanceService {
       },
       customTitle: this.getCustomTitle(),
       watermarkText: this.getWatermark(),
+      cursorColor: this.getCursorColor(),
+      cursorTargetColor: this.getCursorTargetColor(),
       bgFit: this.getBackgroundFit(),
       bgPreset: this.getBackgroundPreset(),
       ...this.getGradients(),

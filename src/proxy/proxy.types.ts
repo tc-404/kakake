@@ -261,6 +261,13 @@ export interface ProxyApiEntry {
    * 条目级（这条接口整体）→ 协议级（某协议下）→ 变体级（某场景变体）。
    */
   notes?: string;
+  /**
+   * 框架本地接口：不经协议端分发，由框架自身在分发器第 1.5 步直接执行。
+   * 没有 impl 块与协议变体（impl 留空 {}）；对账门禁豁免
+   * （孤立引用 / support-impl 一致性检查都不适用于框架动作）。
+   * 典型例子：restart_kakake（重启框架进程）——它不依赖任何连接，任何上下文都可用。
+   */
+  framework?: true;
 }
 
 /** 控制台列表用：不含 examples 的摘要，避免 catalog 接口过大 */
@@ -289,7 +296,8 @@ export type ProxyFailure =
   | 'id-space'
   | 'missing-param'
   | 'unknown-api'
-  | 'not-connected';
+  | 'not-connected'
+  | 'framework';
 
 /** 代理层合成失败信封用的私有 retcode（与协议自身的 retcode 错开） */
 export const PROXY_RETCODE = {
@@ -309,6 +317,8 @@ export const PROXY_RETCODE = {
   network: -1007,
   /** 被 before 钩子拦截 */
   intercepted: -1008,
+  /** 框架本地动作被拒绝（如启动方式不支持自动重启）或执行失败 */
+  framework: -1009,
 } as const;
 
 /**

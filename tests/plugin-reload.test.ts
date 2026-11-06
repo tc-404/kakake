@@ -83,7 +83,7 @@ function stubConnectionManager(): ConnectionManager {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-test('prepareRuntimeCopy 在副本已存在时不刷新（reload 必须强制覆盖的原因）', () => {
+test('prepareRuntimeCopy：副本指纹与安装目录不一致时自动刷新（修复更新后跑旧代码）', () => {
   const tmp = tmpDir();
   const pluginsRoot = path.join(tmp, 'plugins');
   const pluginsTwo = path.join(tmp, 'plugins_two');
@@ -102,16 +102,24 @@ test('prepareRuntimeCopy 在副本已存在时不刷新（reload 必须强制覆
     const loader = new PluginLoader(pluginsRoot, path.join(data, 'plugins.json'), quietLogger());
     const entry = loader.rescanPlugin(PLUGIN_ID)!;
     assert.equal(entry.entryPath != null, true);
-    // 走 loadRuntime 同款准备路径：副本已存在 → 不重新复制，旧副本原地保留
+    // 安装目录内容变了（指纹不一致）→ prepareRuntimeCopy 必须刷新副本：
+    // 旧行为是「副本存在就跳过」，导致更新 / 重新导入后关开总开关仍跑旧代码
     const prepared = prepareRuntimeCopy(
       entry, ACCOUNT, (fileId) => loader.rescanPlugin(fileId), 'Test', quietLogger(),
     );
-    assert.equal(prepared, true);
-    assert.equal(fs.readFileSync(copyEntry, 'utf-8').includes("marker = 'v2'"), false, '副本未被刷新');
+    assert.equal(prepared.ok, true);
+    assert.equal(prepared.refreshed, true, '指纹不一致应触发副本刷新');
+    assert.equal(fs.readFileSync(copyEntry, 'utf-8').includes("marker = 'v2'"), true, '副本已吃到新代码');
 
-    // reload 语义 = 强制覆盖：copyPluginToAccount 后副本内容才跟上安装目录
-    pluginAccountService.copyPluginToAccount(PLUGIN_ID, ACCOUNT);
-    assert.equal(fs.readFileSync(copyEntry, 'utf-8').includes("marker = 'v2'"), true);
+    // 指纹一致（没有任何文件变化）→ 不再重复复制：副本 index.mjs 的 mtime 保持不变
+    const mtimeBefore = fs.statSync(copyEntry).mtimeMs;
+    const prepared2 = prepareRuntimeCopy(
+      { ...entry, pluginPath: pluginsRoot, entryPath: installDir + path.sep + 'index.mjs' },
+      ACCOUNT, (fileId) => loader.rescanPlugin(fileId), 'Test', quietLogger(),
+    );
+    assert.equal(prepared2.ok, true);
+    assert.equal(prepared2.refreshed, false, '指纹一致不应重复复制');
+    assert.equal(fs.statSync(copyEntry).mtimeMs, mtimeBefore, '副本未被重写');
     void installDir;
   } finally {
     undo.restore();

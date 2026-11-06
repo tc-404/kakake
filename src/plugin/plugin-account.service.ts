@@ -21,6 +21,73 @@ import { rootLogger } from '../core/logger.js';
 /** 已确保存在的目录记忆：消息热路径上避免每条消息重复 mkdirSync 系统调用 */
 const ensuredDirs = new Set<string>();
 
+/** 运行副本的源目录指纹文件名（副本根下）：prepareRuntimeCopy 靠它判断副本是否过期 */
+export const COPY_FINGERPRINT_FILE = '.kk-copy-fingerprint.json';
+
+/**
+ * 递归复制目录（手工实现，不依赖 fs.cpSync——后者在部分 Windows 环境 + Node 22.22
+ * 组合下对不存在的目标目录会抛 EIO）。刻意不保留源文件时间戳：副本拿到全新 mtime，
+ * 正是「副本内容变化 → 加载缓存失效」机制想要的。
+ */
+export function copyTreeSync(src: string, dest: string): void {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const ent of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, ent.name);
+    const d = path.join(dest, ent.name);
+    if (ent.isDirectory()) {
+      copyTreeSync(s, d);
+      continue;
+    }
+    if (ent.isSymbolicLink()) {
+      // 链接按指向目标处理：目标目录递归、目标文件复制；断链跳过
+      let st: fs.Stats | null = null;
+      try { st = fs.statSync(s); } catch { continue; }
+      if (st.isDirectory()) copyTreeSync(s, d);
+      else if (st.isFile()) fs.copyFileSync(s, d);
+      continue;
+    }
+    if (ent.isFile()) fs.copyFileSync(s, d);
+  }
+}
+
+/**
+ * 目录规模指纹：文件数 / 总字节 / 最大 mtime（递归；条目超过 4000 返回 null——
+ * 极端目录交给调用方兜底，不给热路径加无谓的巨量 stat 开销）。
+ * 被 copyPluginToAccount（写指纹）与 prepareRuntimeCopy（比对指纹）共用。
+ */
+export function summarizeDir(dir: string): { files: number; bytes: number; maxMtime: number } | null {
+  let files = 0;
+  let bytes = 0;
+  let maxMtime = 0;
+  const walk = (d: string): boolean => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      return true;
+    }
+    for (const ent of entries) {
+      if (files > 4000) return false;
+      const p = path.join(d, ent.name);
+      if (ent.isDirectory()) {
+        if (!walk(p)) return false;
+        continue;
+      }
+      if (!ent.isFile()) continue;
+      try {
+        const st = fs.statSync(p);
+        files++;
+        bytes += st.size;
+        maxMtime = Math.max(maxMtime, st.mtimeMs);
+      } catch {
+        /* 竞态（复制中读不到）按跳过处理 */
+      }
+    }
+    return true;
+  };
+  return walk(dir) ? { files, bytes, maxMtime } : null;
+}
+
 function ensureDirMemo(absDir: string): void {
   if (ensuredDirs.has(absDir)) return;
   fs.mkdirSync(absDir, { recursive: true });
@@ -119,7 +186,15 @@ class PluginAccountService {
       fs.rmSync(dest, { recursive: true, force: true });
       forgetEnsuredDir(dest);
     }
-    fs.cpSync(src, dest, { recursive: true, force: true });
+    copyTreeSync(src, dest);
+    // 落一份源目录指纹：prepareRuntimeCopy 靠它判断「副本是否已过期需要刷新」，
+    // 这是「更新 / 重新导入插件后关开总开关仍跑旧代码」的修复点之一。
+    const fp = summarizeDir(src);
+    if (fp) {
+      try {
+        fs.writeFileSync(path.join(dest, COPY_FINGERPRINT_FILE), JSON.stringify({ ...fp, at: Date.now() }), 'utf8');
+      } catch { /* 指纹写不进去只影响下次刷新判定，不影响本次副本可用性 */ }
+    }
     rootLogger.info(`[PluginAccount] 已复制 ${pluginId} → plugins_two/${accountKey}/`);
     return dest;
   }
@@ -242,7 +317,7 @@ class PluginAccountService {
         moved += 1;
       } catch {
         try {
-          fs.cpSync(src, dest, { recursive: true });
+          copyTreeSync(src, dest);
           fs.rmSync(src, { recursive: true, force: true });
           moved += 1;
         } catch (e) {

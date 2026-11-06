@@ -72,6 +72,12 @@ export class ProxyRuntime {
         ? configuredTimeout
         : () => configuredTimeout ?? apiTimeoutMs(),
       scope: 'proxy',
+      frameworkAction: async (name, params) => {
+        if (!frameworkActionHandler) {
+          return { ok: false, message: '框架本地动作未接线，无法执行。' };
+        }
+        return frameworkActionHandler(name, params);
+      },
     };
   }
 
@@ -294,6 +300,21 @@ function withActionLog(inner: ProxyTransport, scope: string): ProxyTransport {
 /* ─────────────────────────── 进程级单例 ─────────────────────────── */
 
 let singleton: ProxyRuntime | null = null;
+
+/**
+ * 框架本地动作处理器（entry.framework = true 的接口由它执行，如 restart_kakake）。
+ * 走 late binding：代理运行时的单例在管理器构造时就建立了（那时 main 还没接线），
+ * 所以由 main 在装配阶段调用 setFrameworkActionHandler 注入，而不是构造参数。
+ */
+let frameworkActionHandler:
+  | ((name: string, params: Record<string, unknown>) => Promise<{ ok: boolean; data?: unknown; message?: string }>)
+  | null = null;
+
+export function setFrameworkActionHandler(
+  fn: (name: string, params: Record<string, unknown>) => Promise<{ ok: boolean; data?: unknown; message?: string }>,
+): void {
+  frameworkActionHandler = fn;
+}
 
 /** 供插件管理器与控制台共用：整个进程只有一份代理运行时 */
 export function getProxyRuntime(opts?: ProxyRuntimeOptions): ProxyRuntime {

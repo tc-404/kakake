@@ -53,7 +53,11 @@ import { AppearancePanel } from '@/components/appearance-panel';
 import { BackgroundPresetPanel } from '@/components/background-preset-panel';
 import type { BackgroundPreview } from '@/components/background-picker';
 import { ColorPanel } from '@/components/color-panel';
+import { CursorPanel } from '@/components/cursor-panel';
+import { useTestFeatureEnabled } from '@/hooks/use-test-feature';
 import { WatermarkPanel } from '@/components/watermark-panel';
+import { MaintenanceReportCard, MaintenanceRestartButton } from '@/components/maintenance-card';
+import { usePageHeader } from '@/components/header-actions';
 import { PerformanceModePanel } from '@/components/performance-mode-panel';
 import { startProductTour } from '@/components/product-tour';
 import { QuietExternal } from '@/components/quiet-link';
@@ -292,6 +296,9 @@ function pickSettings(state: AppearanceState): AppearanceState {
   // 页面水印同理：不在 RANGES 里，但必须进草稿，否则设置页读不到当前文字、
   // 保存时又会把它当「没提」而保持服务端旧值（表现为输入框永远是空的）
   out.watermarkText = state.watermarkText ?? '';
+  // 准星光标自定义颜色同样不在 RANGES 里：不进草稿的话改动会被当「没提」丢掉
+  out.cursorColor = state.cursorColor ?? '';
+  out.cursorTargetColor = state.cursorTargetColor ?? '';
   return out;
 }
 
@@ -710,6 +717,8 @@ function LoginGuardCard() {
  */
 function AppearanceSection() {
   const t = useT();
+  /** 测试功能开关：「前端鼠标调整」卡与准星光标只在开启时出现 */
+  const testFeatureOn = useTestFeatureEnabled();
   /** 服务端已保存的外观（含背景图元信息） */
   const [appearance, setAppearance] = useState<AppearanceState>(DEFAULT_APPEARANCE_STATE);
   /** 设备档位：背景预设的性能说明与波浪可用性 */
@@ -1042,6 +1051,25 @@ function AppearanceSection() {
           onChange={pushAppearance}
         />
       </SettingsCard>
+
+      {/*
+        前端鼠标调整（准星光标）：属于「更高级的鼠标效果」装饰件，
+        只在「测试功能」开关打开时出现——关掉开关整卡隐藏，准星也一并停用。
+        第一行调准星颜色（仅单色，清空跟随品牌 Logo），下面六根滑动条调动态参数。
+      */}
+      {testFeatureOn && (
+        <SettingsCard
+          className="kk-stagger-item kk-stagger-slow-5 lg:col-span-2"
+          title={t('settings.cursorPanel')}
+          tourId="settings-cursor"
+        >
+          <CursorPanel
+            settings={appearanceDraft}
+            disabled={false}
+            onChange={pushAppearance}
+          />
+        </SettingsCard>
+      )}
 
       {/*
         页面水印：文字属于「全局字体」配色角色（颜色不可单独调），
@@ -1468,6 +1496,8 @@ function TestFeatureCard() {
       .then((r) => {
         if (r.ok) {
           setEnabled(r.enabled);
+          // 广播给全局装饰件（如准星光标）：开关切换后实时启停，无需整页刷新
+          window.dispatchEvent(new CustomEvent('kk-test-feature-changed', { detail: r.enabled }));
         } else {
           setEnabled(prev);
           toast.error(resText(r) || t('settings.testFeatureSaveFailed'));
@@ -1734,6 +1764,9 @@ function SystemSection() {
 /* ══════════════════════ 页面入口 ══════════════════════ */
 
 export default function SettingsPage() {
+  const t = useT();
+  // 顶栏放「重启」入口：清理缓存 + 自检 + 重启进程（确认弹窗里交代清理范围）
+  usePageHeader(() => ({ actions: <MaintenanceRestartButton /> }), [t]);
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-6 lg:gap-8">
       {/* 「系统设置」标题已由顶栏显示，这里直接从分区开始，不再占用顶栏下方空间 */}
@@ -1742,6 +1775,18 @@ export default function SettingsPage() {
         <AppearanceSection />
         <StoreSection />
         <SystemSection />
+
+        {/* 维护自检报告：放在页面最底端——重启入口在顶栏，这里是它的「结果回执」 */}
+        <SettingsSection id="kk-sec-maintenance" labelKey="settings.maintenance">
+          <SettingsCard
+            className="kk-stagger-item kk-stagger-slow-6 lg:col-span-2"
+            title={t('settings.maintenanceLast')}
+            description={t('settings.maintenanceHeaderHint')}
+            tourId="settings-maintenance-report"
+          >
+            <MaintenanceReportCard />
+          </SettingsCard>
+        </SettingsSection>
       </div>
     </div>
   );

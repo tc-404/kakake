@@ -19,6 +19,7 @@ import {
   awaitPluginHandler,
   createTailSerializer,
   prepareRuntimeCopy,
+  PrepareRuntimeResult,
   PLUGIN_EVENT_HANDLER_TIMEOUT_MS,
   removeInstallDir,
   type AccountRuntime,
@@ -474,7 +475,7 @@ export class PluginManager implements IPluginManager {
     return { ...installMeta, loaded: false, runtime: { status: 'unloaded' } };
   }
 
-  private prepareRuntimePaths(entry: PluginEntry, accountKey: string): boolean {
+  private prepareRuntimePaths(entry: PluginEntry, accountKey: string): PrepareRuntimeResult {
     return prepareRuntimeCopy(entry, accountKey, (fileId) => this.loader.rescanPlugin(fileId), 'PluginManager', this.logger);
   }
 
@@ -492,10 +493,13 @@ export class PluginManager implements IPluginManager {
 
     const entry = this.cloneCatalogEntry(pluginId);
     if (!entry || entry.runtime.status === 'error') return false;
-    if (!this.prepareRuntimePaths(entry, accountKey)) {
+    const prep = this.prepareRuntimePaths(entry, accountKey);
+    if (!prep.ok) {
       entry.runtime = { status: 'error', error: '无法准备账号运行副本' };
       return false;
     }
+    // 副本刚被刷新过：代次 +1 让整棵模块图失效，否则新副本会命中按 URL 的 ESM 旧缓存
+    if (prep.refreshed) this.loader.bumpGeneration(entry.pluginPath);
 
     const module = await this.loader.loadPluginModule(entry);
     if (!module) {
@@ -685,6 +689,11 @@ export class PluginManager implements IPluginManager {
     }
     this.plugins.set(entry.id, entry);
     this.loader.setMasterEnabled(entry.id, true);
+    // 覆盖导入（更新同名插件）时先把已加载实例卸掉：清缓存 + 代次 +1，
+    // syncPluginRuntime 会重新走 loadRuntime（副本按指纹判定刷新），新实例吃全新模块图
+    for (const rk of this.runtimeKeysForPlugin(entry.id)) {
+      await this.unloadRuntime(rk);
+    }
     await this.syncPluginRuntime(entry.id);
     return true;
   }

@@ -392,6 +392,43 @@ export const systemEntries: ProxyApiEntry[] = [
   },
 
   {
+    name: 'restart_kakake',
+    title: '重启咔咔珂进程',
+    summary: '优雅退出框架进程，由受管启动器（start.bat / start.sh / 便携启动脚本）重新拉起；有暂存更新则先应用更新。未受管启动方式返回失败并提示手动重启。',
+    category: 'system',
+    scope: 'common',
+    support: ['napcat', 'snowluma', 'official'],
+    risk: 'danger',
+    status: 'stable',
+    framework: true,
+    alias: ['restart_process', 'restart_framework'],
+    params: [],
+    impl: {},
+    examples: {
+      request: {},
+      success: {
+        status: 'ok',
+        retcode: 0,
+        data: { ok: true, canRestart: true, willApplyUpdate: false, message: '正在重启…' },
+        message: '',
+        wording: '',
+        echo: null,
+      },
+      error: {
+        status: 'failed',
+        retcode: -1009,
+        data: null,
+        message: '当前启动方式不支持自动重启，请手动重启进程后生效。',
+        wording: '当前启动方式不支持自动重启，请手动重启进程后生效。',
+        echo: null,
+      },
+    },
+    notes: '框架本地接口（framework: true）：不经协议端分发，任何连接上下文都可用，kakake_api 与外放 API 调用等价。'
+      + '与 restart_service（重启机器人服务）不同——这条重启的是咔咔珂自身。'
+      + '重启前会清空浏览器 HTTP 缓存（响应带 Clear-Site-Data），插件数据与用户配置不受影响。',
+  },
+
+  {
     name: 'get_client_key',
     title: '获取 ClientKey',
     summary: '获取当前登录账号的 ClientKey 凭证。',

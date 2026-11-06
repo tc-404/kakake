@@ -208,7 +208,7 @@ async function pingServerUp(): Promise<boolean> {
 }
 
 /** 清理浏览器侧缓存（若有 Service Worker / Cache Storage），配合硬刷新彻底释放旧资源 */
-async function clearClientCaches(): Promise<void> {
+export async function clearClientCaches(): Promise<void> {
   try {
     if (typeof caches !== 'undefined') {
       const keys = await caches.keys();
@@ -224,8 +224,10 @@ async function clearClientCaches(): Promise<void> {
  * - 后端约 800ms 后才退出，先等它真的下线，避免把「退出前仍在线」误判为已恢复；
  * - 低配设备源码版需重建，可能耗时 2–5 分钟，故最长等待放宽到 12 分钟；
  * - location.reload() 会丢弃当前 SPA 的整个 JS 堆与状态，等于释放/清理内存。
+ * 旧 bug：watch 标志是一次性的，第一次超时结束后第二次重启就不再等待、
+ * 直接在服务还没回来时 reload——现在结束后复位标志，支持任意次复用。
  */
-async function watchRestartThenReload(): Promise<void> {
+export async function watchRestartThenReload(): Promise<void> {
   if (restartWatchStarted) return;
   restartWatchStarted = true;
   const startedAt = Date.now();
@@ -233,11 +235,22 @@ async function watchRestartThenReload(): Promise<void> {
   let sawDown = false;
   // 后端约 800ms 后才退出；等到 ~1.5s 时它应已下线，从这里开始探测能稳定捕捉「下线」窗口
   await sleep(1500);
-  while (Date.now() - startedAt < MAX_WAIT) {
-    const up = await pingServerUp();
-    if (!up) sawDown = true;
-    else if (sawDown) break; // 经历「下线 → 重新在线」= 重启完成
-    await sleep(1000);
+  try {
+    while (Date.now() - startedAt < MAX_WAIT) {
+      const up = await pingServerUp();
+      if (!up) sawDown = true;
+      else if (sawDown) break; // 经历「下线 → 重新在线」= 重启完成
+      await sleep(1000);
+    }
+    // reload 前先以 cache:'reload' 拉一次新入口，把 HTTP 缓存里的 index.html 条目
+    // 换成新版（配合服务端 no-cache 双保险），避免个别浏览器拿旧入口拼接新界面
+    try {
+      await fetch(`/?_kkhb=${Date.now()}`, { cache: 'reload' });
+    } catch {
+      /* 拉不到就算了，服务可能正好在重启窗口里 */
+    }
+  } finally {
+    restartWatchStarted = false;
   }
   await clearClientCaches();
   window.location.reload();
@@ -253,6 +266,12 @@ export function useRestarting(): boolean {
     };
   }, []);
   return restarting;
+}
+
+/** 全局「重启中」遮罩开启（供维护重启等其它入口复用同一套等待体验） */
+export function beginRestarting(): void {
+  restarting = true;
+  emit();
 }
 
 /* ------------------------------- React 绑定 ------------------------------- */

@@ -95,6 +95,14 @@ export interface DispatchDeps {
   /** 默认超时，钳制在 5s~600s */
   defaultTimeoutMs: number | (() => number);
   scope: string;
+  /**
+   * 框架本地动作处理器（entry.framework = true 的接口走这里，不经协议端）。
+   * 由门面注入（如 restart_kakake → requestRestart）；未注入时这类接口返回失败信封。
+   */
+  frameworkAction?: (
+    name: string,
+    params: Record<string, unknown>,
+  ) => Promise<{ ok: boolean; data?: unknown; message?: string }>;
 }
 
 /* ─────────────────────────── 主入口 ─────────────────────────── */
@@ -146,6 +154,40 @@ export async function dispatch(
       baseMeta(),
       PROXY_RETCODE.unknownApi,
     );
+  }
+
+  /* 1.5 框架本地接口（entry.framework = true）：不经协议端，由注入的处理器直接执行。
+   * 这类动作是「框架自身的事」（如重启进程），与连接无关——跳过寻址、协议翻译与
+   * 前置步骤，直接返回信封；插件 kakake_api 与外放 API 都从这里过。
+   * 刻意不跑 before / after 钩子：维护类动作不该被插件拦截或改写。 */
+  if (entry.framework) {
+    const fwMeta = { ...baseMeta(), native: entry.name };
+    if (!deps.frameworkAction) {
+      return failWith('当前运行时未接入框架本地动作，无法执行。', 'framework', fwMeta, PROXY_RETCODE.framework);
+    }
+    try {
+      const outcome = await deps.frameworkAction(entry.name, params);
+      if (!outcome.ok) {
+        // 拒绝（如启动方式不支持自动重启）也走失败信封：_proxy.failure 可查
+        return failWith(outcome.message || '框架本地动作被拒绝。', 'framework', fwMeta, PROXY_RETCODE.framework);
+      }
+      return asSuccess(
+        {
+          status: 'ok',
+          retcode: 0,
+          data: outcome.data ?? null,
+          message: outcome.message ?? '',
+        },
+        fwMeta,
+      );
+    } catch (e) {
+      return failWith(
+        `框架本地动作执行失败：${e instanceof Error ? e.message : String(e)}`,
+        'framework',
+        fwMeta,
+        PROXY_RETCODE.framework,
+      );
+    }
   }
 
   /* 2. 解析目标连接。

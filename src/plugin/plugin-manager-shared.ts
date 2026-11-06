@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { PluginEntry } from './plugin.types.js';
 import type { PluginRouterRegistryImpl } from './router-registry.js';
-import { pluginAccountService } from './plugin-account.service.js';
+import { pluginAccountService, COPY_FINGERPRINT_FILE, summarizeDir } from './plugin-account.service.js';
 
 /** 某账号下已加载的插件运行实例（三个管理器各自声明过同一份） */
 export interface AccountRuntime {
@@ -78,20 +78,51 @@ export async function awaitPluginHandler(handler: unknown, timeoutMs: number): P
  * @param rescan 传入各管理器 loader.rescanPlugin 的返回（含安装目录与入口路径）
  * @param logLabel 日志前缀，保持各管理器原有文案不变
  */
+export interface PrepareRuntimeResult {
+  ok: boolean;
+  /** 本次是否刷新了运行副本（安装目录比副本新）：刷新后调用方必须 bump 代次让模块图失效 */
+  refreshed: boolean;
+}
+
 export function prepareRuntimeCopy(
   entry: PluginEntry,
   accountKey: string,
   rescan: (fileId: string) => { pluginPath: string; entryPath?: string } | null | undefined,
   logLabel: string,
   logger: { error: (...args: unknown[]) => void },
-): boolean {
+): PrepareRuntimeResult {
   try {
-    if (!pluginAccountService.hasRuntimeCopy(accountKey, entry.id)) {
+    const runtimeDir = pluginAccountService.runtimePluginDir(accountKey, entry.id);
+    // 副本新鲜度：安装目录的指纹与副本登记的不一致（文件数 / 字节 / 最大 mtime 任一变了）
+    // 就强制刷新副本——这是「更新 / 重新导入插件后，关开总开关或重启仍跑旧代码」的修复点。
+    // 指纹缺失（旧副本 / 手工放置）按「需要刷新」处理，保证收敛到新机制。
+    const srcDir = pluginAccountService.installPluginDir(entry.id);
+    const srcSummary = summarizeDir(srcDir);
+    let stale = true;
+    if (pluginAccountService.hasRuntimeCopy(accountKey, entry.id)) {
+      if (srcSummary) {
+        try {
+          const fpFile = path.join(runtimeDir, COPY_FINGERPRINT_FILE);
+          const stored = JSON.parse(fs.readFileSync(fpFile, 'utf8')) as {
+            files?: number; bytes?: number; maxMtime?: number;
+          };
+          stale = stored.files !== srcSummary.files
+            || stored.bytes !== srcSummary.bytes
+            || stored.maxMtime !== srcSummary.maxMtime;
+        } catch {
+          stale = true; // 指纹读不到（旧副本）→ 刷新
+        }
+      } else {
+        stale = false; // 源目录大到无法统计：维持旧行为（存在即跳过），避免热路径巨量 stat
+      }
+    }
+    if (!pluginAccountService.hasRuntimeCopy(accountKey, entry.id) || stale) {
       pluginAccountService.copyPluginToAccount(entry.id, accountKey);
     }
-    const runtimeDir = pluginAccountService.runtimePluginDir(accountKey, entry.id);
+    const refreshed = stale === true && pluginAccountService.hasRuntimeCopy(accountKey, entry.id);
+
     const installMeta = rescan(entry.fileId || entry.id);
-    if (!installMeta?.entryPath) return false;
+    if (!installMeta?.entryPath) return { ok: false, refreshed };
 
     const rel = path.relative(installMeta.pluginPath, installMeta.entryPath);
     entry.pluginPath = runtimeDir;
@@ -106,13 +137,13 @@ export function prepareRuntimeCopy(
         path.join(runtimeDir, 'main.js'),
       ];
       const found = candidates.find((p) => fs.existsSync(p));
-      if (!found) return false;
+      if (!found) return { ok: false, refreshed };
       entry.entryPath = found;
     }
-    return true;
+    return { ok: true, refreshed };
   } catch (e) {
     logger.error(`[${logLabel}] 准备运行副本失败 ${entry.id}@${accountKey}:`, e);
-    return false;
+    return { ok: false, refreshed: false };
   }
 }
 

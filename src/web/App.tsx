@@ -5,6 +5,7 @@ import { ConsoleShell } from '@/components/console-shell';
 import { AuthGuard } from '@/components/auth-guard';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { TargetCursorLayer } from '@/components/target-cursor-layer';
+import { VersionDriftBanner } from '@/components/version-drift-banner';
 import { cn } from '@/lib/utils';
 import { WatermarkLayer } from '@/components/watermark-layer';
 import { useAppearanceSync } from '@/hooks/use-appearance';
@@ -171,8 +172,12 @@ export function App() {
     // 根级兜底：静态引入的页面（首页 / 登录页）抛错时也不能整屏全白
     <PageErrorBoundary>
       {/* 全局准星光标：挂在 <Routes> 之外，登录页 / 独立页 / 控制台内所有界面都吃得到。
-          非波浪模式下组件自卸，系统光标原样保留。 */}
+          属于「更高级的鼠标效果」装饰件：只在「设置 → 测试功能」开关打开时才启用，
+          未开启时整层不渲染、系统光标原样保留。 */}
       <TargetCursorLayer />
+      {/* 版本漂移检测：服务端更新重启后，还开着的旧标签页会提示刷新，
+          避免旧 SPA 拉已被替换掉的懒加载 chunk 导致「覆盖显示不完善」 */}
+      <VersionDriftBanner />
       {/* 页面水印：同样挂在 <Routes> 之外 —— 8787 端口下每个界面（含插件后台、
           公告页、登录页与全部子路径）都由这一层盖住；文字为空时组件自卸。
           组件内部 Portal 到 #kk-portal-root，才压得住同样 Portal 出去的弹窗。 */}

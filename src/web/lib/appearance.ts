@@ -63,6 +63,18 @@ export interface AppearanceSettings {
   watermarkDensity: number;
   /** 页面水印字号（px） */
   watermarkSize: number;
+  /** 准星光标：自转一圈的秒数（越小转得越快） */
+  cursorSpin: number;
+  /** 准星光标：吸附到目标的时长（秒） */
+  cursorHover: number;
+  /** 准星光标：整体大小（px） */
+  cursorSize: number;
+  /** 准星光标：四角框尺寸（px） */
+  cursorCorner: number;
+  /** 准星光标：边框粗细（px） */
+  cursorThickness: number;
+  /** 准星光标：中心圆点直径（px），0 = 不画 */
+  cursorDot: number;
 }
 
 export interface BackgroundMeta {
@@ -77,6 +89,13 @@ export interface AppearanceState extends AppearanceSettings {
   backgrounds: Record<BackgroundOrientation, BackgroundMeta | null>;
   /** 自定义标题名（手机置顶栏 / 电脑侧边栏顶部品牌字），空串用默认「咔咔珂」 */
   customTitle: string;
+  /**
+   * 准星光标自定义颜色（#hex）。空串 = 跟随「品牌 Logo」配色。
+   * 与水印文字一样属于非数值字段：显式传值才覆盖，旧版后端不下发时用缓存兜底。
+   */
+  cursorColor: string;
+  /** 准星光标悬停到目标上时的颜色（#hex）。空串 = 跟随「品牌 Logo」渐变端色 */
+  cursorTargetColor: string;
   /** 背景适配方式：铺满裁切 / 拉伸铺满 / 完整显示 */
   bgFit: BackgroundFit;
   /** 背景预设：default 出厂氛围底 / waves 波浪；有自定义背景时不生效 */
@@ -199,6 +218,19 @@ export function normalizeWatermark(value: unknown): string {
   return Array.from(flat).slice(0, WATERMARK_MAX_LEN).join('');
 }
 
+/**
+ * 准星光标自定义颜色：只收 #rgb / #rrggbb 十六进制，统一成小写 #rrggbb；
+ * 其它取值（含空串 / 非法色值）一律空串 = 跟随「品牌 Logo」配色。
+ */
+export function normalizeCursorColor(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const str = value.trim().toLowerCase();
+  if (/^#[0-9a-f]{3}$/.test(str)) {
+    return `#${str[1]}${str[1]}${str[2]}${str[2]}${str[3]}${str[3]}`;
+  }
+  return /^#[0-9a-f]{6}$/.test(str) ? str : '';
+}
+
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
   uiSpeed: 1,
   cardOpacity: 0.32,
@@ -227,6 +259,13 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   watermarkAngle: DEFAULT_WATERMARK_ANGLE,
   watermarkDensity: 60,
   watermarkSize: 16,
+  // 准星光标出厂值：与 TargetCursorLayer 旧硬编码参数一致；颜色空串 = 跟随品牌 Logo
+  cursorSpin: 1.9,
+  cursorHover: 0.22,
+  cursorSize: 34,
+  cursorCorner: 11,
+  cursorThickness: 2.5,
+  cursorDot: 4,
 };
 
 export const DEFAULT_APPEARANCE_STATE: AppearanceState = {
@@ -235,6 +274,9 @@ export const DEFAULT_APPEARANCE_STATE: AppearanceState = {
   customTitle: '',
   // 出厂不显示水印：空串 = 关闭。用户打开开关时才填入 DEFAULT_WATERMARK_TEXT
   watermarkText: '',
+  // 出厂准星无自定义颜色：空串 = 跟随「品牌 Logo」配色
+  cursorColor: '',
+  cursorTargetColor: '',
   bgFit: DEFAULT_BACKGROUND_FIT,
   bgPreset: DEFAULT_BACKGROUND_PRESET,
   inkGradient: '',
@@ -292,6 +334,17 @@ export const APPEARANCE_RANGES: Record<
   watermarkAngle: { min: -60, max: 60, step: 1 },
   watermarkDensity: { min: 0, max: 100, step: 1 },
   watermarkSize: { min: 8, max: 48, step: 1 },
+  /*
+   * 准星光标六项（与后端 appearance.service.ts 的 RANGES 保持一致）：
+   * 自转周期 0.5–5s（越小越快）；吸附时长 0–1s；整体 16–80px；
+   * 四角 4–30px；边框 1–6px（半像素步进）；圆点 0–20px（0 = 不画）。
+   */
+  cursorSpin: { min: 0.5, max: 5, step: 0.1 },
+  cursorHover: { min: 0, max: 1, step: 0.01 },
+  cursorSize: { min: 16, max: 80, step: 1 },
+  cursorCorner: { min: 4, max: 30, step: 1 },
+  cursorThickness: { min: 1, max: 6, step: 0.5 },
+  cursorDot: { min: 0, max: 20, step: 1 },
 };
 
 /** 三个可调色角色：全局字体、组件与按钮、品牌 Logo */
@@ -422,6 +475,9 @@ export function mergeAppearance(base: AppearanceState, incoming: Partial<Appeara
     inkGradient: incoming.inkGradient ?? base.inkGradient,
     compGradient: incoming.compGradient ?? base.compGradient,
     logoGradient: incoming.logoGradient ?? base.logoGradient,
+    // 旧版后端不下发准星颜色时用本地缓存兜底；显式空串（跟随 Logo）不会被缓存复活
+    cursorColor: incoming.cursorColor ?? base.cursorColor,
+    cursorTargetColor: incoming.cursorTargetColor ?? base.cursorTargetColor,
   });
 }
 
@@ -658,6 +714,8 @@ export function normalizeAppearance(raw?: Partial<AppearanceState> | null): Appe
   };
   out.customTitle = normalizeCustomTitle(input.customTitle);
   out.watermarkText = normalizeWatermark(input.watermarkText);
+  out.cursorColor = normalizeCursorColor(input.cursorColor);
+  out.cursorTargetColor = normalizeCursorColor(input.cursorTargetColor);
   out.bgFit = normalizeBackgroundFit((input as { bgFit?: unknown }).bgFit);
   out.bgPreset = normalizeBackgroundPreset((input as { bgPreset?: unknown }).bgPreset);
   out.inkGradient = normalizeGradientCss(src.inkGradient);
@@ -1127,6 +1185,12 @@ export function formatAppearanceValue(key: keyof AppearanceSettings, value: numb
       return `${Math.round(value)}%`;
     case 'watermarkSize':
       return `${Math.round(value)}px`;
+    case 'cursorSpin':
+      return `${value.toFixed(1)}s`;
+    case 'cursorHover':
+      return `${value.toFixed(2)}s`;
+    case 'cursorThickness':
+      return `${value.toFixed(1)}px`;
     default:
       return `${Math.round(value)}px`;
   }
