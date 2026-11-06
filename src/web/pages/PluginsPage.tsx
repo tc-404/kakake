@@ -618,27 +618,27 @@ export default function PluginsPage() {
           GLASS_CTRL,
         )}
       >
-        <div className="flex items-center gap-2.5 px-3 py-2.5 sm:px-4">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-400/15 text-brand-600">
-            <Package className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-1.5 px-2 py-2.5 sm:gap-2.5 sm:px-4">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-brand-400/15 text-brand-600 sm:h-8 sm:w-8 sm:rounded-xl">
+            <Package className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </span>
           <div className="min-w-0">
             <p className="truncate text-[11px] font-medium text-slate-500">{t('plugins.statInstalled')}</p>
             <p className="text-lg font-semibold tabular-nums leading-none text-slate-800 sm:text-xl">{stats.total}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 border-l border-white/35 px-3 py-2.5 sm:px-4">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-400/15 text-teal-700">
-            <Puzzle className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-1.5 border-l border-white/35 px-2 py-2.5 sm:gap-2.5 sm:px-4">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-teal-400/15 text-teal-700 sm:h-8 sm:w-8 sm:rounded-xl">
+            <Puzzle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </span>
           <div className="min-w-0">
             <p className="truncate text-[11px] font-medium text-slate-500">{t('plugins.statMasterOn')}</p>
             <p className="text-lg font-semibold tabular-nums leading-none text-slate-800 sm:text-xl">{stats.masterOn}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 border-l border-white/35 px-3 py-2.5 sm:px-4">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-600">
-            <Activity className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-1.5 border-l border-white/35 px-2 py-2.5 sm:gap-2.5 sm:px-4">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-emerald-400/15 text-emerald-600 sm:h-8 sm:w-8 sm:rounded-xl">
+            <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </span>
           <div className="min-w-0">
             <p className="truncate text-[11px] font-medium text-slate-500">{t('plugins.statActive')}</p>
@@ -766,33 +766,47 @@ export default function PluginsPage() {
                     'transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--glass-shadow-hover)]',
                   )}
                 >
-                  <div className="flex shrink-0 items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white/50">
-                        {plugin.iconUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={plugin.iconUrl} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="flex h-full items-center justify-center text-slate-300">
-                            <Puzzle className="h-6 w-6" />
-                          </span>
-                        )}
+                  {/*
+                    头部排版：图标 + 「名称 / 版本·作者 / ID」纵向三行。
+                    以前 ID 放在右侧 shrink-0 的列里：一个 165px 长的小写 ID
+                    （kakake-plugin-comic-downloader）配上 64px 图标，会把插件名
+                    挤到只剩 1~16px —— 手机上几乎完全看不见名字。现在 ID 单独占一行，
+                    名称只跟状态徽标分宽度，并且允许折两行，永远不会被 ID 挤掉。
+                  */}
+                  <div className="flex shrink-0 items-start gap-2.5">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/50 sm:h-16 sm:w-16">
+                      {plugin.iconUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={plugin.iconUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="flex h-full items-center justify-center text-slate-300">
+                          <Puzzle className="h-6 w-6" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <h2 className="line-clamp-2 min-w-0 break-words text-[15px] font-semibold leading-snug text-slate-800 sm:line-clamp-1">
+                          {plugin.name}
+                        </h2>
+                        <span className="shrink-0">
+                          <StatusPill status={plugin.status} />
+                        </span>
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          <h2 className="truncate text-[15px] font-semibold text-slate-800">{plugin.name}</h2>
-                          <span className="shrink-0 rounded-lg bg-white/30 px-1.5 py-px text-[10px] font-medium text-slate-500">
-                            v{plugin.version}
-                          </span>
-                        </div>
+                      <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                        <span className="shrink-0 rounded-lg bg-white/30 px-1.5 py-px text-[10px] font-medium text-slate-500">
+                          v{plugin.version}
+                        </span>
                         {plugin.author ? (
-                          <p className="mt-0.5 truncate text-[11px] text-slate-500">{plugin.author}</p>
+                          <p className="min-w-0 truncate text-[11px] text-slate-500">{plugin.author}</p>
                         ) : null}
                       </div>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1.5">
-                      <StatusPill status={plugin.status} />
-                      <p className="truncate font-mono text-[10px] text-slate-400">{plugin.id}</p>
+                      <p
+                        title={plugin.id}
+                        className="mt-0.5 truncate font-mono text-[10px] leading-tight text-slate-400"
+                      >
+                        {plugin.id}
+                      </p>
                     </div>
                   </div>
 

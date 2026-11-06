@@ -1026,13 +1026,15 @@ function ConsoleShellInner({ children }: { children: ReactNode }) {
             <PageHeaderLeadingSlot />
             <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
               {/* 与侧栏品牌字共用导览锚点：导览只会高亮当前可见的那个 */}
+              {/* 手机竖屏：品牌名 + 分隔点 + 页面标题三者挤在 ~104px 里，结果两边都被
+                  截成「咔…」「插件…」。品牌在抽屉里还有一份，手机上让位给页面标题更实用。 */}
               {showBrandInHeader ? (
-                <span data-tour="brand-title" className="kk-logo-text truncate font-semibold tracking-tight">{brandTitle}</span>
+                <span data-tour="brand-title" className="kk-logo-text hidden truncate font-semibold tracking-tight sm:inline">{brandTitle}</span>
               ) : null}
               {pageTitle ? (
                 <>
                   {showBrandInHeader ? (
-                    <span aria-hidden className="shrink-0 text-slate-400">·</span>
+                    <span aria-hidden className="hidden shrink-0 text-slate-400 sm:inline">·</span>
                   ) : null}
                   <span className="truncate text-sm text-slate-600">{pageTitle}</span>
                 </>
