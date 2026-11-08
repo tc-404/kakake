@@ -1,6 +1,6 @@
 # Kakake (咔咔珂)
 
-[![version](https://img.shields.io/badge/version-0.6.10--beta.4-2dd4bf?style=flat-square)](../../releases)
+[![version](https://img.shields.io/badge/version-0.6.11--beta.1-2dd4bf?style=flat-square)](../../releases)
 [![download](https://img.shields.io/badge/Download-Releases-0ea5e9?style=flat-square&logo=github&logoColor=white)](../../releases/latest)
 [![Node](https://img.shields.io/badge/Node-%E2%89%A5%2020%20%C2%B7%2022%20LTS%20recommended-3c873a?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20x64%20portable%20%7C%20macOS%20source--only-64748b?style=flat-square)](#requirements)
@@ -355,7 +355,7 @@ By using this project you confirm you have read and understood the agreement. If
 
 ## Version
 
-- Current `package.json` version: `0.6.10`
+- Current `package.json` version: `0.6.11-beta.1`
 - GitHub Release assets ship with Ed25519 signatures (`<asset>.sig`), generated automatically by a CI workflow after each release
 - Docs update with the repo; for connection steps refer to `使用教程/连接教程.txt`; for the `mk` script refer to `使用教程/MK工具教程.txt` (both in Chinese)
 
