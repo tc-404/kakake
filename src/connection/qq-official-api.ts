@@ -159,6 +159,10 @@ export async function qqOfficialFetch(
   opts: QqOfficialFetchOptions,
 ): Promise<Response> {
   const method = (opts.method ?? 'GET').toUpperCase();
+  // Fetch 规范：GET / HEAD 不允许带请求体，Node undici 会直接抛
+  // "Request with GET/HEAD method cannot have body."。上层即便误传了空对象 {}，
+  // 也要在这里统一剥掉，否则整个官方 GET 接口族（bot_state、/users/@me 等）都会失败。
+  const body = method === 'GET' || method === 'HEAD' ? undefined : opts.body;
   const timeoutMs = gfApiTimeoutMs();
   const maxRetry = gfApiRetry();
   let lastErr: unknown;
@@ -168,7 +172,7 @@ export async function qqOfficialFetch(
       return await fetch(url, {
         method,
         headers: opts.headers,
-        body: opts.body,
+        body,
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err: unknown) {

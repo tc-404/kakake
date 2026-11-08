@@ -123,8 +123,26 @@ async function callOfficial(
     return { ok: false, error: '内部错误：官方调用缺少 path' };
   }
 
+  const verb = (call.verb ?? 'POST').toUpperCase();
+  let path = call.path;
+  let body: Record<string, unknown> | undefined = call.params;
+  if (verb === 'GET' || verb === 'HEAD') {
+    // 官方 GET 端点：路径占位符已被 dispatcher 消费，剩下的参数应作为 query，
+    // 绝不能当请求体（fetch 会直接拒绝 GET 带 body，哪怕只是 "{}"）。
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(call.params ?? {})) {
+      if (v === undefined || v === null) continue;
+      q.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+    }
+    const qs = q.toString();
+    if (qs) path += `${path.includes('?') ? '&' : '?'}${qs}`;
+    body = undefined;
+  } else if (body && Object.keys(body).length === 0) {
+    body = undefined;
+  }
+
   const outcome = await withTimeout(
-    ep.callRaw({ method: call.verb ?? 'POST', path: call.path, body: call.params }),
+    ep.callRaw({ method: verb as ProxyHttpMethod, path, body }),
     timeoutMs,
   );
   if ('timedOut' in outcome) {
