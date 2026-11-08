@@ -82,6 +82,7 @@ export interface ConnectionStatus {
   avatarUpdatedAt?: string;
   /** 首次添加时间（毫秒） */
   createdAt?: number;
+  logLayout?: 'legacy' | 'account';
 }
 
 export interface PluginItem {

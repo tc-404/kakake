@@ -534,10 +534,8 @@ export class ApiController {
     return { logs: getLogs(limit, level, category) };
   }
 
-  /** 日志文件列表缓存：3 秒 TTL，列表页频繁刷新时避免每个请求都全目录 readdir+stat */
   private logFilesCache: { at: number; files: Array<{ name: string; size: number; mtime: number }> } | null = null;
 
-  /** 列出日志目录下的 .log 文件，供控制台临时选择查看（最新的排在最前） */
   @Get('logs/files')
   async logFiles() {
     try {
@@ -546,14 +544,26 @@ export class ApiController {
       if (this.logFilesCache && now - this.logFilesCache.at < 3000) {
         return { files: this.logFilesCache.files };
       }
+      const candidates: Array<{ name: string; abs: string }> = [];
       const dirents = await fs.promises.readdir(PATHS.log, { withFileTypes: true });
-      const files = (await Promise.all(dirents
-        .filter((d) => d.isFile() && d.name.endsWith('.log'))
-        .map(async (d) => {
-          const st = await fs.promises.stat(path.join(PATHS.log, d.name));
-          return { name: d.name, size: st.size, mtime: st.mtimeMs };
-        })))
-        .sort((a, b) => b.mtime - a.mtime);
+      for (const d of dirents) {
+        if (d.isFile() && d.name.endsWith('.log')) {
+          candidates.push({ name: d.name, abs: path.join(PATHS.log, d.name) });
+          continue;
+        }
+        if (!d.isDirectory()) continue;
+        const sub = path.join(PATHS.log, d.name);
+        const inner = await fs.promises.readdir(sub, { withFileTypes: true }).catch(() => []);
+        for (const f of inner) {
+          if (f.isFile() && f.name.endsWith('.log')) {
+            candidates.push({ name: `${d.name}/${f.name}`, abs: path.join(sub, f.name) });
+          }
+        }
+      }
+      const files = (await Promise.all(candidates.map(async (c) => {
+        const st = await fs.promises.stat(c.abs);
+        return { name: c.name, size: st.size, mtime: st.mtimeMs };
+      }))).sort((a, b) => b.mtime - a.mtime);
       this.logFilesCache = { at: now, files };
       return { files };
     } catch {
@@ -561,21 +571,18 @@ export class ApiController {
     }
   }
 
-  /**
-   * 读取指定日志文件并还原成条目，仅供前端临时查看：
-   * 不写入内存环形缓冲、不参与计数、不推送 SSE，刷新页面即回到实时机制。
-   * 大文件用「从尾部回读」代替整读，数百 MB 的日志不再阻塞事件循环。
-   */
   @Get('logs/file')
   async logFile(@Query('name') name: string) {
-    // 只取文件名，杜绝 ../ 目录穿越
-    const safe = path.basename(String(name || '')).trim();
-    if (!safe.endsWith('.log')) return { logs: [] };
-    const file = path.join(PATHS.log, safe);
+    const raw = String(name || '').replace(/\\/g, '/').trim();
+    if (!raw.endsWith('.log')) return { logs: [] };
+    const parts = raw.split('/').filter((p) => p && p !== '.' && p !== '..');
+    if (parts.length < 1 || parts.length > 2) return { logs: [] };
+    if (!parts.every((p) => /^[\w.@\-\u4e00-\u9fa5]+$/.test(p))) return { logs: [] };
+    const file = path.resolve(PATHS.log, ...parts);
+    if (!file.startsWith(path.resolve(PATHS.log) + path.sep)) return { logs: [] };
     if (!fs.existsSync(file)) return { logs: [] };
     try {
       const text = await readTailText(file, 2000);
-      // 只回传末尾若干条，避免超大文件把界面拖垮
       return { logs: parseLogFile(text).slice(-2000) };
     } catch {
       return { logs: [] };

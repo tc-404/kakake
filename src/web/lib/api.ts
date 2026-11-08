@@ -767,6 +767,12 @@ export const api = {
       request<{ ok: boolean; message?: string; enable?: boolean }>(`/api/connections/${id}/toggle`, {
         method: 'POST',
       }),
+    setLogLayout: (id: string, layout: 'legacy' | 'account') =>
+      request<{ ok: boolean; logLayout?: string; message?: string }>(`/api/connections/${id}/log-layout`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layout }),
+      }),
     reconnect: (id: string) => request(`/api/connections/${id}/reconnect`, { method: 'POST' }),
     updateForwardReconnect: (
       id: string,

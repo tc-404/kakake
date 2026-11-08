@@ -10,6 +10,8 @@ import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module.js';
 import { rootLogger } from './core/logger.js';
 import { setLogMinLevel, setLogToFileEnabled } from './core/log-store.js';
+import { setLogAccountResolver, setLogLayoutResolver } from './core/log-layout.js';
+import { resolveLogAccountFromPrefix, resolveLogLayoutForAccount } from './core/log-account-resolver.js';
 import {
   bold,
   brightCyan,
@@ -282,6 +284,8 @@ function printTicketLogin(
 }
 
 async function bootstrap() {
+  setLogAccountResolver(resolveLogAccountFromPrefix);
+  setLogLayoutResolver(resolveLogLayoutForAccount);
   initDataDirs();
 
   // 框架本地动作接线：接口代理里的 restart_kakake（kakake_api / 外放 API 可调）

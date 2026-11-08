@@ -299,6 +299,7 @@ function pickSettings(state: AppearanceState): AppearanceState {
   // 准星光标自定义颜色同样不在 RANGES 里：不进草稿的话改动会被当「没提」丢掉
   out.cursorColor = state.cursorColor ?? '';
   out.cursorTargetColor = state.cursorTargetColor ?? '';
+  out.bgTune = state.bgTune ?? DEFAULT_APPEARANCE_STATE.bgTune;
   return out;
 }
 
@@ -1032,6 +1033,7 @@ function AppearanceSection() {
           settings={appearanceDraft}
           previews={previews}
           disabled={false}
+          bgTune={appearance.bgTune}
           onChange={pushAppearance}
           onPickBackground={pickBackground}
           onClearBackground={clearBackground}

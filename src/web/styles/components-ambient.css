@@ -54,10 +54,11 @@
       linear-gradient(rgb(var(--kk-glass-base) / 0.14), rgb(var(--kk-glass-base) / 0.14)),
       var(--kk-bg-portrait, none);
     background-repeat: no-repeat;
-    background-position: center center;
+    background-position: var(--kk-bg-x-portrait, 50%) var(--kk-bg-y-portrait, 50%);
     /* 比例不匹配时裁切铺满，不拉伸变形 */
     background-size: cover;
     filter: blur(var(--kk-bg-blur));
+    transform: rotate(var(--kk-bg-rotate-portrait, 0deg)) scale(var(--kk-bg-scale-portrait, 1));
   }
 
   @media (orientation: landscape) {
@@ -66,6 +67,8 @@
       background-image:
         linear-gradient(rgb(var(--kk-glass-base) / 0.14), rgb(var(--kk-glass-base) / 0.14)),
         var(--kk-bg-landscape, none);
+      background-position: var(--kk-bg-x-landscape, 50%) var(--kk-bg-y-landscape, 50%);
+      transform: rotate(var(--kk-bg-rotate-landscape, 0deg)) scale(var(--kk-bg-scale-landscape, 1));
     }
   }
 
@@ -155,7 +158,16 @@
     width: calc(100% + var(--kk-bg-blur, 0px) * 4);
     height: calc(100% + var(--kk-bg-blur, 0px) * 4);
     object-fit: cover;
+    object-position: var(--kk-bg-x-portrait, 50%) var(--kk-bg-y-portrait, 50%);
+    transform: rotate(var(--kk-bg-rotate-portrait, 0deg)) scale(var(--kk-bg-scale-portrait, 1));
     filter: blur(var(--kk-bg-blur, 0px));
+  }
+
+  @media (orientation: landscape) {
+    .kk-ambient-video {
+      object-position: var(--kk-bg-x-landscape, 50%) var(--kk-bg-y-landscape, 50%);
+      transform: rotate(var(--kk-bg-rotate-landscape, 0deg)) scale(var(--kk-bg-scale-landscape, 1));
+    }
   }
 
   /* 登录页：更高亮、对比更强的氛围底，衬托玻璃卡片 */

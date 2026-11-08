@@ -17,6 +17,43 @@ export type BackgroundOrientation = 'portrait' | 'landscape';
 
 export const BACKGROUND_ORIENTATIONS: readonly BackgroundOrientation[] = ['portrait', 'landscape'];
 
+export interface BackgroundTune {
+  rotate: number;
+  scale: number;
+  y: number;
+  x: number;
+}
+
+export const BG_TUNE_FIELDS: readonly (keyof BackgroundTune)[] = ['rotate', 'scale', 'y', 'x'];
+
+export const BG_TUNE_RANGES: Record<keyof BackgroundTune, { min: number; max: number; step: number }> = {
+  rotate: { min: -180, max: 180, step: 1 },
+  scale: { min: -100, max: 100, step: 1 },
+  y: { min: -100, max: 100, step: 1 },
+  x: { min: -100, max: 100, step: 1 },
+};
+
+export const DEFAULT_BACKGROUND_TUNE: BackgroundTune = { rotate: 0, scale: 0, y: 0, x: 0 };
+
+export function normalizeBackgroundTune(raw: unknown): BackgroundTune {
+  const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const out = {} as BackgroundTune;
+  for (const key of BG_TUNE_FIELDS) {
+    const { min, max } = BG_TUNE_RANGES[key];
+    const n = Number(src[key]);
+    out[key] = Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : 0;
+  }
+  return out;
+}
+
+export function normalizeBackgroundTuneState(raw: unknown): Record<BackgroundOrientation, BackgroundTune> {
+  const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    portrait: normalizeBackgroundTune(src.portrait),
+    landscape: normalizeBackgroundTune(src.landscape),
+  };
+}
+
 /** 背景资源两类：图片走 CSS background-image（动图 GIF 自动播），视频走 <video> 循环 */
 export type BackgroundKind = 'image' | 'video';
 
@@ -87,6 +124,7 @@ export interface BackgroundMeta {
 
 export interface AppearanceState extends AppearanceSettings {
   backgrounds: Record<BackgroundOrientation, BackgroundMeta | null>;
+  bgTune: Record<BackgroundOrientation, BackgroundTune>;
   /** 自定义标题名（手机置顶栏 / 电脑侧边栏顶部品牌字），空串用默认「咔咔珂」 */
   customTitle: string;
   /**
@@ -271,6 +309,7 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
 export const DEFAULT_APPEARANCE_STATE: AppearanceState = {
   ...DEFAULT_APPEARANCE,
   backgrounds: { portrait: null, landscape: null },
+  bgTune: { portrait: { ...DEFAULT_BACKGROUND_TUNE }, landscape: { ...DEFAULT_BACKGROUND_TUNE } },
   customTitle: '',
   // 出厂不显示水印：空串 = 关闭。用户打开开关时才填入 DEFAULT_WATERMARK_TEXT
   watermarkText: '',
@@ -478,6 +517,7 @@ export function mergeAppearance(base: AppearanceState, incoming: Partial<Appeara
     // 旧版后端不下发准星颜色时用本地缓存兜底；显式空串（跟随 Logo）不会被缓存复活
     cursorColor: incoming.cursorColor ?? base.cursorColor,
     cursorTargetColor: incoming.cursorTargetColor ?? base.cursorTargetColor,
+    bgTune: incoming.bgTune ?? base.bgTune,
   });
 }
 
@@ -712,6 +752,7 @@ export function normalizeAppearance(raw?: Partial<AppearanceState> | null): Appe
     portrait: normalizeBackgroundMeta(bg.portrait),
     landscape: normalizeBackgroundMeta(bg.landscape),
   };
+  out.bgTune = normalizeBackgroundTuneState(input.bgTune);
   out.customTitle = normalizeCustomTitle(input.customTitle);
   out.watermarkText = normalizeWatermark(input.watermarkText);
   out.cursorColor = normalizeCursorColor(input.cursorColor);
@@ -1076,6 +1117,11 @@ export function applyAppearanceBackground(state: AppearanceState): void {
     } else {
       style.removeProperty(varName);
     }
+    const tune = normalizeBackgroundTune(state.bgTune?.[orientation]);
+    style.setProperty(`--kk-bg-rotate-${orientation}`, `${tune.rotate}deg`);
+    style.setProperty(`--kk-bg-scale-${orientation}`, String(Math.max(0.05, 1 + tune.scale / 100)));
+    style.setProperty(`--kk-bg-x-${orientation}`, `${50 + tune.x / 2}%`);
+    style.setProperty(`--kk-bg-y-${orientation}`, `${50 + tune.y / 2}%`);
   }
   if (hasAny) root.setAttribute('data-kk-bg', '1');
   else root.removeAttribute('data-kk-bg');

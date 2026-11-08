@@ -24,6 +24,9 @@ export function createPluginLogger(pluginId: string, opts?: PluginLoggerOptions)
   const prefix = `[Plugin:${pluginId}]`;
   const category = opts?.category ?? 'plugin';
   const silentStdout = !!opts?.silentStdout;
+  const at = pluginId.lastIndexOf('@');
+  const rawKey = at >= 0 ? pluginId.slice(at + 1).trim() : '';
+  const accountKey = rawKey && rawKey !== 'extension' ? rawKey : null;
 
   const write = (level: LogLevel, args: unknown[]): void => {
     const message = formatLogArgs(args);
@@ -37,6 +40,7 @@ export function createPluginLogger(pluginId: string, opts?: PluginLoggerOptions)
       category,
       prefix,
       message,
+      accountKey,
     });
   };
 

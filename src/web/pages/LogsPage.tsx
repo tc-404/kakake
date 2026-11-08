@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Copy, Download, Pause, RefreshCw, Search, Trash2,
+  ChevronDown, ChevronRight, Copy, Download, Pause, RefreshCw, Search, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -16,8 +16,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { errText } from '@/lib/server-error';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SELECT_TRIGGER_CLASS,
 } from '@/components/ui/select-menu';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -567,6 +570,7 @@ export default function LogsPage() {
    * 这个状态不做持久化，刷新页面一定回到实时机制。
    */
   const [viewingFile, setViewingFile] = useState<string | undefined>(undefined);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   /** true = 本次滚动直接定位（首次/刷新/换筛选），false = 平滑跟随新日志 */
   const instantScrollRef = useRef(true);
@@ -618,7 +622,19 @@ export default function LogsPage() {
 
   /** 点开「选择」时才拉取，避免进页面就多一次请求 */
   // 仅前端加载清理：文件选择器只展示最近 N 个日志文件，磁盘上的源文件全部保留、不删除
-  const RECENT_LOG_FILES = 60;
+  const RECENT_LOG_FILES = 120;
+  const groupedLogFiles = useMemo(() => {
+    const groups = new Map<string, LogFileInfo[]>();
+    for (const f of logFiles) {
+      const idx = f.name.indexOf('/');
+      const group = idx >= 0 ? f.name.slice(0, idx) : '';
+      const list = groups.get(group);
+      if (list) list.push(f);
+      else groups.set(group, [f]);
+    }
+    return Array.from(groups.entries()).sort(([a], [b]) => (a === '' ? -1 : b === '' ? 1 : 0));
+  }, [logFiles]);
+
   const loadFileList = useCallback(async () => {
     try {
       const res = await api.logs.files();
@@ -781,36 +797,74 @@ export default function LogsPage() {
               ))}
             </SelectContent>
           </Select>
-          {/* 选择：挑一个 .log 文件临时查看（一次性，刷新即回到实时机制） */}
-          <Select
-            value={viewingFile}
-            onValueChange={(v) => void pickLogFile(v)}
+          <DropdownMenu
             onOpenChange={(open) => {
-              if (open) void loadFileList();
+              if (!open) return;
+              setExpandedGroup(null);
+              void loadFileList();
             }}
           >
-            <SelectTrigger data-tour="logs-file" className={cn(COMPACT_TRIGGER, 'sm:w-[9.5rem]')}>
-              <SelectValue placeholder={t('logs.selectPlaceholder')}>
-                {viewingFile === LIVE_LOG
-                  ? <TriggerLabel short={t('logs.liveShort')} full={t('logs.live')} />
-                  : viewingFile}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent className="min-w-[12rem]">
-              <SelectItem value={LIVE_LOG}>{t('logs.live')}</SelectItem>
-              {logFiles.length === 0 ? (
-                <SelectItem value="__none__" disabled>
-                  {t('logs.noLogFiles')}
-                </SelectItem>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                data-tour="logs-file"
+                className={cn(SELECT_TRIGGER_CLASS, COMPACT_TRIGGER, 'sm:w-[9.5rem]')}
+              >
+                <span className="min-w-0 truncate">
+                  {viewingFile === LIVE_LOG || !viewingFile
+                    ? <TriggerLabel short={t('logs.liveShort')} full={t('logs.live')} />
+                    : viewingFile}
+                </span>
+                <ChevronDown className="shrink-0 opacity-50" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-96 min-w-[12rem] overflow-y-auto">
+              <DropdownMenuItem onSelect={() => void pickLogFile(LIVE_LOG)}>
+                {t('logs.live')}
+              </DropdownMenuItem>
+              {groupedLogFiles.length === 0 ? (
+                <DropdownMenuItem disabled>{t('logs.noLogFiles')}</DropdownMenuItem>
               ) : (
-                logFiles.map((f) => (
-                  <SelectItem key={f.name} value={f.name}>
-                    {f.name}
-                  </SelectItem>
-                ))
+                groupedLogFiles.flatMap(([group, files]) => {
+                  if (!group) {
+                    return files.map((f) => (
+                      <DropdownMenuItem key={f.name} onSelect={() => void pickLogFile(f.name)}>
+                        {f.name}
+                      </DropdownMenuItem>
+                    ));
+                  }
+                  const expanded = expandedGroup === group;
+                  return [
+                    <DropdownMenuItem
+                      key={`__group__${group}`}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setExpandedGroup(expanded ? null : group);
+                      }}
+                      className="cursor-pointer justify-between font-medium"
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {expanded ? <ChevronDown /> : <ChevronRight />}
+                        <span className="truncate">{group}</span>
+                      </span>
+                      <span className="shrink-0 text-xs opacity-60">{files.length}</span>
+                    </DropdownMenuItem>,
+                    ...(expanded
+                      ? files.map((f) => (
+                        <DropdownMenuItem
+                          key={f.name}
+                          onSelect={() => void pickLogFile(f.name)}
+                          className="pl-7 text-xs"
+                        >
+                          {f.name.slice(group.length + 1)}
+                        </DropdownMenuItem>
+                      ))
+                      : []),
+                  ];
+                })
               )}
-            </SelectContent>
-          </Select>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

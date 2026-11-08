@@ -142,6 +142,30 @@
       0 10px 26px rgb(15 80 90 / calc(var(--kk-shadow-alpha) * 0.86));
   }
 
+  .kk-bg-card--selected {
+    border-style: solid;
+    border-color: rgb(var(--kk-comp-rgb) / 0.85);
+    box-shadow:
+      0 0 0 3px rgb(var(--kk-comp-soft-rgb) / 0.28),
+      0 8px 22px rgb(15 80 90 / calc(var(--kk-shadow-alpha) * 0.7));
+  }
+
+  .kk-bg-card--arming::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    z-index: 3;
+    height: 3px;
+    width: 0;
+    background: rgb(var(--kk-comp-rgb) / 0.9);
+    animation: kk-bg-arm 3s linear forwards;
+  }
+
+  @keyframes kk-bg-arm {
+    to { width: 100%; }
+  }
+
   .kk-bg-card__img {
     position: absolute;
     inset: 0;

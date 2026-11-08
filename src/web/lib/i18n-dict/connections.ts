@@ -252,4 +252,7 @@ registerMessages({
   // ───────── 正向 WS / HTTP 客户端 重连策略弹窗补充 ─────────
   'connections.retryCount': { zh: '已重试 {n}/{max} 次', en: 'Retried {n}/{max} times' },
   'connections.retryCountInfinite': { zh: '已重试 {n} 次（无限重试）', en: 'Retried {n} times (infinite retry)' },
+  'connections.logLayoutTitle': { zh: '日志存放位置', en: 'Log storage location' },
+  'connections.logLayoutLegacy': { zh: '原机制', en: 'Legacy' },
+  'connections.logLayoutAccount': { zh: '根据账号', en: 'Per account' },
 });

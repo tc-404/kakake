@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useT } from '@/lib/i18n';
@@ -34,19 +34,48 @@ function BackgroundCard({
   orientation,
   preview,
   disabled,
+  selected,
   onPick,
   onClear,
+  onLongPress,
 }: {
   orientation: BackgroundOrientation;
   preview: BackgroundPreview | null;
   disabled?: boolean;
+  selected?: boolean;
   onPick: (file: File) => void;
   onClear: () => void;
+  onLongPress?: (orientation: BackgroundOrientation) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressAt = useRef(0);
   const [dragOver, setDragOver] = useState(false);
+  const [arming, setArming] = useState(false);
   const t = useT();
   const label = t(ORIENTATION_LABEL_KEY[orientation]);
+
+  const clearPress = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+    setArming(false);
+  };
+
+  const startPress = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (disabled || !preview || !onLongPress) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    clearPress();
+    longPressAt.current = 0;
+    setArming(true);
+    pressTimer.current = setTimeout(() => {
+      pressTimer.current = null;
+      longPressAt.current = Date.now();
+      setArming(false);
+      onLongPress(orientation);
+    }, 3000);
+  };
 
   /**
    * 视频预览只当「封面缩略图」：不自动播放、不循环，只解出首帧显示。
@@ -99,9 +128,22 @@ function BackgroundCard({
         SHAPE[orientation],
         preview && 'kk-bg-card--filled',
         dragOver && 'kk-bg-card--drop',
+        selected && 'kk-bg-card--selected',
+        arming && 'kk-bg-card--arming',
         disabled && 'pointer-events-none opacity-60',
       )}
-      onClick={openPicker}
+      onClick={() => {
+        if (Date.now() - longPressAt.current < 1000) {
+          longPressAt.current = 0;
+          return;
+        }
+        openPicker();
+      }}
+      onPointerDown={startPress}
+      onPointerUp={clearPress}
+      onPointerLeave={clearPress}
+      onPointerCancel={clearPress}
+      onContextMenu={(e) => e.preventDefault()}
       onKeyDown={(e) => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
@@ -152,6 +194,7 @@ function BackgroundCard({
           type="button"
           aria-label={t('settings.bgRemoveAria', { label })}
           className="kk-bg-card__clear"
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             onClear();
@@ -185,13 +228,17 @@ function BackgroundCard({
 export function BackgroundPicker({
   previews,
   disabled,
+  selected,
   onPick,
   onClear,
+  onLongPress,
 }: {
   previews: Record<BackgroundOrientation, BackgroundPreview | null>;
   disabled?: boolean;
+  selected?: BackgroundOrientation | null;
   onPick: (orientation: BackgroundOrientation, file: File) => void;
   onClear: (orientation: BackgroundOrientation) => void;
+  onLongPress?: (orientation: BackgroundOrientation) => void;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-4">
@@ -199,6 +246,8 @@ export function BackgroundPicker({
         orientation="portrait"
         preview={previews.portrait}
         disabled={disabled}
+        selected={selected === 'portrait'}
+        onLongPress={onLongPress}
         onPick={(file) => onPick('portrait', file)}
         onClear={() => onClear('portrait')}
       />
@@ -206,6 +255,8 @@ export function BackgroundPicker({
         orientation="landscape"
         preview={previews.landscape}
         disabled={disabled}
+        selected={selected === 'landscape'}
+        onLongPress={onLongPress}
         onPick={(file) => onPick('landscape', file)}
         onClear={() => onClear('landscape')}
       />

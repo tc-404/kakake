@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { WakeSlider } from '@/components/wake-slider';
@@ -6,17 +6,24 @@ import { BackgroundPicker, type BackgroundPreview } from '@/components/backgroun
 import {
   APPEARANCE_RANGES,
   BACKGROUND_FIT_OPTIONS,
+  BG_TUNE_FIELDS,
+  BG_TUNE_RANGES,
+  DEFAULT_BACKGROUND_TUNE,
   cardShadowPercent,
   effectiveBackgroundPreset,
   formatAppearanceValue,
   getAppearanceSnapshot,
+  normalizeBackgroundTuneState,
   subscribeAppearance,
   type AppearanceSettings,
+  type AppearanceState,
   type BackgroundFit,
   type BackgroundOrientation,
+  type BackgroundTune,
 } from '@/lib/appearance';
 import { getDeviceTier, subscribeDeviceTier } from '@/lib/device-tier';
 import { useT } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 
 /**
  * 波浪预设下滑动条的尾迹外观。
@@ -42,6 +49,20 @@ const WAKE = {
   reach: 5.5,
   sensitivity: 1.25,
 } as const;
+
+const TUNE_I18N: Record<keyof BackgroundTune, string> = {
+  rotate: 'settings.bgTuneRotate',
+  scale: 'settings.bgTuneScale',
+  y: 'settings.bgTuneY',
+  x: 'settings.bgTuneX',
+};
+
+const TUNE_VALUE: Record<keyof BackgroundTune, (v: number) => string> = {
+  rotate: (v) => `${v}°`,
+  scale: (v) => `${v > 0 ? '+' : ''}${v}%`,
+  y: (v) => `${v}%`,
+  x: (v) => `${v}%`,
+};
 
 /** 只有这几项走滑动条，两组颜色交给色盘 */
 type SliderKey =
@@ -105,6 +126,7 @@ export function AppearancePanel({
   settings,
   previews,
   disabled,
+  bgTune,
   onChange,
   onPickBackground,
   onClearBackground,
@@ -114,7 +136,8 @@ export function AppearancePanel({
   settings: AppearanceSettings;
   previews: Record<BackgroundOrientation, BackgroundPreview | null>;
   disabled?: boolean;
-  onChange: (patch: Partial<AppearanceSettings>) => void;
+  bgTune: Record<BackgroundOrientation, BackgroundTune>;
+  onChange: (patch: Partial<AppearanceState>) => void;
   onPickBackground: (orientation: BackgroundOrientation, file: File) => void;
   onClearBackground: (orientation: BackgroundOrientation) => void;
   /** 背景适配方式（非数值字段，单独保存，不走滑动条草稿） */
@@ -127,6 +150,53 @@ export function AppearancePanel({
   const tier = useSyncExternalStore(subscribeDeviceTier, getDeviceTier, getDeviceTier);
   const waves = effectiveBackgroundPreset(appearance, tier) === 'waves';
   const t = useT();
+
+  const [activeTune, setActiveTune] = useState<BackgroundOrientation | null>(null);
+  const tunes = normalizeBackgroundTuneState(bgTune);
+  const activeTuneValue = activeTune ? tunes[activeTune] : DEFAULT_BACKGROUND_TUNE;
+  const tuneLocked = !activeTune || !!disabled;
+
+  const sliderFor = (field: keyof BackgroundTune, onValue: (v: number) => void) => {
+    const range = BG_TUNE_RANGES[field];
+    const id = `appearance-bg-${field}`;
+    const value = activeTuneValue[field];
+    const shared = {
+      id,
+      className: 'order-3 w-full min-w-0 sm:order-2 sm:w-auto sm:flex-1',
+      min: range.min,
+      max: range.max,
+      step: range.step,
+      value,
+      disabled: tuneLocked,
+    };
+    return waves ? (
+      <WakeSlider
+        {...shared}
+        ariaLabel={t(TUNE_I18N[field])}
+        formatValue={TUNE_VALUE[field]}
+        bars={WAKE.bars}
+        cellWidth={WAKE.cellWidth}
+        minBars={WAKE.minBars}
+        maxBars={WAKE.maxBars}
+        cellRatio={WAKE.cellRatio}
+        height={WAKE.height}
+        restHeight={WAKE.restHeight}
+        gap={WAKE.gap}
+        fillColor={WAKE.fillColor}
+        trackColor={WAKE.trackColor}
+        crestColor={WAKE.crestColor}
+        reach={WAKE.reach}
+        sensitivity={WAKE.sensitivity}
+        onChange={onValue}
+      />
+    ) : (
+      <Slider
+        {...shared}
+        valueText={TUNE_VALUE[field](value)}
+        onValueChange={onValue}
+      />
+    );
+  };
 
   // 背景适配方式：用本地 key 表按 opt.value 取 i18n，原中文留在 lib/appearance.ts 作兜底。
   const FIT_I18N: Record<string, string> = {
@@ -159,6 +229,8 @@ export function AppearancePanel({
         <BackgroundPicker
           previews={previews}
           disabled={disabled}
+          selected={activeTune}
+          onLongPress={(orientation) => setActiveTune((prev) => (prev === orientation ? null : orientation))}
           onPick={onPickBackground}
           onClear={onClearBackground}
         />
@@ -197,16 +269,36 @@ export function AppearancePanel({
       </div>
 
       <div className="space-y-3.5">
-        {GROUPS.map((group, gi) => (
+        <div className={cn('space-y-3.5', tuneLocked && 'opacity-50')}>
+          {BG_TUNE_FIELDS.map((field) => (
+            <div
+              key={field}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:flex-nowrap sm:gap-4"
+            >
+              <Label
+                htmlFor={`appearance-bg-${field}`}
+                className="order-1 text-sm font-medium text-slate-600 sm:w-36 sm:shrink-0"
+              >
+                {t(TUNE_I18N[field])}
+              </Label>
+              <span className="order-2 ml-auto font-mono text-xs tabular-nums text-slate-500 sm:order-3 sm:ml-0 sm:w-20 sm:shrink-0 sm:text-right">
+                {TUNE_VALUE[field](activeTuneValue[field])}
+              </span>
+              {sliderFor(field, (v) => {
+                if (!activeTune) return;
+                onChange({ bgTune: { ...tunes, [activeTune]: { ...activeTuneValue, [field]: v } } });
+              })}
+            </div>
+          ))}
+        </div>
+        {GROUPS.map((group) => (
           <div key={group.title} className="space-y-3.5">
             {/* 分界线：组与组之间的视觉分隔。线色取全局字体色（--foreground），
              * 粗细 2px——1px 太细，在毛玻璃底上基本看不出来。组名按用户要求不渲染。 */}
-            {gi > 0 ? (
-              <div
-                aria-hidden
-                className="h-0.5 w-full rounded-full bg-[hsl(var(--foreground)/0.4)]"
-              />
-            ) : null}
+            <div
+              aria-hidden
+              className="h-0.5 w-full rounded-full bg-[hsl(var(--foreground)/0.4)]"
+            />
             {group.rows.map(({ key, i18nKey }) => {
               const range = APPEARANCE_RANGES[key];
               const id = `appearance-${key}`;

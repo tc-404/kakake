@@ -127,6 +127,7 @@ export function ConnectionManageDialog({
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refreshingProfile, setRefreshingProfile] = useState(false);
+  const [logLayout, setLogLayout] = useState<'legacy' | 'account'>('legacy');
 
   const isQq = conn?.type === 'qq_official';
   const isWx = conn?.type === 'weixin_bot';
@@ -160,6 +161,7 @@ export function ConnectionManageDialog({
     setWebhookBaseUrl(conn.webhookBaseUrl || '');
     setKookToken('');
     setKookTokenTouched(false);
+    setLogLayout(conn.logLayout ?? 'legacy');
     // 只在打开或切换连接时灌表单；SSE 每 3s 换新对象不能回写输入
     // eslint-disable-next-line react-hooks/exhaustive-deps -- conn 快照仅用于初始化
   }, [open, conn?.id]);
@@ -299,6 +301,22 @@ export function ConnectionManageDialog({
     }
   };
 
+  const changeLogLayout = async (next: 'legacy' | 'account') => {
+    if (!conn || next === logLayout) return;
+    const prev = logLayout;
+    setLogLayout(next);
+    try {
+      const res = await api.connections.setLogLayout(conn.id, next);
+      if (!res?.ok) {
+        setLogLayout(prev);
+        return;
+      }
+      await onSaved?.();
+    } catch {
+      setLogLayout(prev);
+    }
+  };
+
   const showCopyAddress = conn && ((!isQq || isQqHttps) && !isWx && !isKook);
 
   return (
@@ -343,6 +361,33 @@ export function ConnectionManageDialog({
         )}
 
         <div className="space-y-3">
+          {conn && (
+            <div className="space-y-2">
+              <Label>{t('connections.logLayoutTitle')}</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={logLayout === 'legacy' ? 'default' : 'outline'}
+                  aria-pressed={logLayout === 'legacy'}
+                  className="h-8 flex-1 text-xs"
+                  onClick={() => void changeLogLayout('legacy')}
+                >
+                  {t('connections.logLayoutLegacy')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={logLayout === 'account' ? 'default' : 'outline'}
+                  aria-pressed={logLayout === 'account'}
+                  className="h-8 flex-1 text-xs"
+                  onClick={() => void changeLogLayout('account')}
+                >
+                  {t('connections.logLayoutAccount')}
+                </Button>
+              </div>
+            </div>
+          )}
           {isWx ? (
             <>
               <div className="space-y-2">

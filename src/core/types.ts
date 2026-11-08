@@ -73,6 +73,8 @@ export type ConnectionType = 'onebot' | 'qq_official' | 'weixin_bot' | 'kook';
  */
 export type ConnectionMode = 'reverse' | 'forward' | 'http' | 'http_sse' | 'http_client' | 'https';
 
+export type ConnectionLogLayout = 'legacy' | 'account';
+
 export const ONEBOT_WS_MODES: ConnectionMode[] = ['reverse', 'forward'];
 export const ONEBOT_HTTP_MODES: ConnectionMode[] = ['http', 'http_sse', 'http_client'];
 export const ONEBOT_RECONNECT_MODES: ConnectionMode[] = ['forward', 'http_client'];
@@ -167,6 +169,7 @@ export interface ConnectionConfig {
   kookBotAvatar?: string;
   /** 首次添加时间（毫秒时间戳）；同状态排序时越早越靠前 */
   createdAt?: number;
+  logLayout?: ConnectionLogLayout;
 }
 
 /** 从磁盘读取的原始连接项（可能含旧版 url 字段） */
@@ -299,6 +302,7 @@ export function normalizeConnection(conn: StoredConnectionConfig): ConnectionCon
       createdAt: typeof conn.createdAt === 'number' && Number.isFinite(conn.createdAt)
         ? Math.floor(conn.createdAt)
         : undefined,
+      logLayout: conn.logLayout === 'account' ? 'account' : undefined,
     };
   }
 
@@ -322,6 +326,7 @@ export function normalizeConnection(conn: StoredConnectionConfig): ConnectionCon
       createdAt: typeof conn.createdAt === 'number' && Number.isFinite(conn.createdAt)
         ? Math.floor(conn.createdAt)
         : undefined,
+      logLayout: conn.logLayout === 'account' ? 'account' : undefined,
     };
   }
 
@@ -343,6 +348,7 @@ export function normalizeConnection(conn: StoredConnectionConfig): ConnectionCon
       createdAt: typeof conn.createdAt === 'number' && Number.isFinite(conn.createdAt)
         ? Math.floor(conn.createdAt)
         : undefined,
+      logLayout: conn.logLayout === 'account' ? 'account' : undefined,
     };
   }
 
@@ -369,6 +375,7 @@ export function normalizeConnection(conn: StoredConnectionConfig): ConnectionCon
     createdAt: typeof conn.createdAt === 'number' && Number.isFinite(conn.createdAt)
       ? Math.floor(conn.createdAt)
       : undefined,
+    logLayout: conn.logLayout === 'account' ? 'account' : undefined,
   };
 
   if ((!conn.host || !conn.port) && conn.url) {

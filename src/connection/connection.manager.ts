@@ -827,6 +827,7 @@ export class ConnectionManager {
     hasAvatar?: boolean;
     avatarUpdatedAt?: string;
     createdAt?: number;
+    logLayout: 'legacy' | 'account';
   }> {
     const list = configService.getConnections().connections.map((c) => {
       const endpoint = this.endpoints.get(c.id);
@@ -862,6 +863,7 @@ export class ConnectionManager {
           hasAvatar: avatarMeta.hasAvatar,
           avatarUpdatedAt: avatarMeta.avatarUpdatedAt,
           createdAt,
+          logLayout: c.logLayout ?? 'legacy',
         };
       }
 
@@ -886,6 +888,7 @@ export class ConnectionManager {
           accountKey: c.weixinAccountId,
           hasAvatar: false,
           createdAt,
+          logLayout: c.logLayout ?? 'legacy',
         };
       }
 
@@ -928,6 +931,7 @@ export class ConnectionManager {
           hasAvatar: avatarMeta.hasAvatar,
           avatarUpdatedAt: avatarMeta.avatarUpdatedAt,
           createdAt,
+          logLayout: c.logLayout ?? 'legacy',
         };
       }
 
@@ -955,6 +959,7 @@ export class ConnectionManager {
         hasAvatar: avatarMeta.hasAvatar,
         avatarUpdatedAt: avatarMeta.avatarUpdatedAt,
         createdAt,
+        logLayout: c.logLayout ?? 'legacy',
       };
 
       if (!isReconnectableOnebotMode(mode)) return base;

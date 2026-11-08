@@ -49,21 +49,18 @@ const ScrollDownButton = SelectPrimitive.ScrollDownButton as unknown as React.FC
 
 const SelectValue = Value;
 
+export const SELECT_TRIGGER_CLASS = [
+  'flex h-10 w-full items-center justify-between gap-2 whitespace-nowrap rounded-xl border border-white/30 bg-white/20 px-3.5 py-2 text-sm text-slate-800 outline-none transition-[background-color,border-color,box-shadow,opacity] duration-200 backdrop-blur-sm',
+  'hover:bg-white/25',
+  'focus:border-teal-400/50 focus:bg-white/30 focus:ring-2 focus:ring-teal-500/50',
+  'disabled:cursor-not-allowed disabled:opacity-50',
+  'data-[state=open]:border-teal-400/50 data-[state=open]:bg-white/30 data-[state=open]:ring-2 data-[state=open]:ring-teal-500/50',
+  '[&>span]:line-clamp-1',
+].join(' ');
+
 export function SelectTrigger({ className, children, ...props }: KakakeSelectTriggerProps) {
   return (
-    <Trigger
-      className={cn(
-        /* 同 Input：transition-all 会把 outline 一起过渡，失焦瞬间闪黑边，这里显式收窄 */
-        'flex h-10 w-full items-center justify-between gap-2 whitespace-nowrap rounded-xl border border-white/30 bg-white/20 px-3.5 py-2 text-sm text-slate-800 outline-none transition-[background-color,border-color,box-shadow,opacity] duration-200 backdrop-blur-sm',
-        'hover:bg-white/25',
-        'focus:border-teal-400/50 focus:bg-white/30 focus:ring-2 focus:ring-teal-500/50',
-        'disabled:cursor-not-allowed disabled:opacity-50',
-        'data-[state=open]:border-teal-400/50 data-[state=open]:bg-white/30 data-[state=open]:ring-2 data-[state=open]:ring-teal-500/50',
-        '[&>span]:line-clamp-1',
-        className,
-      )}
-      {...props}
-    >
+    <Trigger className={cn(SELECT_TRIGGER_CLASS, className)} {...props}>
       {children}
       <Icon asChild>
         <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />

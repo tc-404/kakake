@@ -53,6 +53,7 @@ import {
   removeConnectionAvatar,
 } from '../connection/connection-avatar.store.js';
 
+import { clearLogAccountCache } from '../core/log-account-resolver.js';
 import { warnProxyDenied, resolveConnectionPluginKindFromConn, resolvePluginManager, syncAllPluginManagers } from './admin-api.shared.js';
 
 /** 拉起一条连接，并同步各插件运行时——与手动点「启用」走同一条路径 */
@@ -274,6 +275,20 @@ export class ConnectionsApiController {
     configService.saveConnections(data);
     if (conn.enable) startConnection(conn);
     return { ok: true, connection: conn };
+  }
+
+  @Put('connections/:id/log-layout')
+  setConnectionLogLayout(@Param('id') id: string, @Body() body: { layout?: string } = {}) {
+    const layout = body.layout === 'account' ? ('account' as const) : ('legacy' as const);
+    const updated = configService.mutateConnections((data) => {
+      const conn = data.connections.find((c) => c.id === id);
+      if (!conn) return null;
+      conn.logLayout = layout;
+      return conn.id;
+    });
+    if (!updated) return { ok: false, message: 'not found' };
+    clearLogAccountCache();
+    return { ok: true, logLayout: layout };
   }
 
   @Put('connections/:id')

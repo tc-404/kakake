@@ -80,8 +80,48 @@ export interface BackgroundMeta {
   updatedAt: number;
 }
 
+export interface BackgroundTune {
+  rotate: number;
+  scale: number;
+  y: number;
+  x: number;
+}
+
+const BG_TUNE_BOUNDS: Record<keyof BackgroundTune, [number, number]> = {
+  rotate: [-180, 180],
+  scale: [-100, 100],
+  y: [-100, 100],
+  x: [-100, 100],
+};
+
+function clampTuneValue(key: keyof BackgroundTune, raw: unknown): number {
+  const [min, max] = BG_TUNE_BOUNDS[key];
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+function normalizeTune(raw: unknown): BackgroundTune {
+  const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    rotate: clampTuneValue('rotate', src.rotate),
+    scale: clampTuneValue('scale', src.scale),
+    y: clampTuneValue('y', src.y),
+    x: clampTuneValue('x', src.x),
+  };
+}
+
+export function normalizeBackgroundTuneState(raw: unknown): Record<BackgroundOrientation, BackgroundTune> {
+  const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    portrait: normalizeTune(src.portrait),
+    landscape: normalizeTune(src.landscape),
+  };
+}
+
 export interface AppearanceState extends AppearanceSettings {
   backgrounds: Record<BackgroundOrientation, BackgroundMeta | null>;
+  bgTune: Record<BackgroundOrientation, BackgroundTune>;
   /** 自定义标题名（手机置顶栏 / 电脑侧边栏顶部的品牌字），空串表示用默认「咔咔珂」 */
   customTitle: string;
   /**
@@ -329,6 +369,7 @@ interface AppearanceMetaPatch {
   cursorColor?: string;
   /** 准星光标悬停到目标上时的颜色（空串 = 跟随品牌 Logo 渐变端色） */
   cursorTargetColor?: string;
+  bgTune?: Record<BackgroundOrientation, BackgroundTune>;
 }
 
 /**
@@ -343,6 +384,7 @@ export type AppearanceSaveInput = Partial<AppearanceSettings> & GradientFields &
   bgPreset?: unknown;
   cursorColor?: unknown;
   cursorTargetColor?: unknown;
+  bgTune?: unknown;
 };
 
 /** 从原始对象里收口三个渐变字段 */
@@ -597,6 +639,10 @@ export class AppearanceService {
     return normalizeBackgroundPreset(this.readRawFile().bgPreset);
   }
 
+  getBackgroundTune(): Record<BackgroundOrientation, BackgroundTune> {
+    return normalizeBackgroundTuneState(this.readRawFile().bgTune);
+  }
+
   /** 三个角色的渐变色（非数值字段，与 customTitle 一样读写原始 JSON） */
   getGradients(): { inkGradient: string; compGradient: string; logoGradient: string } {
     const raw = this.readRawFile();
@@ -666,6 +712,7 @@ export class AppearanceService {
       payload.compGradient = patch.gradients.compGradient;
       payload.logoGradient = patch.gradients.logoGradient;
     }
+    if (patch.bgTune !== undefined) payload.bgTune = patch.bgTune;
     writeJsonAtomic(PATHS.appearance, payload, { trailingNewline: true });
   }
 
@@ -679,7 +726,7 @@ export class AppearanceService {
   ): AppearanceSettings {
     const {
       inkGradient, compGradient, logoGradient,
-      customTitle, bgFit, bgPreset, watermarkText, cursorColor, cursorTargetColor,
+      customTitle, bgFit, bgPreset, watermarkText, cursorColor, cursorTargetColor, bgTune,
       ...numeric
     } = raw ?? {};
     const next = normalizeAppearance({ ...this.getSettings(), ...(numeric as Partial<AppearanceSettings>) });
@@ -699,6 +746,7 @@ export class AppearanceService {
       watermarkText: watermarkText === undefined ? undefined : normalizeWatermark(watermarkText),
       cursorColor: cursorColor === undefined ? undefined : normalizeCursorColor(cursorColor),
       cursorTargetColor: cursorTargetColor === undefined ? undefined : normalizeCursorColor(cursorTargetColor),
+      bgTune: bgTune === undefined ? undefined : normalizeBackgroundTuneState(bgTune),
     });
     return next;
   }
@@ -782,6 +830,7 @@ export class AppearanceService {
         landscape: this.findBackgroundFile('landscape')?.meta ?? null,
       },
       customTitle: this.getCustomTitle(),
+      bgTune: this.getBackgroundTune(),
       watermarkText: this.getWatermark(),
       cursorColor: this.getCursorColor(),
       cursorTargetColor: this.getCursorTargetColor(),

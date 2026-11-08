@@ -1,6 +1,7 @@
 import type { LogLevel } from './logger.js';
 import { writeLogToFile } from './log-file-writer.js';
 import { formatLocalDateTime } from './log-time.js';
+import { resolveLogAccount } from './log-layout.js';
 
 export type LogCategory =
   | 'system'
@@ -22,6 +23,7 @@ export interface LogEntry {
   detail?: string;
   /** 上报事件原始 JSON（写文件用） */
   raw?: string;
+  accountKey?: string | null;
 }
 
 export interface LogQuery {
@@ -76,14 +78,20 @@ export function getLogCounters(): { received: number; sent: number } {
 }
 
 export function appendLog(entry: Omit<LogEntry, 'time'> & { time?: string }): void {
+  const category = entry.category ?? 'system';
+  let accountKey = entry.accountKey;
+  if (accountKey === undefined && category !== 'system' && category !== 'sim_event' && category !== 'sim_action') {
+    accountKey = resolveLogAccount(entry.prefix);
+  }
   const full: LogEntry = {
     time: entry.time ?? formatLocalDateTime(),
     level: entry.level,
-    category: entry.category ?? 'system',
+    category,
     prefix: entry.prefix,
     message: entry.message,
     detail: entry.detail,
     raw: entry.raw,
+    accountKey,
   };
   if (full.category === 'event' || full.category === 'gf_event') counters.received += 1;
   else if (full.category === 'action' || full.category === 'gf_action') counters.sent += 1;
