@@ -13,9 +13,11 @@ import { kakakeApp } from '../kakake-app.js';
 import type { PluginEntry } from './plugin.types.js';
 import { PATHS } from '../paths.js';
 import {
-  extractAccountKeyFromRequest,
+  extractAccountKeyFromRequestDetailed,
   pluginPageUrl,
+  selectPluginAccount,
   setPluginAccountCookie,
+  type PluginAccountResolution,
 } from './plugin-account-http.js';
 import { pluginHostConsolePath } from './plugin-host-paths.js';
 import { resolvePluginManager } from '../admin/admin-api.shared.js';
@@ -202,35 +204,20 @@ function resolveAccountForPlugin(
   req: Request,
   pluginId: string,
   explicitAccount?: string,
-): { accountKey: string } | { error: string; accounts: string[] } {
+): PluginAccountResolution {
   // 路由正则捕获的 pluginId 在 URL 里是编码形态（如中文插件名 GF-AI%E8%81%8A%E5%A4%A9），
   // 必须先解码才能匹配已加载的插件/账号；对已解码或纯 ASCII 的 id 是安全的空操作。
   try { pluginId = decodeURIComponent(pluginId); } catch { /* 含非法 %，保持原值 */ }
   const accounts = listLoadedAccounts(pluginId);
-  if (accounts.length === 0) {
-    return { error: '插件未加载，无法访问后台（请开启总开关，并在至少一个连接打开子开关）', accounts: [] };
-  }
 
-  const hinted = explicitAccount
-    || extractAccountKeyFromRequest(req, pluginId)
-    || extractAccountKeyFromRequest(req, findPluginEntryLoose(pluginId)?.id || pluginId);
-
-  if (hinted && accounts.includes(hinted)) {
-    return { accountKey: hinted };
+  // 按插件 ID 与规范 ID 各解析一次：别名 / URL 编码差异下，其中一个可能只能命中
+  // Cookie，另一个却能命中 Referer 上的显式账号，显式来源一律优先（见 selectPluginAccount）。
+  const canonicalId = findPluginEntryLoose(pluginId)?.id || pluginId;
+  const sources = [extractAccountKeyFromRequestDetailed(req, pluginId)];
+  if (canonicalId !== pluginId) {
+    sources.push(extractAccountKeyFromRequestDetailed(req, canonicalId));
   }
-  if (hinted && !accounts.includes(hinted)) {
-    return {
-      error: `账号 ${hinted} 未加载此插件。已加载：${accounts.join(', ')}`,
-      accounts,
-    };
-  }
-  if (accounts.length === 1) {
-    return { accountKey: accounts[0]! };
-  }
-  return {
-    error: '多账号已加载同一插件，请从连接面板打开对应账号后台，或使用 /plugin/<插件>/a/<账号>/page/...',
-    accounts,
-  };
+  return selectPluginAccount({ accounts, explicitAccount, sources });
 }
 
 function getRegistry(
@@ -784,7 +771,10 @@ function withAccountApi(
     return;
   }
 
-  setPluginAccountCookie(res, gate.entry.id, gate.accountKey);
+  // 不在每次 API 请求里重写 kk_pa_<插件ID>：这是浏览器级单例 Cookie，
+  // A / B 两个后台同时打开时，任何一边的 API（含轮询）都会把另一边的账号踢掉。
+  // 账号只由 URL /a/<账号>/、Referer 或 query 显式提供；页面/资源级请求仍写 Cookie
+  // 供旧插件兜底，但 selectPluginAccount 不会在多账号时仅凭 Cookie 做决定。
   const registry = getRegistry(host, gate.entry.id, gate.accountKey)
     ?? getRegistry(host, pluginId, gate.accountKey);
 

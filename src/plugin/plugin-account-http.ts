@@ -39,7 +39,11 @@ export function setPluginAccountCookie(res: Response, pluginId: string, accountK
 
 /** 从 pathname 提取 /plugin|/plugins/:id/a/:account 或 /api/Plugin/ext/:id/a/:account */
 function accountKeyFromPathname(pathname: string, pluginId: string): string | null {
-  const id = escapeRegExp(pluginId);
+  // URL 里的插件 ID 常是 encodeURIComponent 形态（中文插件名），而调用方传进来的
+  // 多是 decodeURIComponent 之后的真实 ID；两种形态都要认，否则多账号插件的
+  // Referer 解析会落回 Cookie，甚至被当成「未携带账号」拒绝。
+  const ids = [...new Set([pluginId, encodeURIComponent(pluginId)])].map(escapeRegExp);
+  const id = `(?:${ids.join('|')})`;
   const patterns = [
     // 宿主 SPA：/plugins/:id/a/:account/pages/...
     new RegExp(`^/plugins/${id}/a/([^/]+)(?:/|$)`, 'i'),
@@ -139,4 +143,68 @@ export function pluginPageUrl(pluginId: string, accountKey: string, pagePath: st
     .map((seg) => encodeURIComponent(seg))
     .join('/');
   return `/plugin/${encodeURIComponent(pluginId)}/a/${encodeURIComponent(accountKey)}/page/${page}`;
+}
+
+export type PluginAccountResolution =
+  | { accountKey: string }
+  | { error: string; accounts: string[] };
+
+/**
+ * 决定一次插件 HTTP 请求该落到哪个账号实例。
+ *
+ * `kk_pa_<插件ID>` 是浏览器级单例 Cookie（名字里没有账号、也没有标签页维度），
+ * 同时打开 A / B 两个连接的后台时，最后一次写入的账号会决定所有「不带账号」
+ * 请求的归属；旧实现对此静默放行，于是 A 页面的保存会写进 B 的插件实例。
+ * 因此多账号插件只接受显式账号（URL /a/、Referer、query、调用方指定），
+ * 仅靠 Cookie 猜测时直接报错；单账号插件不受影响，且忽略残留的旧 Cookie。
+ */
+export function selectPluginAccount(opts: {
+  accounts: string[];
+  explicitAccount?: string;
+  /** 同一个请求按插件 ID / 规范 ID 解析出的账号来源，显式来源优先 */
+  sources: AccountKeyExtract[];
+}): PluginAccountResolution {
+  const { accounts, explicitAccount, sources } = opts;
+  if (accounts.length === 0) {
+    return {
+      error: '插件未加载，无法访问后台（请开启总开关，并在至少一个连接打开子开关）',
+      accounts,
+    };
+  }
+
+  if (explicitAccount) {
+    if (accounts.includes(explicitAccount)) return { accountKey: explicitAccount };
+    return {
+      error: `账号 ${explicitAccount} 未加载此插件。已加载：${accounts.join(', ')}`,
+      accounts,
+    };
+  }
+
+  // 只有一个账号时无需猜测：忽略可能残留的旧 kk_pa_*（换连接后不该把请求打挂）
+  if (accounts.length === 1) return { accountKey: accounts[0]! };
+
+  const explicitHit = sources.find(
+    (s) => s.accountKey && s.source !== 'cookie' && s.source !== 'none',
+  );
+  const cookieHit = sources.find((s) => s.accountKey && s.source === 'cookie');
+
+  if (explicitHit?.accountKey) {
+    if (accounts.includes(explicitHit.accountKey)) return { accountKey: explicitHit.accountKey };
+    return {
+      error: `账号 ${explicitHit.accountKey} 未加载此插件。已加载：${accounts.join(', ')}`,
+      accounts,
+    };
+  }
+
+  if (cookieHit?.accountKey) {
+    return {
+      error: `多账号插件的该请求未携带账号，请从连接面板打开带 /a/<账号>/ 的后台地址（当前 Cookie 指向 ${cookieHit.accountKey}）`,
+      accounts,
+    };
+  }
+
+  return {
+    error: '多账号已加载同一插件，请从连接面板打开对应账号后台，或使用 /plugin/<插件>/a/<账号>/page/...',
+    accounts,
+  };
 }

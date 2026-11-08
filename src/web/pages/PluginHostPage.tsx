@@ -127,9 +127,22 @@ export default function PluginHostPage() {
       }
     : null;
 
-  const iframeSrc = accountKey
-    ? (page?.legacyUrl || pluginLegacyHtmlUrl(pluginId, pagePath, accountKey))
-    : '';
+  /**
+   * legacy HTML 后台的 iframe 地址必须带 /a/<账号>/：页面 URL 带账号后，
+   * 页面内绝对路径 API 的 Referer 也能解析出账号，不再落到全标签共享的
+   * kk_pa_<插件ID> Cookie 上（多连接后台互相抢占的根因）。
+   * 这里保留 legacyUrl 的多级页面路径与查询串，只把账号段规范化为当前连接。
+   */
+  const iframeSrc = useMemo(() => {
+    if (!accountKey) return '';
+    const raw = String(page?.legacyUrl || '');
+    const marker = '/page/';
+    const idx = raw.indexOf(marker);
+    const tail = idx >= 0 ? raw.slice(idx + marker.length) : pagePath;
+    const [rawPage, query] = tail.split('?');
+    const url = pluginLegacyHtmlUrl(pluginId, rawPage || pagePath, accountKey);
+    return query ? `${url}?${query}` : url;
+  }, [accountKey, page?.legacyUrl, pagePath, pluginId]);
 
   if (loading) {
     return (
