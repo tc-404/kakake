@@ -104,6 +104,14 @@ registerMessages({
   'settings.install': { zh: '一键安装', en: 'One-click Install' },
   'settings.copyCommand': { zh: '复制命令', en: 'Copy Command' },
   'settings.redetect': { zh: '重新检测', en: 'Re-detect' },
+  'settings.detecting': { zh: '检测中', en: 'Checking' },
+  'settings.redetectOk': { zh: '检测完成：图片引擎可用', en: 'Re-detected: image engine ready' },
+  'settings.redetectIncomplete': { zh: '检测完成：依赖仍不完整', en: 'Re-detected: dependencies still incomplete' },
+  'settings.redetectFailed': { zh: '检测失败，请检查网络或登录状态', en: 'Re-detect failed; check network or sign-in' },
+  'settings.sharpDownloaded': { zh: '已下载 {size} MB', en: 'Downloaded {size} MB' },
+  'settings.sharpRegistry': { zh: '依赖源 {registry}', en: 'Registry {registry}' },
+  'settings.sharpLogToggle': { zh: '安装日志（{n} 行）', en: 'Install log ({n} lines)' },
+  'settings.sharpMissingPackage': { zh: '缺少本平台预编译包 @img/{pkg}', en: 'Missing platform package @img/{pkg}' },
 
   // ───────── 新手引导 ─────────
   'settings.tour': { zh: '新手引导', en: 'Getting Started Guide' },

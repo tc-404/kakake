@@ -37,12 +37,14 @@ export type SharpInstallJob = {
   error: string;
   exitCode: number | null;
   command: string;
+  registry: string;
   /** 安装目标目录（共享依赖目录） */
   installDir: string;
   startedAt: string;
   finishedAt: string;
   /** 尾部日志（最多 MAX_LOG_LINES 行） */
   lines: string[];
+  downloadedBytes: number;
 };
 
 type NpmRunner = {
@@ -54,6 +56,8 @@ type NpmRunner = {
 let job: SharpInstallJob | null = null;
 let running: ChildProcess | null = null;
 let timeoutTimer: NodeJS.Timeout | null = null;
+let progressTimer: NodeJS.Timeout | null = null;
+let currentCacheDir = '';
 /** 当前正在安装的目标目录（用于 finishJob 释放跨进程锁） */
 let currentInstallDir = '';
 
@@ -93,25 +97,47 @@ function npmRunnerCandidates(): NpmRunner[] {
   return runners;
 }
 
+function looksLikeNodeDist(registry: string): boolean {
+  return /nodejs-release/i.test(registry)
+    || /nodejs\.org/i.test(registry)
+    || (/\/dist\//i.test(registry) && /node/i.test(registry));
+}
+
+export type NpmRegistrySource = 'env' | 'mirror' | 'default';
+
+export type NpmRegistryChoice = { registry: string; source: NpmRegistrySource };
+
+const NPM_REGISTRY_CN = 'https://registry.npmmirror.com';
+const NPM_REGISTRY_GLOBAL = 'https://registry.npmjs.org';
+const GLOBAL_MIRROR_IDS = new Set(['github', 'gh_atom']);
+const CN_MIRROR_IDS = new Set(['gh_proxy_com', 'gh_catmak']);
+
 /**
- * npm 环境变量：与 scripts/bootstrap.mjs 同款地修掉「Node 二进制镜像被当成 npm registry」，
- * 并按 MKbot 的经验放大 fetch 超时（sharp 的 @img 预编译包体积大，弱网下容易超时误判）。
+ * 依赖下载源：优先环境变量覆盖，其次跟随「检查更新 / 资源商店」当前选中的镜像。
+ * 更新中心里的镜像是 GitHub 加速代理，npm 包不能直接走它，按路线映射到对应的 npm registry：
+ * 直连官方（国际 / 港澳台）→ registry.npmjs.org；大陆加速 → registry.npmmirror.com。
  */
-function npmEnv(): NodeJS.ProcessEnv {
+export function resolveNpmRegistry(mirrorId?: string | null): NpmRegistryChoice {
+  const override = String(process.env.KAKAKE_NPM_REGISTRY || '').trim();
+  if (override) return { registry: override, source: 'env' };
+  const current = String(process.env.npm_config_registry || '').trim();
+  if (current && !looksLikeNodeDist(current)) return { registry: current, source: 'env' };
+  const id = String(mirrorId || '').trim();
+  if (id && GLOBAL_MIRROR_IDS.has(id)) return { registry: NPM_REGISTRY_GLOBAL, source: 'mirror' };
+  if (id && CN_MIRROR_IDS.has(id)) return { registry: NPM_REGISTRY_CN, source: 'mirror' };
+  return { registry: NPM_REGISTRY_CN, source: 'default' };
+}
+
+function npmEnv(registry: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     npm_config_audit: 'false',
     npm_config_fund: 'false',
     npm_config_fetch_timeout: '600000',
+    npm_config_registry: registry,
   };
-  const cur = String(env.npm_config_registry || '').trim();
-  const looksWrong = !cur
-    || /nodejs-release/i.test(cur)
-    || /nodejs\.org/i.test(cur)
-    || (/\/dist\//i.test(cur) && /node/i.test(cur));
-  if (looksWrong) {
-    env.npm_config_registry = process.env.KAKAKE_NPM_REGISTRY || 'https://registry.npmmirror.com';
-  }
+  delete env.npm_config_omit;
+  delete env.npm_config_optional;
   return env;
 }
 
@@ -120,7 +146,11 @@ function runOnce(file: string, args: string[], timeoutMs: number): Promise<{ ok:
   return new Promise((resolve) => {
     let child: ChildProcess;
     try {
-      child = spawn(file, args, { cwd: PATHS.root, env: npmEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
+      child = spawn(file, args, {
+        cwd: PATHS.root,
+        env: npmEnv(resolveNpmRegistry().registry),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
     } catch (e) {
       resolve({ ok: false, out: e instanceof Error ? e.message : String(e) });
       return;
@@ -246,6 +276,97 @@ function cleanBrokenArtifacts(installDir: string): number {
   return removed;
 }
 
+/* ─────────── 安装量统计 / 平台包判定 ─────────── */
+
+function dirBytes(dir: string, state = { entries: 0 }): number {
+  if (state.entries > 20000) return 0;
+  let total = 0;
+  let items: fs.Dirent[];
+  try {
+    items = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const ent of items) {
+    if (state.entries > 20000) break;
+    state.entries += 1;
+    const abs = path.join(dir, ent.name);
+    if (ent.isDirectory()) {
+      total += dirBytes(abs, state);
+      continue;
+    }
+    if (!ent.isFile()) continue;
+    try {
+      total += fs.statSync(abs).size;
+    } catch {
+      continue;
+    }
+  }
+  return total;
+}
+
+function engineBytes(installDir: string): number {
+  const nm = path.join(installDir, 'node_modules');
+  return dirBytes(path.join(nm, 'sharp')) + dirBytes(path.join(nm, '@img'));
+}
+
+function downloadedBytesOf(installDir: string, cacheDir: string): number {
+  return Math.max(dirBytes(cacheDir), engineBytes(installDir));
+}
+
+function prepareNpmCacheDir(): string {
+  const dir = path.join(PATHS.data, 'tmp', 'npm-cache');
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function cleanupNpmCacheDir(): void {
+  if (!currentCacheDir) return;
+  const dir = currentCacheDir;
+  currentCacheDir = '';
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch {
+    rootLogger.warn(`[sharp] 清理临时 npm 缓存失败：${dir}`);
+  }
+}
+
+export function linuxLibc(): 'glibc' | 'musl' | '' {
+  if (process.platform !== 'linux') return '';
+  try {
+    const report = process.report?.getReport() as { header?: { glibcVersionRuntime?: string } } | undefined;
+    return report?.header?.glibcVersionRuntime ? 'glibc' : 'musl';
+  } catch {
+    return '';
+  }
+}
+
+export function expectedSharpPlatformPackage(): string {
+  const arch = process.arch;
+  if (process.platform === 'win32') return `sharp-win32-${arch}`;
+  if (process.platform === 'darwin') return `sharp-darwin-${arch}`;
+  if (process.platform === 'linux') {
+    return linuxLibc() === 'musl' ? `sharp-linuxmusl-${arch}` : `sharp-linux-${arch}`;
+  }
+  return `sharp-${process.platform}-${arch}`;
+}
+
+function installedPlatformPackages(installDir: string): string[] {
+  try {
+    return fs
+      .readdirSync(path.join(installDir, 'node_modules', '@img'), { withFileTypes: true })
+      .filter((ent) => ent.isDirectory() && ent.name.startsWith('sharp-'))
+      .map((ent) => ent.name);
+  } catch {
+    return [];
+  }
+}
+
 /* ─────────── 状态视图 ─────────── */
 
 export type SharpEnvView = {
@@ -270,19 +391,31 @@ export type SharpEnvView = {
   npm: NpmInfo;
   missingDeps: string[];
   canInstall: boolean;
+  /** 当前平台需要的 @img 预编译包名（如 sharp-linux-x64 / sharp-linuxmusl-x64） */
+  platformPackage: string;
+  /** 该预编译包是否已落地；缺它就是「依赖不完整」最常见的原因 */
+  platformPackageInstalled: boolean;
+  /** 共享目录里实际装到的 @img 包 */
+  platformPackages: string[];
   /** 无法一键安装时的原因说明 */
   note: string;
   /** 手动安装命令（界面上可复制） */
   command: string;
+  /** 安装会使用的 npm 依赖源（跟随更新镜像，或被环境变量覆盖） */
+  npmRegistry: string;
+  npmRegistrySource: NpmRegistrySource;
   job: SharpInstallJob | null;
   updatedAt: string;
 };
 
-export async function getSharpEnvView(): Promise<SharpEnvView> {
+export async function getSharpEnvView(mirrorId?: string | null): Promise<SharpEnvView> {
   const edition = detectEdition();
   const installDir = sharedSharpDepsDir();
   const [probe, npm] = await Promise.all([probeSharp(), probeNpm()]);
   const missing = missingDeps();
+  const platformPackage = expectedSharpPlatformPackage();
+  const platformPackages = installedPlatformPackages(installDir);
+  const registry = resolveNpmRegistry(mirrorId);
 
   const canInstall = npm.available && job?.phase !== 'running';
   let note = '';
@@ -310,8 +443,13 @@ export async function getSharpEnvView(): Promise<SharpEnvView> {
     npm,
     missingDeps: missing,
     canInstall,
+    platformPackage,
+    platformPackageInstalled: platformPackages.includes(platformPackage),
+    platformPackages,
     note,
-    command: `npm install --prefix "${installDir}"`,
+    command: `npm install --prefix "${installDir}" --omit=dev --include=optional --no-audit --no-fund`,
+    npmRegistry: registry.registry,
+    npmRegistrySource: registry.source,
     job,
     updatedAt: new Date().toISOString(),
   };
@@ -337,6 +475,10 @@ function finishJob(phase: 'done' | 'error', message: string, error = '', exitCod
     clearTimeout(timeoutTimer);
     timeoutTimer = null;
   }
+  if (progressTimer) {
+    clearInterval(progressTimer);
+    progressTimer = null;
+  }
   running = null;
   if (job) {
     job.phase = phase;
@@ -344,14 +486,16 @@ function finishJob(phase: 'done' | 'error', message: string, error = '', exitCod
     job.error = error;
     job.exitCode = exitCode;
     job.finishedAt = new Date().toISOString();
+    job.downloadedBytes = downloadedBytesOf(job.installDir, currentCacheDir);
   }
+  cleanupNpmCacheDir();
   // 装完（或装失败）都让 sharp 缓存失效：界面下一次刷新就是真实结果
   resetSharpCache();
   npmCache = null;
 }
 
 /** 开始安装（单飞）。返回 false 时 message 说明原因（界面直接提示）。 */
-export async function startSharpInstall(): Promise<{ ok: boolean; message?: string }> {
+export async function startSharpInstall(mirrorId?: string | null): Promise<{ ok: boolean; message?: string }> {
   if (job?.phase === 'running' || running) return { ok: false, message: '已有安装任务进行中' };
 
   const npm = await probeNpm();
@@ -359,6 +503,7 @@ export async function startSharpInstall(): Promise<{ ok: boolean; message?: stri
     return { ok: false, message: '未找到可用的 npm，无法在控制台安装；请在项目目录手动执行 npm install。' };
   }
 
+  const registry = resolveNpmRegistry(mirrorId);
   const installDir = sharedSharpDepsDir();
   try {
     ensureSharedPackageJson(installDir);
@@ -377,7 +522,22 @@ export async function startSharpInstall(): Promise<{ ok: boolean; message?: stri
   }
   currentInstallDir = installDir;
 
-  const sub = ['install', '--omit=dev', '--no-audit', '--no-fund'];
+  let cacheDir = '';
+  try {
+    cacheDir = prepareNpmCacheDir();
+  } catch (e) {
+    releaseSharpInstallLock(currentInstallDir);
+    return {
+      ok: false,
+      message: `无法准备临时缓存目录 ${path.join(PATHS.data, 'tmp', 'npm-cache')}：${e instanceof Error ? e.message : String(e)}`,
+    };
+  }
+  currentCacheDir = cacheDir;
+
+  const sub = [
+    'install', '--omit=dev', '--include=optional',
+    '--no-audit', '--no-fund', '--prefer-online', '--cache', cacheDir,
+  ];
   const runners = npmRunnerCandidates();
   const runner = runners.find((r) => r.label === npm.label)
     // 探测与执行的候选表是同一份；理论上必然命中，兜底取最后一个（PATH 上的 npm）
@@ -391,12 +551,17 @@ export async function startSharpInstall(): Promise<{ ok: boolean; message?: stri
     error: '',
     exitCode: null,
     command,
+    registry: registry.registry,
     installDir,
     startedAt: new Date().toISOString(),
     finishedAt: '',
     lines: [],
+    downloadedBytes: 0,
   };
   pushLine(`# 安装目录：${installDir}`);
+  pushLine(`# 依赖源：${registry.registry}（${registry.source === 'mirror' ? `跟随更新镜像 ${mirrorId}` : registry.source === 'env' ? '环境变量指定' : '默认国内镜像'}）`);
+  pushLine('# 本次安装使用独立临时缓存，重新从 registry 下载依赖，不读取本机 npm 缓存');
+  pushLine(`# 临时缓存：${cacheDir}（安装结束后自动删除）`);
   const cleaned = cleanBrokenArtifacts(installDir);
   if (cleaned > 0) pushLine(`# 已清理半残产物 ${cleaned} 处（node_modules/sharp、node_modules/@img）`);
   pushLine(`$ ${command}`);
@@ -404,7 +569,7 @@ export async function startSharpInstall(): Promise<{ ok: boolean; message?: stri
   try {
     running = spawn(file, args, {
       cwd: installDir,
-      env: npmEnv(),
+      env: npmEnv(registry.registry),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch (e) {
@@ -415,22 +580,47 @@ export async function startSharpInstall(): Promise<{ ok: boolean; message?: stri
   const child = running;
   child.stdout?.on('data', (b: Buffer) => pushLine(b.toString('utf8')));
   child.stderr?.on('data', (b: Buffer) => pushLine(b.toString('utf8')));
+  progressTimer = setInterval(() => {
+    if (!job || job.phase !== 'running') return;
+    job.downloadedBytes = downloadedBytesOf(job.installDir, currentCacheDir);
+  }, 400);
   child.on('error', (e) => {
     finishJob('error', 'npm 启动失败', e.message, null);
   });
   child.on('close', (code) => {
     if (job?.phase !== 'running') {
-      // 已被超时分支收尾（或用户取消），这里只清理进程引用
       running = null;
       return;
     }
-    if (code === 0) {
-      finishJob('done', '安装完成，图片混淆服务端引擎已可用（无需重启）', '', 0);
-      rootLogger.info(`[sharp] 安装完成（npm install → ${installDir}）`);
-    } else {
+    if (code !== 0) {
       finishJob('error', `安装失败（npm 退出码 ${code}）`, '请查看下方日志，或手动执行 npm install', code);
       rootLogger.warn(`[sharp] 安装失败，npm 退出码 ${code}`);
+      return;
     }
+    resetSharpCache();
+    void probeSharp()
+      .then((res) => {
+        if (res.ok) {
+          finishJob('done', `安装完成，图片引擎已可用（sharp ${res.version}）`, '', 0);
+          rootLogger.info(`[sharp] 安装完成（npm install → ${installDir}）`);
+          return;
+        }
+        const packages = installedPlatformPackages(installDir);
+        const expected = expectedSharpPlatformPackage();
+        const detail = packages.includes(expected)
+          ? res.error
+          : `缺少本平台预编译包 @img/${expected}（已装：${packages.join('、') || '无'}）。${res.error}`;
+        finishJob('error', 'npm 安装完成，但图片引擎仍无法加载', detail, 0);
+        rootLogger.warn(`[sharp] 安装完成但加载失败：${detail}`);
+      })
+      .catch((e: unknown) => {
+        finishJob(
+          'error',
+          'npm 安装完成，但校验图片引擎失败',
+          e instanceof Error ? e.message : String(e),
+          0,
+        );
+      });
   });
 
   timeoutTimer = setTimeout(() => {

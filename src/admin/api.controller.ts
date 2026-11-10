@@ -19,7 +19,7 @@ import { isInitialAuthKey } from './auth-key.js';
 import { getAgreementState, markAgreementAccepted, getFrameworkVersion } from './agreement.service.js';
 import { getAnnouncementUpdateState, acknowledgeAnnouncementUpdate } from './announcement-update.service.js';
 import { ANNOUNCEMENT_FETCH_WINDOW_MS, raceAnnouncementSources, type AnnouncementHit } from './announcement-source.js';
-import { triggerAutoCheck, pingSession, getSessionUpdateView } from './update-check.service.js';
+import { triggerAutoCheck, pingSession, getSessionUpdateView, getActiveMirrorId } from './update-check.service.js';
 import { startInstall, getInstallView, cancelInstall } from './update-install.service.js';
 import { getSharpEnvView, startSharpInstall } from './sharp-install.service.js';
 import { requestRestart } from './restart.service.js';
@@ -258,7 +258,8 @@ export class ApiController {
       res.status(401).json({ code: -1, message: 'Unauthorized' });
       return;
     }
-    res.json(await getSharpEnvView());
+    const raw = typeof req.query.mirrorId === 'string' ? req.query.mirrorId : '';
+    res.json(await getSharpEnvView(raw.trim() || getActiveMirrorId(updateSessionKey(req))));
   }
 
   /**
@@ -268,17 +269,23 @@ export class ApiController {
    * 而 sharp 已是按需加载（缺它只影响图片混淆，框架照常启动），交给用户决定何时执行。
    */
   @Post('system/sharp/install')
-  async systemSharpInstall(@Req() req: Request, @Res() res: Response) {
+  async systemSharpInstall(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body: { mirrorId?: unknown } = {},
+  ) {
     if (!checkApiAuth(req)) {
       res.status(401).json({ code: -1, message: 'Unauthorized' });
       return;
     }
-    const r = await startSharpInstall();
+    const raw = typeof body?.mirrorId === 'string' ? body.mirrorId : '';
+    const mirrorId = raw.trim() || getActiveMirrorId(updateSessionKey(req));
+    const r = await startSharpInstall(mirrorId);
     if (!r.ok) {
       res.status(400).json({ ok: false, message: r.message || '无法开始安装' });
       return;
     }
-    res.json(await getSharpEnvView());
+    res.json(await getSharpEnvView(mirrorId));
   }
 
   @Get('agreement/state')

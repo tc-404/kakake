@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { ExternalLink, Loader2, Compass, Eye, EyeOff, Wrench, Copy, CheckCircle2, AlertTriangle, RotateCcw } from 'lucide-react';
+import { ExternalLink, Loader2, Compass, Eye, EyeOff, Wrench, Copy, CheckCircle2, AlertTriangle, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, setApiTimeoutMs, type SharpEnvState } from '@/lib/api';
 import { useT } from '@/lib/i18n';
@@ -1567,16 +1567,28 @@ function StoreSection() {
  * 图片引擎环境卡：状态探测 + 手动安装 + 运行中 1s 轮询。
  * 自成组件：轮询 setState 只重渲染这一张卡。
  */
+const UPDATE_MIRROR_KEY = 'kakake_update_mirror';
+
+function currentUpdateMirror(): string {
+  try {
+    return localStorage.getItem(UPDATE_MIRROR_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
 function SharpEnvCard() {
   const t = useT();
   const [sharpEnv, setSharpEnv] = useState<SharpEnvState | null>(null);
   const [sharpLoading, setSharpLoading] = useState(true);
   const [sharpStarting, setSharpStarting] = useState(false);
+  const [redetecting, setRedetecting] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const sharpPhaseRef = useRef<string>('');
 
   const refreshSharpEnv = useCallback(async (): Promise<SharpEnvState | null> => {
     try {
-      const s = await api.systemSharp();
+      const s = await api.systemSharp(currentUpdateMirror());
       const prev = sharpPhaseRef.current;
       const now = s.job?.phase || '';
       // 轮询期间任务收尾 → 给一次提示（失败原因在卡片里也能看到）
@@ -1609,8 +1621,9 @@ function SharpEnvCard() {
 
   const installSharp = () => {
     if (sharpStarting || sharpEnv?.job?.phase === 'running') return;
+    setLogOpen(false);
     setSharpStarting(true);
-    api.systemSharpInstall()
+    api.systemSharpInstall(currentUpdateMirror())
       .then((s) => {
         setSharpEnv(s);
         sharpPhaseRef.current = s.job?.phase || '';
@@ -1621,6 +1634,22 @@ function SharpEnvCard() {
         toast.error(errText(e) || t('settings.cannotStartInstall'));
       })
       .finally(() => setSharpStarting(false));
+  };
+
+  const redetectSharp = async () => {
+    if (redetecting) return;
+    setRedetecting(true);
+    try {
+      const s = await refreshSharpEnv();
+      if (!s) {
+        toast.error(t('settings.redetectFailed'));
+        return;
+      }
+      if (s.loadable) toast.success(t('settings.redetectOk'));
+      else toast.warning(t('settings.redetectIncomplete'));
+    } finally {
+      setRedetecting(false);
+    }
   };
 
   return (
@@ -1687,7 +1716,7 @@ function SharpEnvCard() {
               onClick={() => {
                 // 装到共享目录（data/runtime-deps）：与 MKbot 插件共用同一份 sharp
                 void copyToClipboard(
-                  `cd "${sharpEnv.installDir}"\nnpm install --omit=dev --no-audit --no-fund`,
+                  `cd "${sharpEnv.installDir}"\nnpm install --omit=dev --include=optional --no-audit --no-fund`,
                 );
                 toast.success(t('settings.commandCopied'));
               }}
@@ -1699,16 +1728,48 @@ function SharpEnvCard() {
               type="button"
               variant="outline"
               className="col-span-2 h-9 w-full min-w-0 gap-1 px-1 text-xs sm:col-span-1 sm:px-3 sm:text-sm"
-              disabled={sharpEnv.job?.phase === 'running'}
-              onClick={() => { void refreshSharpEnv(); }}
+              disabled={sharpEnv.job?.phase === 'running' || redetecting}
+              onClick={() => { void redetectSharp(); }}
             >
-              <Compass className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{t('settings.redetect')}</span>
+              {redetecting ? (
+                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+              ) : (
+                <Compass className="h-3.5 w-3.5 shrink-0" />
+              )}
+              <span className="truncate">
+                {redetecting ? t('settings.detecting') : t('settings.redetect')}
+              </span>
             </Button>
           </div>
 
+          <p className="break-all font-mono text-[11px] text-slate-500">
+            {t('settings.sharpRegistry', { registry: sharpEnv.npmRegistry })}
+          </p>
+
+          {!sharpEnv.loadable && (sharpEnv.error || !sharpEnv.platformPackageInstalled) ? (
+            <div className="space-y-1 rounded-lg bg-amber-500/10 px-3 py-2">
+              {!sharpEnv.platformPackageInstalled ? (
+                <p className="break-all text-xs leading-relaxed text-amber-800">
+                  {t('settings.sharpMissingPackage', { pkg: sharpEnv.platformPackage })}
+                </p>
+              ) : null}
+              {sharpEnv.error ? (
+                <p className="break-all font-mono text-[11px] leading-relaxed text-amber-800">
+                  {sharpEnv.error}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {sharpEnv.job ? (
             <div className="space-y-1.5">
+              {sharpEnv.job.phase === 'running' ? (
+                <p className="font-mono text-xs text-slate-600">
+                  {t('settings.sharpDownloaded', {
+                    size: (Math.max(0, sharpEnv.job.downloadedBytes || 0) / 1048576).toFixed(2),
+                  })}
+                </p>
+              ) : null}
               <p
                 className={cn(
                   'text-xs',
@@ -1722,9 +1783,23 @@ function SharpEnvCard() {
                 {sharpEnv.job.message}
                 {sharpEnv.job.error ? `：${sharpEnv.job.error}` : ''}
               </p>
-              <pre className="kk-field max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg p-3 font-mono text-[11px] leading-relaxed text-slate-500">
-                {sharpEnv.job.lines.join('\n')}
-              </pre>
+              <button
+                type="button"
+                onClick={() => setLogOpen((v) => !v)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition-colors hover:text-slate-700"
+              >
+                {logOpen ? (
+                  <ChevronUp className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                )}
+                {t('settings.sharpLogToggle', { n: sharpEnv.job.lines.length })}
+              </button>
+              {logOpen ? (
+                <pre className="kk-field no-scrollbar max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg p-3 font-mono text-[11px] leading-relaxed text-slate-500">
+                  {sharpEnv.job.lines.join('\n')}
+                </pre>
+              ) : null}
             </div>
           ) : null}
         </>

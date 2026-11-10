@@ -261,6 +261,10 @@ export type SharpInstallJob = {
   startedAt: string;
   finishedAt: string;
   lines: string[];
+  /** 已写入磁盘的引擎文件字节数 */
+  downloadedBytes: number;
+  /** 本次安装使用的 npm 依赖源 */
+  registry: string;
 };
 
 /** 图片引擎环境状态（设置页「图片引擎环境」卡片） */
@@ -287,8 +291,17 @@ export type SharpEnvState = {
   /** 当前缺失的依赖（必需 + 可选） */
   missingDeps: string[];
   canInstall: boolean;
+  /** 当前平台需要的 @img 预编译包名 */
+  platformPackage: string;
+  /** 该预编译包是否已落地；缺它就是「依赖不完整」最常见的原因 */
+  platformPackageInstalled: boolean;
+  /** 共享目录里实际装到的 @img 包 */
+  platformPackages: string[];
   note: string;
   command: string;
+  /** 安装会使用的 npm 依赖源（跟随检查更新的镜像选择） */
+  npmRegistry: string;
+  npmRegistrySource: 'env' | 'mirror' | 'default';
   job: SharpInstallJob | null;
   updatedAt: string;
 };
@@ -526,9 +539,16 @@ export const api = {
    * 图片引擎环境（sharp）：设置页「图片引擎环境」卡片用。
    * 状态只读探测；安装是手动触发（POST），安装中按 1s 轮询状态接口看 job.lines。
    */
-  systemSharp: () => request<SharpEnvState>('/api/system/sharp'),
-  systemSharpInstall: () =>
-    request<SharpEnvState>('/api/system/sharp/install', { method: 'POST' }),
+  systemSharp: (mirrorId?: string) =>
+    request<SharpEnvState>(
+      `/api/system/sharp${mirrorId ? `?mirrorId=${encodeURIComponent(mirrorId)}` : ''}`,
+    ),
+  systemSharpInstall: (mirrorId?: string) =>
+    request<SharpEnvState>('/api/system/sharp/install', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mirrorId ? { mirrorId } : {}),
+    }),
 
   settings: {
     get: () =>
