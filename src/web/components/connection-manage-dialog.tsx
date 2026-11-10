@@ -58,6 +58,10 @@ function modeTitleKey(mode?: ConnectionMode): string {
       return 'connections.modeHttpClient';
     case 'https':
       return 'connections.modeTitleHttps';
+    case 'polling':
+      return 'connections.labelTelegramPolling';
+    case 'webhook':
+      return 'connections.labelTelegramWebhook';
     default:
       return 'connections.modeReverseWs';
   }
@@ -132,7 +136,8 @@ export function ConnectionManageDialog({
   const isQq = conn?.type === 'qq_official';
   const isWx = conn?.type === 'weixin_bot';
   const isKook = conn?.type === 'kook';
-  const isOnebot = !isQq && !isWx && !isKook;
+  const isTelegram = conn?.type === 'telegram';
+  const isOnebot = !isQq && !isWx && !isKook && !isTelegram;
   const mode = conn?.mode ?? 'reverse';
   const isRemote = mode === 'forward' || mode === 'http_client';
   const showApiUrl = mode === 'http' || mode === 'http_sse';
@@ -175,6 +180,18 @@ export function ConnectionManageDialog({
     setSaving(true);
     const wasEnabled = !!conn.enable;
     try {
+      // Telegram 走专用编辑对话框；这里只作为兜底，仅允许改名称，绝不落到 OneBot 字段
+      if (isTelegram) {
+        const res = await api.connections.update(conn.id, { name: name.trim() });
+        if (res && res.ok === false) {
+          toast.error(resText(res) || t('connections.saveFailed'));
+          return;
+        }
+        toast.success(t('connections.saved'));
+        await onSaved?.();
+        return;
+      }
+
       if (isKook) {
         const res = await api.connections.update(conn.id, {
           name: name.trim(),
@@ -250,7 +267,7 @@ export function ConnectionManageDialog({
       if (showApiUrl) body.apiUrl = apiUrl.trim();
       if (tokenTouched) body.accessToken = accessToken;
       // 只有 OneBot 连接才有「协议端实现」这个概念；官方/微信/KOOK 不传
-      if (!isQq && !isWx && !isKook) body.onebotImpl = onebotImpl;
+      if (!isQq && !isWx && !isKook && !isTelegram) body.onebotImpl = onebotImpl;
       const res = await api.connections.update(conn.id, body);
       if (res.ok === false) {
         toast.error(resText(res) || t('connections.saveFailed'));
@@ -317,21 +334,28 @@ export function ConnectionManageDialog({
     }
   };
 
-  const showCopyAddress = conn && ((!isQq || isQqHttps) && !isWx && !isKook);
+  const showCopyAddress = conn && ((!isQq || isQqHttps) && !isWx && !isKook && !isTelegram);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isQq
-              ? t('connections.titleQq', { name: conn?.name ?? '' })
-              : isWx
-                ? t('connections.titleWeixin', { name: conn?.name ?? '' })
-                : isKook
-                  ? t('connections.titleKook', { name: conn?.name ?? '' })
-                  : t('connections.titleEdit', { mode: t(modeTitleKey(mode)), name: conn?.name ?? '' })}
+            {isTelegram
+              ? t('connections.titleTelegram', { name: conn?.name ?? '' })
+              : isQq
+                ? t('connections.titleQq', { name: conn?.name ?? '' })
+                : isWx
+                  ? t('connections.titleWeixin', { name: conn?.name ?? '' })
+                  : isKook
+                    ? t('connections.titleKook', { name: conn?.name ?? '' })
+                    : t('connections.titleEdit', { mode: t(modeTitleKey(mode)), name: conn?.name ?? '' })}
           </DialogTitle>
+          {isTelegram && (
+            <DialogDescription>
+              {t('connections.descTelegramManage')}
+            </DialogDescription>
+          )}
           {isWx && (
             <DialogDescription>
               {t('connections.descWeixinManage')}
@@ -388,7 +412,52 @@ export function ConnectionManageDialog({
               </div>
             </div>
           )}
-          {isWx ? (
+          {isTelegram ? (
+            <>
+              <div className="space-y-2">
+                <Label>{t('label.name')}</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              {/* Telegram 只读摘要：用户名 / 接入模式 / API 基址 / webhook 状态 / 测试环境标记 */}
+              <div className="space-y-1.5 rounded-xl border bg-muted/20 p-3 text-xs">
+                <div className="font-medium">{t('connections.tg.infoTitle')}</div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">{t('connections.tg.infoUsername')}</span>
+                  <span className="font-mono">
+                    {conn?.telegramBotUsername ? `@${conn.telegramBotUsername}` : t('connections.tg.dash')}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">{t('connections.tg.infoMode')}</span>
+                  <span>
+                    {conn?.telegramMode === 'webhook'
+                      ? t('connections.tg.badgeWebhook')
+                      : t('connections.tg.badgePolling')}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">{t('connections.tg.infoApiBase')}</span>
+                  <span className="break-all font-mono">{conn?.telegramApiBase || t('connections.tg.dash')}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">{t('connections.tg.infoWebhookUrl')}</span>
+                  <span className="break-all font-mono">
+                    {conn?.telegramWebhookInfo?.url || conn?.telegramWebhookUrl || t('connections.tg.dash')}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">{t('connections.tg.infoTestEnv')}</span>
+                  <span>{conn?.telegramTestEnv ? t('connections.tg.yes') : t('connections.tg.no')}</span>
+                </div>
+                {conn?.telegramWebhookInfo?.last_error_message && (
+                  <p className="text-destructive">
+                    {t('connections.tg.infoWebhookError', { msg: conn.telegramWebhookInfo.last_error_message })}
+                  </p>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">{t('connections.descTelegramManage')}</p>
+            </>
+          ) : isWx ? (
             <>
               <div className="space-y-2">
                 <Label>{t('label.name')}</Label>
@@ -612,7 +681,7 @@ export function ConnectionManageDialog({
                 </p>
               )}
               {/* 接口代理的协议端实现识别：下拉显式指定 + 未指定时自动探测，双保险 */}
-              {!isQq && !isWx && !isKook && (
+              {!isQq && !isWx && !isKook && !isTelegram && (
                 <div className="space-y-2">
                   <Label>{t('connections.onebotImpl')}</Label>
                   <Select

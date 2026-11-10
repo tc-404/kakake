@@ -11,6 +11,8 @@ export type LogCategory =
   | 'gf_event'
   | 'gf_action'
   | 'gf_plugin'
+  | 'tg_event'
+  | 'tg_action'
   | 'sim_event'
   | 'sim_action';
 
@@ -93,8 +95,8 @@ export function appendLog(entry: Omit<LogEntry, 'time'> & { time?: string }): vo
     raw: entry.raw,
     accountKey,
   };
-  if (full.category === 'event' || full.category === 'gf_event') counters.received += 1;
-  else if (full.category === 'action' || full.category === 'gf_action') counters.sent += 1;
+  if (full.category === 'event' || full.category === 'gf_event' || full.category === 'tg_event') counters.received += 1;
+  else if (full.category === 'action' || full.category === 'gf_action' || full.category === 'tg_action') counters.sent += 1;
   // 级别过滤：计数保持，低级别条目不落盘/不进内存/不推送
   if (minLevel && LEVEL_ORDER[full.level] < LEVEL_ORDER[minLevel]) return;
   const forMemory: LogEntry = {
@@ -172,6 +174,32 @@ export function logQqOfficialAction(
   appendLog({ level, category: 'gf_action', prefix, message, detail });
 }
 
+/** Telegram Bot 上报（收到的消息 / 事件） */
+export function logTelegramEvent(
+  prefix: string,
+  message: string,
+  opts?: { detail?: string; raw?: string; level?: LogLevel },
+): void {
+  appendLog({
+    level: opts?.level ?? 'info',
+    category: 'tg_event',
+    prefix,
+    message,
+    detail: opts?.detail,
+    raw: opts?.raw,
+  });
+}
+
+/** Telegram Bot API 输出（发消息等） */
+export function logTelegramAction(
+  prefix: string,
+  message: string,
+  detail?: string,
+  level: LogLevel = 'info',
+): void {
+  appendLog({ level, category: 'tg_action', prefix, message, detail });
+}
+
 export function getLogs(limit = 500, level?: LogLevel, category?: LogCategory): LogEntry[] {
   let result = logs;
   if (level) result = result.filter(l => l.level === level);
@@ -207,17 +235,19 @@ export function formatLogsAsText(limit = 5000, level?: LogLevel, category?: LogC
 
 export const LOG_CATEGORY_LABEL: Record<LogCategory, string> = {
   system: '系统',
-  event: '上报',
-  action: '输出',
-  plugin: '插件',
+  event: '野鸡上报',
+  action: '野鸡输出',
+  plugin: '野鸡插件',
   gf_event: '官方上报',
   gf_action: '官方输出',
   gf_plugin: '官方插件',
+  tg_event: 'TG上报',
+  tg_action: 'TG输出',
   sim_event: '模拟上报',
   sim_action: '模拟输出',
 };
 
-/** 日志页分类下拉顺序（官方三项挨在一起，模拟两项挨在一起） */
+/** 日志页分类下拉顺序（官方三项挨在一起，TG 两项挨在一起，模拟两项挨在一起） */
 export const LOG_CATEGORY_ORDER: LogCategory[] = [
   'system',
   'event',
@@ -226,6 +256,8 @@ export const LOG_CATEGORY_ORDER: LogCategory[] = [
   'gf_event',
   'gf_action',
   'gf_plugin',
+  'tg_event',
+  'tg_action',
   'sim_event',
   'sim_action',
 ];

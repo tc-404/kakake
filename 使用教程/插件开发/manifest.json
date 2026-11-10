@@ -526,6 +526,87 @@
           "language": "markdown"
         }
       ]
+    },
+    {
+      "id": "tg-telegram",
+      "label": "Telegram 机器人（TG-）",
+      "cardTitle": "Telegram 机器人（TG-）",
+      "cardSubtitle": "Telegram Bot · getUpdates / setWebhook",
+      "cardDescription": "写 Telegram Bot 插件选这条，文件夹必须以 TG-plugin- 开头。事件带 telegram: true 标记，发消息用 actions.call('sendMessage', { chat_id, text })，任意 Bot API 方法名都能直接透传。说明.md 里有事件形状、键盘与回调、Inline Mode、限频与排错。",
+      "dir": "TG-Telegram机器人",
+      "guide": "说明.md",
+      "files": [
+        {
+          "heading": "分步 ①：认协议与取出对方文字（event.telegram === true）",
+          "path": "分步例子/01-取出对方文字.mjs",
+          "title": "01-取出对方文字.mjs",
+          "downloadName": "01-取出对方文字.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ②：怎么发回复（actions.call('sendMessage', { chat_id, text })）",
+          "path": "分步例子/02-怎么发回复.mjs",
+          "title": "02-怎么发回复.mjs",
+          "downloadName": "02-怎么发回复.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ③：指令与 /start（剥 /cmd@bot、Deep Linking）",
+          "path": "分步例子/03-指令与start.mjs",
+          "title": "03-指令与start.mjs",
+          "downloadName": "03-指令与start.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ④：发图片与内联键盘（sendPhoto / InlineKeyboardMarkup / file_id 复用）",
+          "path": "分步例子/04-发图片与内联键盘.mjs",
+          "title": "04-发图片与内联键盘.mjs",
+          "downloadName": "04-发图片与内联键盘.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ⑤：处理 callback_query（answerCallbackQuery 必须 ACK）",
+          "path": "分步例子/05-处理callback_query.mjs",
+          "title": "05-处理callback_query.mjs",
+          "downloadName": "05-处理callback_query.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "分步 ⑥：调用原生 API（answerInlineQuery / sendMessageDraft / api 透传）",
+          "path": "分步例子/06-调用原生API.mjs",
+          "title": "06-调用原生API.mjs",
+          "downloadName": "06-调用原生API.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "完整可运行（整个文件夹放进 plugins/，名字必须 TG-plugin- 开头）",
+          "path": "TG-plugin-hello/index.mjs",
+          "title": "TG-plugin-hello/index.mjs",
+          "downloadName": "index.mjs",
+          "language": "javascript"
+        },
+        {
+          "heading": "完整插件 · package.json",
+          "path": "TG-plugin-hello/package.json",
+          "title": "package.json",
+          "downloadName": "package.json",
+          "language": "json"
+        },
+        {
+          "heading": "完整插件 · plugin.json",
+          "path": "TG-plugin-hello/plugin.json",
+          "title": "plugin.json",
+          "downloadName": "plugin.json",
+          "language": "json"
+        },
+        {
+          "heading": "完整插件 · 插件文档.md（列表「查看说明」读它）",
+          "path": "TG-plugin-hello/插件文档.md",
+          "title": "插件文档.md",
+          "downloadName": "插件文档.md",
+          "language": "markdown"
+        }
+      ]
     }
   ]
 }

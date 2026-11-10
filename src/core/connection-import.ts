@@ -36,6 +36,20 @@ export function matchExistingConnection(
     ) ?? null;
   }
 
+  // Telegram 的 bot id 是 getMe 之后才回填的：导出一份刚建好、还没启用过的
+  // 多机器人配置时，它们的指纹都会是 `telegram|`。这里按 token 再比一次，
+  // 否则导入会把「两个不同 token 的机器人」错误合并成一条。
+  if (incoming.type === 'telegram' && !hasResolvedAccount(incoming)) {
+    const token = String(incoming.telegramToken || '').trim();
+    if (token) {
+      return existing.find(
+        (c) => c.type === 'telegram'
+          && !hasResolvedAccount(c)
+          && String(c.telegramToken || '').trim() === token,
+      ) ?? null;
+    }
+  }
+
   return null;
 }
 

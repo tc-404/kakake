@@ -9,6 +9,7 @@ import { resolveGfPluginId } from './gf-plugin-id.js';
 import { resolveWxPluginId } from './wx-plugin-id.js';
 import { resolveSsPluginId } from './ss-plugin-id.js';
 import { resolveSssxPluginId } from './sssx-plugin-id.js';
+import { resolveTgPluginId } from './tg-plugin-id.js';
 import { kakakeApp } from '../kakake-app.js';
 import type { PluginEntry } from './plugin.types.js';
 import { PATHS } from '../paths.js';
@@ -26,7 +27,7 @@ import { injectWatermark } from '../admin/watermark-snippet.js';
 import { isTrustedLocalAddress, remoteAddressOf } from '../core/net-address.js';
 import { inboundGuardEnabled } from '../admin/inbound-guard.js';
 
-/** 插件 HTTP 解析：同时覆盖 OneBot / GF / 微信 / KOOK 四套管理器 */
+/** 插件 HTTP 解析：同时覆盖 OneBot / GF / 微信 / KOOK / Telegram 等管理器 */
 export interface PluginHttpHost {
   getPluginRouter(pluginId: string, accountKey?: string): PluginRouterRegistryImpl | undefined;
   getPluginInfo(pluginId: string): PluginEntry | undefined;
@@ -68,6 +69,7 @@ function findPluginEntryLoose(pluginId: string): PluginEntry | undefined {
     kakakeApp.sssxPluginManager,
     kakakeApp.ssPluginManager,
     kakakeApp.kzPluginManager,
+    kakakeApp.tgPluginManager,
   ].filter(Boolean);
   for (const pm of managers) {
     const hit = pm.getPluginInfo(trimmed);
@@ -78,6 +80,7 @@ function findPluginEntryLoose(pluginId: string): PluginEntry | undefined {
   const wxAlias = resolveWxPluginId(trimmed).toLowerCase();
   const sssxAlias = resolveSssxPluginId(trimmed).toLowerCase();
   const ssAlias = resolveSsPluginId(trimmed).toLowerCase();
+  const tgAlias = resolveTgPluginId(trimmed).toLowerCase();
   for (const pm of managers) {
     for (const p of pm.getAllPlugins()) {
       if (
@@ -86,12 +89,14 @@ function findPluginEntryLoose(pluginId: string): PluginEntry | undefined {
         || p.id.toLowerCase() === wxAlias
         || p.id.toLowerCase() === sssxAlias
         || p.id.toLowerCase() === ssAlias
+        || p.id.toLowerCase() === tgAlias
       ) return p;
       if (String(p.fileId || '').toLowerCase() === lower) return p;
       if (String(p.fileId || '').toLowerCase() === gfAlias) return p;
       if (String(p.fileId || '').toLowerCase() === wxAlias) return p;
       if (String(p.fileId || '').toLowerCase() === sssxAlias) return p;
       if (String(p.fileId || '').toLowerCase() === ssAlias) return p;
+      if (String(p.fileId || '').toLowerCase() === tgAlias) return p;
       const pkg = p.packageJson;
       if (String(pkg?.name || '').toLowerCase() === lower) return p;
       if (String(pkg?.plugin || '').toLowerCase() === lower) return p;
@@ -109,7 +114,8 @@ function listLoadedAccounts(pluginId: string): string[] {
   const d = kakakeApp.ssPluginManager?.getLoadedAccountKeys?.(id) ?? [];
   // 扩展插件没有账号层，管理器给出唯一的占位键（local），保证单账号解析路径不变
   const f = kakakeApp.kzPluginManager?.getLoadedAccountKeys?.(id) ?? [];
-  return [...new Set([...a, ...b, ...c, ...d, ...e, ...f])];
+  const g = kakakeApp.tgPluginManager?.getLoadedAccountKeys?.(id) ?? [];
+  return [...new Set([...a, ...b, ...c, ...d, ...e, ...f, ...g])];
 }
 
 function resolveWebuiHtmlFile(pluginDir: string, preferred?: string): string | undefined {
@@ -138,12 +144,14 @@ export function createDefaultPluginHttpHost(): PluginHttpHost {
         ??         kakakeApp.sssxPluginManager?.getPluginRouter(id, accountKey)
         ?? kakakeApp.ssPluginManager?.getPluginRouter(id, accountKey)
         ?? kakakeApp.kzPluginManager?.getPluginRouter(id, accountKey)
+        ?? kakakeApp.tgPluginManager?.getPluginRouter(id, accountKey)
         ?? kakakeApp.pluginManager?.getPluginRouter(pluginId, accountKey)
         ?? kakakeApp.gfPluginManager?.getPluginRouter(pluginId, accountKey)
         ?? kakakeApp.wxPluginManager?.getPluginRouter(pluginId, accountKey)
         ?? kakakeApp.sssxPluginManager?.getPluginRouter(pluginId, accountKey)
         ?? kakakeApp.ssPluginManager?.getPluginRouter(pluginId, accountKey)
         ?? kakakeApp.kzPluginManager?.getPluginRouter(pluginId, accountKey)
+        ?? kakakeApp.tgPluginManager?.getPluginRouter(pluginId, accountKey)
       );
     },
     getPluginInfo(pluginId: string) {
@@ -162,6 +170,7 @@ export function createDefaultPluginHttpHost(): PluginHttpHost {
         ??         kakakeApp.sssxPluginManager?.getRuntimeEntry?.(id, accountKey)
         ?? kakakeApp.ssPluginManager?.getRuntimeEntry?.(id, accountKey)
         ?? kakakeApp.kzPluginManager?.getRuntimeEntry?.(id, accountKey)
+        ?? kakakeApp.tgPluginManager?.getRuntimeEntry?.(id, accountKey)
       );
     },
     isLoadedForAccount(pluginId: string, accountKey: string) {
@@ -174,6 +183,7 @@ export function createDefaultPluginHttpHost(): PluginHttpHost {
         || kakakeApp.sssxPluginManager?.isLoadedForAccount?.(id, accountKey)
         || kakakeApp.ssPluginManager?.isLoadedForAccount?.(id, accountKey)
         || kakakeApp.kzPluginManager?.isLoadedForAccount?.(id, accountKey)
+        || kakakeApp.tgPluginManager?.isLoadedForAccount?.(id, accountKey)
       );
     },
   };

@@ -381,11 +381,12 @@ async function runDownloadToastInner<T>(opts: {
   // 轮询真实进度：250ms 一拍，单飞防止请求堆积
   let pollTimer: number | undefined;
   let polling = false;
-  if (opts.poll) {
+  const poll = opts.poll;
+  if (poll) {
     pollTimer = window.setInterval(() => {
       if (polling || state.phase !== 'running') return;
       polling = true;
-      void opts.poll()
+      void poll()
         .then((p) => {
           if (!p || state.phase !== 'running') return;
           state.live = true;

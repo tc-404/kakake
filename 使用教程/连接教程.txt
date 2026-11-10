@@ -5,12 +5,15 @@
     · QQ 官方机器人：官方 WS、官方 HTTPS（Webhook）
     · 微信 BOT：iLink 扫码登录 + 长轮询
     · KOOK 机器人：机器人 Token 直连 KOOK 网关（WebSocket）
+    · Telegram Bot：getUpdates 长轮询 / setWebhook HTTPS 回调 / 本地 Bot API Server
 ================================================================================
 
 【先看这几条】
 1. 平时每个机器人账号只启用「一种」对接方式即可；OneBot 正反向 + 多种 HTTP 不要一起开，易重复收消息。
+   Telegram 的 getUpdates 与 setWebhook 同样互斥，同时开报 409。
 2. Access Token / Token 两边必须一致；两边都空 = 不鉴权。
 3. 咔咔后台默认端口 8787（控制台），和 OneBot 监听口（6700/6701 等）不是一回事。
+   Telegram Webhook 回调地址是 https://域名/tgbot/<连接id>，由反代转到 8787。
 4. NapCat「容器安装」时：容器访问宿主机上的咔咔，一般用 Docker 网关
    http://172.17.0.1:端口
    （个别环境可能是 host.docker.internal 或宿主机内网 IP，以实际为准。）
@@ -18,11 +21,12 @@
    http://127.0.0.1:端口
 6. HTTP 上报（NapCat HTTP Client → 咔咔）鉴权：NapCat 用 Token 做 X-Signature，
    不是简单的 Bearer；咔咔已支持。Token 填一样即可。
-7. 四种连接类型对应各自的插件页签：
+7. 五种连接类型对应各自的插件页签：
      OneBot / NapCat  →「插件」
      QQ 官方机器人    →「QQ官方机器人」
      微信 BOT         →「微信机器人」
      KOOK 机器人      →「插件」页里的「KOOK」页签
+     Telegram Bot     →「Telegram」页签（插件目录前缀 TG-plugin-）
    连接启用后，再在对应页签里按「该连接」开关插件。
 
 
@@ -371,7 +375,130 @@ G. KOOK 官方机器人
 5. 端口占用可用 mk「端口验证 → 杀掉进程」排查（OneBot / 控制台端口）。
 6. Linux 上如何安装/使用 mk 脚本（NapCat、咔咔启停等）见同目录《MK工具教程.txt》。
 
+--------------------------------------------------------------------------------
+十、Telegram Bot（BotFather → 三种对接方式）
+--------------------------------------------------------------------------------
+含义：用 BotFather 签发的 token 直连 Telegram Bot API，不需要 NapCat / QQ 客户端，
+      也不需要挂一个聊天软件在后台。框架用 getMe 回填机器人 ID / @用户名 / 显示名，
+      并以「机器人 ID」作为插件与数据的账号隔离键（plugins_two/<机器人ID>/<插件ID>）。
+
+【第一步 · BotFather 建机器人】（Telegram 里操作，只做一次）
+  1. 找 @BotFather，发 /newbot
+  2. 按提示起「显示名」和「用户名」（用户名必须以 bot 结尾、全局唯一）
+  3. 拿到一串 token，形如 123456789:AAH...（唯一凭证，等同密码：别发群里、别提交 GitHub）
+  4. 常用开关（都是给 @BotFather 发 / 命令，再选中你的机器人）：
+       /setprivacy        隐私模式：关掉才能收到群里普通消息（见下方「坑 1」）
+       /setcommands       设置指令菜单（用户输入 / 时弹出的提示）
+       /setdescription /setabouttext /setuserpic   简介 / 关于 / 头像
+       /setinline         开 Inline Mode（任意聊天框输入 @机器人 查询）
+       /setjoingroups     允许 / 禁止被拉进群
+       /token /revoke     重新签发 token（旧的立刻失效）
+     ★ Inline Mode、加入群组、Bot-to-Bot、Managed Bots 这些都是 BotFather 开关，
+       默认不一定开，用到哪个开哪个。
+
+【咔咔】连接 → 添加 → Telegram Bot
+  名称：随意，如「TG 主机器人」
+  类型：Telegram Bot
+  Bot Token：粘贴 BotFather 给的那一串
+  接入方式 mode：长轮询 polling（默认） / Webhook webhook
+  启用：开
+  保存后框架自动调 getMe，回填 telegramBotUserId / telegramBotUsername / telegramBotFirstName。
+
+【方式一 · getUpdates 长轮询（推荐入门，无需公网）】
+  接入方式选 polling 即可，不用域名、不用证书、不用公网 IP。
+  原理：框架反复调 getUpdates，用 offset 游标确认已处理的 update；
+        timeout 秒数挂起长连接、limit 控制单次取回条数（1-100）。
+  可调项：
+      长轮询超时 telegramPollingTimeout   默认 30 秒
+      单次上限   telegramPollingLimit     1-100，默认 100
+      订阅类型   telegramAllowedUpdates   留空用框架默认全集
+                                          （chat_member / message_reaction 等需显式订阅）
+      游标       telegramOffset           框架自动确认并持久化，重启不会重复收
+  断线按退避策略自动重连。Update 在 Telegram 服务器最多保留 24 小时，
+  长时间离线后多余的会丢，别把它当消息队列用。
+
+【方式二 · setWebhook（有公网域名 + HTTPS 时）】
+  1. 准备公网域名与可信证书（自签证书要作为 certificate 上传，CN / SAN 必须与域名匹配）。
+     官方只接受 443 / 80 / 88 / 8443 四个端口，别的端口一律拒绝。
+  2. 咔咔这边：接入方式选 webhook，填
+       Webhook URL：https://bot.example.com/tgbot/<连接id>
+                    回调路径固定 /tgbot/<连接id>（<连接id> 在连接列表里看），
+                    反代必须把这一路径原样转发到咔咔（默认 8787）。
+       Secret Token：1-256 位，只能用 A-Z a-z 0-9 _ -。
+                     框架用它校验每个请求的 X-Telegram-Bot-Api-Secret-Token 头，
+                     不一致直接拒绝。
+       可选：最大连接数 telegramWebhookMaxConnections（1-100）、固定投递 IP、
+             自签证书路径 telegramWebhookCertificatePath、
+             丢弃积压更新 telegramDropPendingUpdates、
+             响应内直接回复 telegramWebhookReplyInResponse
+             （把本次事件产生的首个 API 调用放进 2xx 响应体，省一次请求但拿不到 result）。
+  3. Nginx 反代示例（把 /tgbot/ 转到本机 8787）：
+       server {
+         listen 443 ssl;
+         server_name bot.example.com;
+         ssl_certificate     /etc/letsencrypt/live/bot.example.com/fullchain.pem;
+         ssl_certificate_key /etc/letsencrypt/live/bot.example.com/privkey.pem;
+         location /tgbot/ {
+           proxy_pass http://127.0.0.1:8787;
+           proxy_set_header Host $host;
+           proxy_set_header X-Telegram-Bot-Api-Secret-Token
+                            $http_x_telegram_bot_api_secret_token;
+         }
+       }
+     注意 proxy_pass 结尾不要加 /，否则 /tgbot/<id> 会被改写成 /。
+  4. 自检命令（浏览器或 curl，<token> 换成自己的）：
+       setWebhook     https://api.telegram.org/bot<token>/setWebhook?url=https://bot.example.com/tgbot/<连接id>&secret_token=xxx
+       getWebhookInfo https://api.telegram.org/bot<token>/getWebhookInfo
+                      ← 看 url / pending_update_count / last_error_message
+       deleteWebhook  https://api.telegram.org/bot<token>/deleteWebhook
+                      ← 切回轮询前必须先删
+  5. polling 与 webhook 互斥：同时用会报 409 Conflict
+     （"can't use getUpdates method while webhook is active"）。
+
+【方式三 · 本地 Bot API Server（大文件 / 内网 / 性能）】
+  什么时候需要：要传 >50MB 的文件、要下 >20MB 的文件、不想每次走公网、
+                或希望 getFile 直接拿到本地绝对路径时。
+  官方服务器：上传 50MB / 下载 20MB；
+  本地服务器：上传 2000MB / 下载无大小限制，可用 HTTP + 任意端口，
+              getFile 返回的 file_path 是服务器上的本地绝对路径，不用再下载。
+  切换步骤：
+       a. 先在官方服务器调 logOut（一个 token 同一时刻只能挂一种服务器）；
+       b. 启动 telegram-bot-api 本地服务（--local 模式）；
+       c. 咔咔连接里把 telegramApiBase 填成 http://127.0.0.1:8081 之类地址。
+  取舍：本地服务器降低了延迟、解开了文件限制，但 webhook 的 HTTPS / 公网可达、
+        证书、端口转发都得自己管；小机器人用默认官方服务器最省事。
+  ★ telegramApiBase 与 mode 是正交的：polling / webhook 都能配本地服务器。
+
+【测试环境】
+  勾上「测试环境 / telegramTestEnv」，请求会走 /bot<token>/test/METHOD，
+  在 Telegram 测试环境里跑，不碰真实会话、不发真实消息，适合调试新指令。
+  测试环境的机器人要在 @BotFather 里单独建（选测试环境），别拿生产 token 打测试地址。
+
+【网络 / 代理】
+  服务器直连不通 api.telegram.org 时，在连接里填 telegramProxyUrl，
+  例如 http://127.0.0.1:7897。这是连接级配置，跟「工具 → 视频解析」的
+  X_PROXY_URL 环境变量是两回事。Webhook 方式还要求 Telegram 能反向访问你的公网地址，
+  那是入向，和出向代理无关。
+
+【Telegram 专属的坑】
+  1. 群里收不到普通消息 → 隐私模式默认开启，机器人只收 /命令、@它 的回复和服务消息。
+     给 @BotFather 发 /setprivacy 关闭；★ 关完必须把机器人移出群、再重新拉进群才生效。
+  2. 401 Unauthorized → token 填错 / 已吊销 / 测试环境 token 打到生产地址。
+  3. 429 Too Many Requests → 单聊约 1 条/秒、群组 20 条/分钟、广播约 30 条/秒。
+     响应带 retry_after，按它的秒数退避重试，别无脑猛发；批量广播先排队限速。
+  4. can't parse entities → MarkdownV2 没转义特殊字符，或改用 HTML（框架默认更省心）。
+  5. 机器人之间互回死循环（Bot-to-Bot 默认关）→ 判断消息 from.is_bot，别回机器人。
+  6. 图片 / 文件重复上传 → 复用 file_id，别每次重新传。
+  7. 群里的指令要写 /cmd@你的机器人 才强制指向你的机器人；解析时把 @用户名 后缀剥掉。
+  8. 插件页签：Telegram Bot 对应「Telegram」页签，插件目录前缀必须是 TG-plugin-。
+  9. 回调地址不通 → 确认公网可达、端口是 443/80/88/8443 之一、反代原样转发
+     /tgbot/<连接id>、Secret Token 一致、证书 CN / SAN 与域名匹配。
+
+  完整专项教程（Update 全类型表、键盘 / 回调 / 内联查询、Inline Mode、Deep Linking、
+  Mini Apps、Stars 支付、10.x 流式草稿与 Rich Messages、插件侧事件形状、排错清单）见
+  同目录《Telegram Bot 接入教程.md》。
+
 ================================================================================
   文档位置：使用教程/连接教程.txt
-  配套：使用教程/MK工具教程.txt（mk 脚本）
+  配套：使用教程/MK工具教程.txt（mk 脚本）、使用教程/Telegram Bot 接入教程.md
 ================================================================================

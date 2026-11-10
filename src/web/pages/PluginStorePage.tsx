@@ -105,11 +105,11 @@ function detailMetaLine(
  * `label` 是筛选用的叫法，`badge` 是卡片角标上的叫法——「野鸡 / 野生」是同一档，
  * 只是两个源的原始字段名不同（`resource_type` 用野鸡、`type` 用野生），这里统一归一到同一档。
  */
-type StoreCategoryId = 'wild' | 'official' | 'twin' | 'wechat' | 'extension' | 'other';
+type StoreCategoryId = 'wild' | 'official' | 'twin' | 'wechat' | 'telegram' | 'extension' | 'other';
 
 interface StoreCategory {
   id: StoreCategoryId;
-  /** 顶栏筛选里显示的四个字以内的名字（目前五档都是两个字） */
+  /** 顶栏筛选里显示的名字（Telegram 档为英文名，其余为两个汉字） */
   label: string;
   /** 卡片角标上显示的名字 */
   badge: string;
@@ -203,6 +203,16 @@ const STORE_CATEGORIES: StoreCategory[] = [
     raw: ['微信', 'wxbot'],
   },
   {
+    id: 'telegram',
+    label: 'Telegram',
+    badge: 'TG',
+    // Telegram = TG-plugin-*，用品牌蓝，与官方天蓝、野鸡橙、双生品红都不撞
+    badgeClass: 'border-blue-300/50 bg-blue-500/90 text-white',
+    textClass: 'text-blue-600',
+    chipClass: 'bg-white/45 text-blue-600 ring-1 ring-inset ring-blue-300/60',
+    raw: ['telegram', 'telegram bot', 'telegram插件', 'tg', 'tg-plugin', '电报'],
+  },
+  {
     id: 'extension',
     label: '扩展',
     badge: '扩展',
@@ -227,15 +237,41 @@ const STORE_CATEGORIES: StoreCategory[] = [
 function storeCategoryOf(raw?: string): StoreCategoryId | null {
   const t = (raw || '').trim().toLowerCase();
   if (!t) return null;
+  // 兼容 TG-plugin-xxx / telegram-xxx 这类带后缀的类型值
+  if (t === 'tg' || t.startsWith('tg-plugin') || t.startsWith('tg_plugin') || t.startsWith('telegram')) return 'telegram';
   for (const c of STORE_CATEGORIES) {
     if (c.raw.some((r) => r.toLowerCase() === t)) return c.id;
   }
   return null;
 }
 
-/** 类型 → 角标（兼容咔咔源 官鸡/野鸡/wxbot 与 GitHub 源 野生/官方/微信/其他/双生） */
-function typeBadge(raw?: string): { key: StoreCategoryId; className: string } | null {
-  const id = storeCategoryOf(raw);
+/** 分类判定用的资源字段：类型不准时用标题 / 标签兜底 */
+type CategorySource = {
+  type?: string;
+  resource_type?: string;
+  tags?: string[];
+  title?: string;
+  summary?: string;
+  description?: string;
+  update_notes?: string;
+};
+
+/**
+ * 资源 → 内部分类。
+ * 商店里 TG 插件常被标成「其他」，只能靠 tags / 标题里的 Telegram 字样兜底。
+ */
+function resourceCategoryOf(r: CategorySource): StoreCategoryId | null {
+  const byType = storeCategoryOf(r.type || r.resource_type);
+  if (byType === 'other' || byType === null) {
+    const hay = [r.title, r.summary, r.description, r.update_notes, (r.tags || []).join(' ')].join(' ');
+    if (/telegram|电报|\btg\b|tg-?plugin|tg插件|tg协议|tg机器人/i.test(hay)) return 'telegram';
+  }
+  return byType;
+}
+
+/** 资源 → 角标（与筛选共用同一套判定，避免筛到 Telegram 却显示「其他」） */
+function typeBadge(r: CategorySource): { key: StoreCategoryId; className: string } | null {
+  const id = resourceCategoryOf(r);
   if (!id) return null;
   const c = STORE_CATEGORIES.find((x) => x.id === id);
   return c ? { key: c.id, className: c.badgeClass } : null;
@@ -466,7 +502,7 @@ export default function PluginStorePage() {
             },
             isOk: (r) => r.ok,
             errorMessage: (r) => resText(r) || t('plugin-store.installFailed'),
-            onCancel: () => api.pluginStore.cancelInstall(job.taskId),
+            onCancel: () => void api.pluginStore.cancelInstall(job.taskId),
           });
           if (result.ok) void loadInstalled();
         } catch {
@@ -516,7 +552,7 @@ export default function PluginStorePage() {
     // 分类筛选：派生计算，所以刷新 / 拉到新资源后会自动按当前分类重新生效
     if (activeCategory) {
       const id = activeCategory.id;
-      filtered = filtered.filter((r) => storeCategoryOf(r.type || r.resource_type) === id);
+      filtered = filtered.filter((r) => resourceCategoryOf(r) === id);
     }
     if (q) {
       filtered = filtered.filter((r) => {
@@ -627,7 +663,7 @@ export default function PluginStorePage() {
         // 波浪预设下失败胶囊整颗可点，点了就重来一次
         onRetry: () => void doInstall(item),
         // 点转圈图标取消：后端掐断在途请求，install 的 POST 随之以失败收场
-        onCancel: () => api.pluginStore.cancelInstall(taskId),
+        onCancel: () => void api.pluginStore.cancelInstall(taskId),
         dedupeKey: taskId,
       });
       if (!result.ok && result.code === 'sha256_mismatch') {
@@ -819,7 +855,7 @@ export default function PluginStorePage() {
             <div data-tour="store-grid" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {paged.map((item, index) => {
             const pinned = pinnedIds.has(item.id);
-            const badge = typeBadge(item.type || item.resource_type);
+            const badge = typeBadge(item);
             const summary = cardIntro(item);
             const showSummary = hasRealSummary(summary);
             return (

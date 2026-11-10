@@ -58,6 +58,35 @@ export function ConnectionCard({
   // 后端给的 modeLabel / typeLabel 是中文常量，英文模式下要换成字典文案
   const kindKey = connLabelKey(conn.modeLabel) ?? connLabelKey(conn.typeLabel);
   const kindText = kindKey ? t(kindKey) : (conn.modeLabel || conn.typeLabel);
+  const tgMode = conn.telegramMode ?? (conn.mode === 'webhook' ? 'webhook' : 'polling');
+  /*
+   * Telegram 卡片：主行 = 机器人显示名（如「咔咔」），副行 = 账号 @用户名。
+   * 后端会把展示名 name 强制成 `@用户名`，所以不能直接拿 name 当主行；
+   * 这里改用 telegramBotFirstName 作主行，缺少显示名时回退 name；
+   * 副行归一化后若与主行重复则不再渲染（避免两行一模一样）。
+   * 模式、本地 API、测试环境等细节只在悬停 title 出现。
+   */
+  const tgNameKey = (s: string) => s.replace(/^@/, '').trim().toLowerCase();
+  const tgDisplayName = conn.telegramBotFirstName?.trim() || '';
+  const tgHandle = conn.telegramBotUsername ? `@${conn.telegramBotUsername}` : '';
+  const isTelegram = conn.type === 'telegram';
+  // 主行：TG 优先显示名，没有则退回后端给的 name
+  const primaryName = isTelegram && tgDisplayName ? tgDisplayName : conn.name;
+  // 副行：TG 用 @用户名（去重后可能为空）；其它类型用模式/类型
+  let metaSecondary = isTelegram ? '' : kindText;
+  if (isTelegram && tgHandle && tgNameKey(tgHandle) !== tgNameKey(primaryName)) {
+    metaSecondary = tgHandle;
+  }
+  const telegramDetail = conn.type === 'telegram'
+    ? [
+        tgMode === 'webhook' ? t('connections.tg.badgeWebhook') : t('connections.tg.badgePolling'),
+        conn.telegramApiBase && conn.telegramApiBase !== 'https://api.telegram.org'
+          ? t('connections.tg.badgeLocalApi')
+          : null,
+        conn.telegramTestEnv ? t('connections.tg.badgeTestEnv') : null,
+        conn.telegramWebhookInfo?.last_error_message ? t('connections.tg.badgeWebhookError') : null,
+      ].filter(Boolean).join(' · ')
+    : '';
 
   return (
     <button
@@ -69,7 +98,7 @@ export function ConnectionCard({
         connBorderClass(vis.key),
       )}
       style={{ animationDelay: `${0.08 + index * 0.06}s` }}
-      title={`${conn.name} · ${badgeLabel}`}
+      title={`${isTelegram ? primaryName : conn.name}${isTelegram && metaSecondary ? ` · ${metaSecondary}` : ''} · ${badgeLabel}${telegramDetail ? ` · ${telegramDetail}` : ''}`}
     >
       <span className={cn('kk-conn-card__badge', badge.tone)} title={badgeLabel}>
         {badgeLabel}
@@ -97,8 +126,8 @@ export function ConnectionCard({
         </div>
       </div>
       <div className="kk-conn-card__meta">
-        <div className="kk-conn-card__name">{conn.name}</div>
-        <div className="kk-conn-card__mode">{kindText}</div>
+        <div className="kk-conn-card__name">{primaryName}</div>
+        {metaSecondary ? <div className="kk-conn-card__mode">{metaSecondary}</div> : null}
       </div>
     </button>
   );

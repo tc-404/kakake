@@ -8,7 +8,7 @@
 [![platform](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-Windows%20%7C%20Linux%20x64%20%E4%BE%BF%E6%90%BA%20%7C%20macOS%20%E6%BA%90%E7%A0%81-64748b?style=flat-square)](#环境要求)
 [![QQ group](https://img.shields.io/badge/QQ群-955682835-1e90ff?style=flat-square&logo=tencentqq&logoColor=white)](https://qm.qq.com/q/ja7l7wLSjC)
 
-TypeScript **插件平台框架**：本地部署、Web 控制台运维，通过 OneBot（如 NapCat）、QQ 开放平台、KOOK、微信 AI×BOT 等多种载体接入机器人能力，并兼容 NapCat 插件规范。
+TypeScript **插件平台框架**：本地部署、Web 控制台运维，通过 OneBot（如 NapCat）、QQ 开放平台、KOOK、微信 AI×BOT、Telegram Bot 等多种载体接入机器人能力，并兼容 NapCat 插件规范。
 
 > 📦 **[前往 Releases 下载 / 查看最新发布版 →](../../releases/latest)**　·　所有发布与更新说明都在仓库的 **Releases** 页。
 
@@ -42,6 +42,7 @@ TypeScript **插件平台框架**：本地部署、Web 控制台运维，通过 
 | QQ 官方机器人 | Gateway WebSocket、HTTPS Webhook |
 | KOOK 机器人 | Bot Token 接入（`Authorization: Bot <token>`），按账号隔离 |
 | 微信 AI×BOT | iLink bot_token 扫码登录接入 |
+| Telegram Bot | `getUpdates` 长轮询 / `setWebhook` HTTPS 回调，可切本地 Bot API Server 与测试环境；BotFather 开关、限频与隐私模式全套支持 |
 | 插件平台 | 兼容 NapCat 插件规范；按账号隔离运行副本；含插件商店与「插件开发」教程 |
 | 本地持久化 | 配置、密钥、连接、插件状态保存在本机 `data/` |
 | 界面外观 | 三组可调配色（字体 / 组件 / Logo）、竖横两份背景（图片或循环视频）、卡片与背景模糊、动效速度、**自定义标题名** |
@@ -66,6 +67,8 @@ TypeScript **插件平台框架**：本地部署、Web 控制台运维，通过 
 - [NapCat](https://github.com/NapNeko/NapCatQQ) 等 OneBot 实现
 - QQ 开放平台机器人（官方 WS / Webhook）
 - KOOK 机器人（Bot Token）、微信 AI×BOT（iLink bot_token）
+- Telegram Bot（[@BotFather](https://t.me/BotFather) 签发 token，长轮询或 Webhook）
+- 仅 Webhook 方式需要：公网域名 + 可信 HTTPS 证书（官方只接受 443 / 80 / 88 / 8443 端口）
 
 ---
 
@@ -132,7 +135,7 @@ kakake/
 ├── scripts/                 # bootstrap、Web 构建辅助
 ├── src/                     # 后端与 Web 源码
 │   ├── main.ts              # 入口
-│   ├── connection/          # OneBot / QQ 官方连接
+│   ├── connection/          # OneBot / QQ 官方 / KOOK / 微信 / Telegram Bot 连接
 │   ├── plugin/              # 插件加载与管理
 │   ├── admin/               # 鉴权与管理 API
 │   ├── core/                # 配置、日志、类型
@@ -143,8 +146,8 @@ kakake/
 │   └── agreement/           # 用户协议同意记录（按框架版本命名）
 ├── log/                     # 运行日志
 ├── packages/                # Web 依赖与 Vite dist（可整夹删除，启动会重建）
-├── 使用教程/                # 连接教程、插件开发教程原文等
-│   └── 插件开发/            # 控制台「工具 → 插件开发」数据源（总览 / 野鸡 TS / 野鸡 JS-ESM / 野鸡 JS-CJS / 双生 / QQ 官方 / 扩展 + manifest.json）
+├── 使用教程/                # 连接教程、Telegram Bot 接入教程、插件开发教程原文等
+│   └── 插件开发/            # 控制台「工具 → 插件开发」数据源（总览 / 野鸡 TS / 野鸡 JS-ESM / 野鸡 JS-CJS / 双生 / QQ 官方 / Telegram / 扩展 + manifest.json）
 └── README.md
 ```
 
@@ -168,13 +171,13 @@ kakake/
 
 主要页面能力（随版本可能增减）：
 
-- **连接管理**：添加 / 启用 OneBot 与 QQ 官方连接
+- **连接管理**：添加 / 启用 OneBot、QQ 官方、KOOK、微信、Telegram Bot 连接
 - **插件管理 / 插件商店**：安装、启用、配置插件
 - **日志**：查看运行与动作日志
 - **设置**：主机端口、日志级别、API 超时等
 - **公告 / 用户协议**：首次（或框架版本升级后）需同意；记录在 `data/agreement/<版本>.json`，同一实例任意设备共享
 
-> 控制台端口（如 8787）与 OneBot 监听口（如 6700 / 6701）不是同一回事，请勿混用。
+> 控制台端口（如 8787）与 OneBot 监听口（如 6700 / 6701）不是同一回事，请勿混用。Telegram Webhook 回调走控制台对外地址 `/tgbot/<连接id>`，与 OneBot 监听口也不是一回事。
 
 ---
 
@@ -207,15 +210,53 @@ kakake/
 
 填入 iLink **bot_token**，控制台扫码登录后接入；账号以 `ilink_bot_id` 作隔离键。
 
+### Telegram Bot
+
+在 [@BotFather](https://t.me/BotFather) 用 `/newbot` 建机器人拿到 **token**（形如 `123456:ABC-DEF…`，等同密钥，勿公开），控制台添加连接选择 **Telegram Bot** 填入即可。框架用 `getMe` 回填 `telegramBotUserId` / `telegramBotUsername` / `telegramBotFirstName`，并以 `telegramBotUserId` 作为插件与数据的**账号隔离键**。
+
+| 对接方式 | `mode` | 适用场景 |
+|----------|--------|----------|
+| 长轮询（默认） | `polling` | `getUpdates` 长轮询，**无需公网 IP / 域名 / 证书**，本机开发与内网部署首选 |
+| Webhook | `webhook` | `setWebhook` HTTPS 回调，适合有公网域名与可信证书的生产部署 |
+| 本地 Bot API Server | 两者皆可 | 把 `telegramApiBase` 指向自建服务器：HTTP / 任意端口、上传 2000MB、下载无大小限制、`getFile` 直接返回本地绝对路径 |
+
+三者**正交**：`mode` 决定「怎么收 Update」，`telegramApiBase` 决定「API 请求发去哪」，可任意组合；`telegramTestEnv` 再决定「走生产还是测试环境」。
+
+**配置要点**（控制台连接表单，对应 `data/connections.json` 字段）：
+
+- 必填 `telegramToken`；`mode` 取 `polling` / `webhook`。
+- 轮询：`telegramPollingTimeout`（长轮询秒数，默认 30）、`telegramPollingLimit`（1–100）、`telegramOffset`（游标，按 `update_id` 确认并持久化）、`telegramAllowedUpdates`（订阅的 Update 类型）。
+- Webhook：`telegramWebhookUrl` 填完整公网 HTTPS 地址，回调**路径固定为 `/tgbot/<连接id>`**（例：`https://bot.example.com/tgbot/abcd1234`，反代须把这一路径原样转发到咔咔）；`telegramWebhookSecret` 为 1–256 位、仅 `A-Za-z0-9_-`，框架用它校验请求的 `X-Telegram-Bot-Api-Secret-Token` 头，不一致直接拒绝；另可配 `telegramWebhookMaxConnections`（1–100）、`telegramWebhookIpAddress`、`telegramWebhookCertificatePath`（自签证书 PEM 作为 `certificate` 上传）、`telegramDropPendingUpdates`、`telegramWebhookReplyInResponse`（把本次事件产生的首个 API 调用直接放进 2xx 响应体，省一次请求但拿不到 `result`）。官方 Webhook **只接受 443 / 80 / 88 / 8443 四个端口**。
+- `telegramApiBase` 留空走官方 `https://api.telegram.org`；填自建地址即切到本地 Bot API Server（切换前须在官方服务器上 `logOut`，且一个 token 同一时刻只能挂在一种服务器上）。
+- `telegramTestEnv`：勾上后请求走 `/bot<token>/test/METHOD`，在**测试环境**里跑，不碰真实会话与数据。
+- `telegramProxyUrl`：服务器无法直连 Telegram 时填 HTTP 代理（如 `http://127.0.0.1:7897`）。
+- `telegramParseMode`：默认文本解析模式，建议 `HTML`；用 `MarkdownV2` 必须对 `_*[]()~`>#+-=|{}.!` 等字符转义。
+- 插件侧：`actions.call('sendMessage', { chat_id, text })` 可直接调用任意 Bot API 方法名（`answerCallbackQuery`、`getFile`、`sendMessageDraft` …），事件对象带 `telegram: true` 标记、走 `telegram/event` 与 `telegram/action_result` 通道。
+
+**几个容易踩的官方限制**：
+
+- **隐私模式默认开启**：群里机器人只收得到 `/命令`、`@机器人` 的回复与部分服务消息，收不到普通群聊文本。要全量消息就到 BotFather 用 `/setprivacy` 关闭，**关闭后必须把机器人移出群再重新拉入**才生效。
+- **限频**：单聊约 1 条/秒、群组约 20 条/分钟、广播约 30 条/秒；触发 429 时响应带 `retry_after`，按其秒数退避重试。
+- **文件大小**：官方服务器上传上限 50MB、下载上限 20MB；本地 Bot API Server 上传 2000MB、下载无限制。
+- **Update 最多保留 24 小时**；`getUpdates` 与 `setWebhook` **不能同时用**，切换时先 `deleteWebhook`（否则报 409）。
+- Inline Mode、允许入群、Bot-to-Bot、Managed Bots 等能力都要在 BotFather 用 `/setinline`、`/setjoingroups` 等开关显式打开。
+- 当前 Bot API 版本 **10.4**（2026-11-09），支持 Rich Messages、Ephemeral Messages、Widgets、`sendMessageDraft` 流式草稿等；用 `actions.call` 传方法名即可调用。
+
+> 完整分步教程（BotFather 开关、证书与 Nginx 反代、Update 全类型、键盘与内联查询、`file_id` 复用、Stars 支付、10.x 新能力、插件侧事件形状与排错清单）见 **[`使用教程/Telegram Bot 接入教程.md`](<./使用教程/Telegram Bot 接入教程.md>)**。
+
 ### 详细教程
 
 Linux 服务器上一键装 NapCat / 咔咔 / Node、启停与端口排查见：
 
 **[`使用教程/MK工具教程.txt`](./使用教程/MK工具教程.txt)**（仓库根目录 `mk` 脚本）
 
-完整连接分步说明（含 Docker 网关地址、Token / X-Signature、参数速查表）见：
+完整连接分步说明（含 Docker 网关地址、Token / X-Signature、参数速查表、Telegram Bot 一节）见：
 
 **[`使用教程/连接教程.txt`](./使用教程/连接教程.txt)**
+
+Telegram Bot 专项完整教程见：
+
+**[`使用教程/Telegram Bot 接入教程.md`](<./使用教程/Telegram Bot 接入教程.md>)**
 
 推荐入门组合（本机）：
 
@@ -230,10 +271,10 @@ NapCat 在 Docker、咔咔在宿主机时，容器内访问宿主机常见网关
 ## 插件系统
 
 - 安装目录：`plugins/`
-- 按机器人账号隔离的运行副本：`plugins_two/<QQ或AppID>/<pluginId>/`
+- 按机器人账号隔离的运行副本：`plugins_two/<QQ或AppID或telegramBotUserId>/<pluginId>/`
 - 兼容 NapCat 插件包结构（`package.json` / `plugin.json` 等）
 - 可通过控制台管理启用状态与插件配置；连接与插件可按账号绑定
-- 插件类型按目录名前缀区分：`kakake-`（OneBot）、`GF-`（QQ 官方机器人）、`sssx-plugin-`（**双生**：同一份代码同时挂 OneBot 与 QQ 官方两条协议）、`WX-`（微信）、`ss-plugin-`（KOOK 等）、`kz-plugin-`（**扩展**：不绑任何连接，只由总开关启停，数据目录为 `data/<插件id>`）
+- 插件类型按目录名前缀区分：`kakake-`（OneBot）、`GF-`（QQ 官方机器人）、`sssx-plugin-`（**双生**：同一份代码同时挂 OneBot 与 QQ 官方两条协议）、`WX-`（微信）、`ss-plugin-`（KOOK 等）、`TG-plugin-`（**Telegram Bot**）、`kz-plugin-`（**扩展**：不绑任何连接，只由总开关启停，数据目录为 `data/<插件id>`）
 
 开发 / 安装插件时请注意：
 
@@ -255,7 +296,7 @@ NapCat 在 Docker、咔咔在宿主机时，容器内访问宿主机常见网关
 |------|------|
 | `data/config.json` | 主机、端口、日志级别、API 超时等 |
 | `data/auth-key.json` | 后台登录密钥 |
-| `data/connections.json` | 连接配置 |
+| `data/connections.json` | 连接配置（含 Telegram token 等密钥，勿公开） |
 | `data/plugins.json` 等 | 插件状态与关联 |
 | `data/ai/` | AI 助手数据：上游档案（含密钥，勿公开）、会话历史、操作审计 |
 | `log/` | 运行日志 |
@@ -266,7 +307,7 @@ NapCat 在 Docker、咔咔在宿主机时，容器内访问宿主机常见网关
 - `logLevel`：`debug` \| `info` \| `warn` \| `error`
 - `apiTimeoutMs`：OneBot API 超时（大文件发送建议适当加大）
 
-修改连接或关键配置后：保存 → 确认对端（NapCat / 开放平台）已启用 → 必要时重启咔咔 → 发消息自检。
+修改连接或关键配置后：保存 → 确认对端（NapCat / 开放平台 / BotFather）已启用 → 必要时重启咔咔 → 发消息自检。
 
 ---
 
@@ -293,6 +334,8 @@ NapCat 在 Docker、咔咔在宿主机时，容器内访问宿主机常见网关
 | `X_PROXY_URL` | 工具「视频解析」里 X（推特）解析、twimg / telesco.pe 媒体下载走的本机代理，默认 `http://127.0.0.1:7897`（Clash 系混合端口）；设 `off` 关闭 |
 | `X_FXTWITTER_FALLBACK=off` | 关闭 X 解析的第三方兜底接口（见下），默认开启 |
 
+> **Telegram Bot 连接的代理不走环境变量**：服务器无法直连 `api.telegram.org` 时，在**连接表单**里填 `telegramProxyUrl`（如 `http://127.0.0.1:7897`），它是连接级配置、按连接生效。上表的 `X_PROXY_URL` 只作用于「工具 → 视频解析」，**不影响** Telegram Bot 连接；Webhook 方式另外要求 Telegram 服务器能反向访问你的公网地址，这与出向代理是两码事。
+
 **关于 X（推特）解析的取数**：X 的官方嵌入接口与 twimg 媒体域名在境内无法直连，所以 X 这一路依赖 `X_PROXY_URL` 指向的本机代理。官方接口取不到数据时，解析会退回第三方公开接口 `api.fxtwitter.com`（只把推文 ID 发过去），用来补齐浏览量、收藏、转推这类官方嵌入接口不返回的统计。不希望推文 ID 外发就把 `X_FXTWITTER_FALLBACK` 设为 `off`，此时仅用官方嵌入接口。
 
 **关于「视频解析」的限速**：解析 30 次/分钟、下载 60 次/分钟、预览 300 次/分钟，按「会话 → 登录密钥 → 来源 IP」依次分桶，状态只在内存里，重启框架即清空。
@@ -300,6 +343,8 @@ NapCat 在 Docker、咔咔在宿主机时，容器内访问宿主机常见网关
 **关于 Telegram 解析**：走公开帖的分享卡片（`t.me/频道/帖号?embed=1&single`），不需要账号、api_id 或任何登录态，因此只覆盖**公开频道**——私有频道的内部链接（`t.me/c/…`）与邀请链接（`t.me/+…`）会被明确拒绝并说明原因，要读这类内容得换成 MTProto 方案。t.me 与媒体域名 `telesco.pe` 在境内无法直连，同样依赖 `X_PROXY_URL` 指向的本机代理。一条帖子里的多张图片会全部返回；若一条帖子包含多个视频，只返回第 1 个并在页面上标注数量。
 
 **Telegram 的文件与音频拿不到**：公开卡片只渲染**图片、视频**这两类内容。附件是文件或音频时（APK、PDF、音乐、语音消息等，软件分享类频道基本全是这种），Telegram 会把整条帖子的正文与附件一起换成一句「Please open Telegram to view this post」，页面里既没有文件名也没有下载地址，工具会直接说明这一点，而不是错报成「纯文字帖」。开启了「限制保存内容」的频道同理。要解析这类资源必须改用账号态方案：MTProto（Telethon / Pyrogram / gramjs，需要 api_id + 登录会话，可读任意公开频道）或 Bot API（把机器人设为频道管理员，只能读它有权限的消息）。
+
+> 注意区分：**「工具 → 视频解析」里的 Telegram 链接解析**（读公开帖子，不需要 token、只读）与 **「连接方式 → Telegram Bot」**（用 BotFather token 收发消息、跑插件）是两个完全独立的功能，共用 `X_PROXY_URL` 也不是同一条链路。
 
 ---
 
@@ -309,7 +354,7 @@ NapCat 在 Docker、咔咔在宿主机时，容器内访问宿主机常见网关
 
 - **后端**：Node.js + NestJS（Express）+ TypeScript（`tsx` 直接运行）
 - **前端**：Vite + React + React Router（源码 `src/web`，产物 `packages/web/dist`，由主进程静态托管）
-- **实时**：`ws` WebSocket；HTTP / SSE 多种 OneBot 模式
+- **实时**：`ws` WebSocket；HTTP / SSE 多种 OneBot 模式；Telegram `getUpdates` 长轮询 / Webhook
 - **插件**：动态加载，兼容 NapCat 插件接口风格
 
 贡献或二开时建议：
@@ -329,10 +374,10 @@ NapCat 在 Docker、咔咔在宿主机时，容器内访问宿主机常见网关
 咔咔监听请用 `0.0.0.0`，不要只绑 `127.0.0.1`；容器侧 URL 用宿主机网关 IP（常见 `172.17.0.1`）。
 
 **3. 401 / 鉴权失败**  
-检查两边 Access Token 是否一致；HTTP 上报可能使用 `X-Signature`，需两边 Token 相同。
+检查两边 Access Token 是否一致；HTTP 上报可能使用 `X-Signature`，需两边 Token 相同。Telegram 报 401 Unauthorized 则是 `telegramToken` 填错、被吊销或用了测试环境 token 打生产地址。
 
 **4. 收不到消息或收两遍**  
-确认只启用一种连接模式；正向端口不要误填成反向监听口（如 6700）。
+确认只启用一种连接模式；正向端口不要误填成反向监听口（如 6700）。Telegram 群里收不到普通聊天文本，多半是 **BotFather 隐私模式默认开启**——用 `/setprivacy` 关闭后**重新拉群**；Webhook 与轮询同时开也会导致异常。
 
 **5. 端口被占用**  
 更换控制台或 OneBot 端口，或结束占用进程后再启动。
@@ -350,7 +395,16 @@ NapCat 在 Docker、咔咔在宿主机时，容器内访问宿主机常见网关
 `package.json`、不会动这些目录，所以版本更新后按需补一次即可。启动日志里出现
 `Cannot find package 'sharp'` 的旧版本，升级到本版后不会再因此起不来。
 
-更多连接细节见 [`使用教程/连接教程.txt`](./使用教程/连接教程.txt)。  
+**8. Telegram 报 409 Conflict（"can't use getUpdates method while webhook is active"）**  
+同一 token 不能既 `setWebhook` 又 `getUpdates`。先调 `deleteWebhook`（或勾 `telegramDropPendingUpdates`），再切回 `polling`；检查 `getWebhookInfo` 的 `url` 是否为空。
+
+**9. Telegram 报 429 / "Too Many Requests: retry after N"**  
+触发限频（单聊约 1 条/秒、群组约 20 条/分钟、广播约 30 条/秒）。按响应里的 `retry_after` 秒数退避后重试，别无脑猛发；批量广播前做排队与限速。
+
+**10. Telegram 报 "can't parse entities" / 回调地址不通 / 证书报错**  
+`can't parse entities` = `MarkdownV2` 文本没转义特殊字符（或改回 `HTML`）；回调地址不通先确认公网可达、端口是 443/80/88/8443 之一、反代把 `/tgbot/<连接id>` 原样转发、且 `X-Telegram-Bot-Api-Secret-Token` 与 `telegramWebhookSecret` 一致；自签证书需保证 CN / SAN 与域名匹配并通过 `telegramWebhookCertificatePath` 上传。
+
+更多连接细节见 [`使用教程/连接教程.txt`](./使用教程/连接教程.txt)；Telegram Bot 专项见 [`使用教程/Telegram Bot 接入教程.md`](<./使用教程/Telegram Bot 接入教程.md>)。  
 Linux `mk` 脚本用法见 [`使用教程/MK工具教程.txt`](./使用教程/MK工具教程.txt)。
 
 ---
@@ -369,7 +423,7 @@ Linux `mk` 脚本用法见 [`使用教程/MK工具教程.txt`](./使用教程/MK
 
 - 当前 `package.json` 版本：`0.6.11-beta.1`
 - GitHub Release 资产附有 Ed25519 签名（`<资产>.sig`），由 CI 工作流在发版后自动生成
-- 文档随仓库更新；连接步骤以 `使用教程/连接教程.txt` 为准；`mk` 脚本以 `使用教程/MK工具教程.txt` 为准
+- 文档随仓库更新；连接步骤以 `使用教程/连接教程.txt` 为准；Telegram Bot 以 `使用教程/Telegram Bot 接入教程.md` 为准；`mk` 脚本以 `使用教程/MK工具教程.txt` 为准
 
 ---
 

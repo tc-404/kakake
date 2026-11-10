@@ -14,8 +14,8 @@ function isConnected(view: { id: string; type?: string }, manager: ConnectionMan
   if (view.type === 'qq_official') {
     return manager.getQqOfficialClient(view.id)?.isConnected === true;
   }
-  if (view.type === 'weixin_bot' || view.type === 'kook') {
-    // 这两类不在接口代理的三套协议范围内，恒视为未连接，
+  if (view.type === 'weixin_bot' || view.type === 'kook' || view.type === 'telegram') {
+    // 这三类不是 OneBot 协议，接口代理的 action 变体不适用，恒视为未连接，
     // 于是默认连接兜底会跳过它们，而不是选到一个发不出请求的连接
     return false;
   }

@@ -695,11 +695,25 @@ export class QqOfficialWsClient implements QqOfficialEndpoint {
     const ws = this.ws;
     this.ws = null;
     if (ws) {
+      // 关键修复：不能 removeAllListeners 把 error 监听也摘掉。
+      // 处于 CONNECTING 时调用 close()，ws 内部 abortHandshake 会在 nextTick 里
+      // emit('error')；若无 error 监听，Node 会以“未处理的 error 事件”直接崩溃。
+      // 保留 error 监听做兜底，仅移除其余业务监听，避免旧 socket 关闭误触发重连等副作用。
+      const errorListeners = ws.listeners('error') as unknown as Array<(...args: any[]) => void>;
       ws.removeAllListeners();
-      try {
-        ws.close();
-      } catch {
-        /* socket 已断开时 close 可能抛错，忽略 */
+      if (errorListeners.length > 0) {
+        for (const l of errorListeners) ws.on('error', l);
+      } else {
+        ws.on('error', () => {});
+      }
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.terminate();
+      } else {
+        try {
+          ws.close();
+        } catch {
+          /* socket 已断开时 close 可能抛错，忽略 */
+        }
       }
     }
     const wasReady = this.ready;

@@ -50,6 +50,8 @@ import {
 } from '../connection/connection-avatar.store.js';
 
 import { warnProxyDenied, resolveConnectionPluginKindFromConn, resolvePluginManager, registerImportedPluginByKind } from './admin-api.shared.js';
+import { readPluginMeta, updatePluginMeta, type PluginMetaManager } from '../plugin/plugin-rename.service.js';
+import type { PluginKind } from '../plugin/plugin-rename.js';
 
 @Controller('api')
 export class AdminApiController {
@@ -232,10 +234,11 @@ export class AdminApiController {
       const d = await kakakeApp.ssPluginManager.rescanPlugins();
       const e = await kakakeApp.sssxPluginManager.rescanPlugins();
       const f = await kakakeApp.kzPluginManager.rescanPlugins();
+      const g = await kakakeApp.tgPluginManager.rescanPlugins();
       return {
         code: 0,
         message: 'ok',
-        data: { count: a + b + c + d + e + f, ...buildPluginListPayload() },
+        data: { count: a + b + c + d + e + f + g, ...buildPluginListPayload() },
       };
     }
     const kind = resolveConnectionPluginKindFromConn(connectionId);
@@ -245,7 +248,9 @@ export class AdminApiController {
         ? await kakakeApp.wxPluginManager.rescanPlugins()
         : kind === 'ss'
           ? await kakakeApp.ssPluginManager.rescanPlugins()
-          : await kakakeApp.pluginManager.rescanPlugins();
+          : kind === 'tg'
+            ? await kakakeApp.tgPluginManager.rescanPlugins()
+            : await kakakeApp.pluginManager.rescanPlugins();
     // 双生插件在受支持的连接上同样要重扫
     const twinCount = await kakakeApp.sssxPluginManager.rescanPlugins();
     return {
@@ -297,6 +302,48 @@ export class AdminApiController {
         message: e instanceof Error ? e.message : '读取说明文档失败',
       };
     }
+  }
+
+  @Get('plugins/:id/meta')
+  getPluginMeta(@Param('id') id: string) {
+    const trimmed = String(id || '').trim();
+    if (!trimmed) return { ok: false, message: '缺少插件 ID' };
+    if (trimmed.includes('..') || /[\\/]/.test(trimmed)) return { ok: false, message: '非法插件 ID' };
+    const { manager } = resolvePluginManager(trimmed) as unknown as { manager: PluginMetaManager };
+    const meta = readPluginMeta(trimmed, manager);
+    if (!meta) return { ok: false, message: '插件不存在' };
+    return { ok: true, meta };
+  }
+
+  @Put('plugins/:id/meta')
+  async setPluginMeta(
+    @Param('id') id: string,
+    @Body() body: { name?: unknown; displayName?: unknown; version?: unknown; author?: unknown } = {},
+  ) {
+    const trimmed = String(id || '').trim();
+    if (!trimmed) return { ok: false, message: '缺少插件 ID' };
+    if (trimmed.includes('..') || /[\\/]/.test(trimmed)) return { ok: false, message: '非法插件 ID' };
+
+    const { kind, manager } = resolvePluginManager(trimmed) as unknown as {
+      kind: PluginKind;
+      manager: PluginMetaManager;
+    };
+    const result = await updatePluginMeta(
+      trimmed,
+      {
+        name: typeof body.name === 'string' ? body.name : '',
+        displayName: typeof body.displayName === 'string' ? body.displayName : undefined,
+        version: typeof body.version === 'string' ? body.version : undefined,
+        author: typeof body.author === 'string' ? body.author : undefined,
+      },
+      kind,
+      manager,
+    );
+    if (!result.ok) return result;
+
+    const payload = buildPluginListPayload();
+    const plugin = payload.plugins.find((item) => item.id === result.pluginId) ?? null;
+    return { ...result, plugin };
   }
 
   @Delete('plugins/:id')

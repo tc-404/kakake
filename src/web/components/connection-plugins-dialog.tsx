@@ -33,7 +33,9 @@ export function ConnectionPluginsDialog({
                 ? t('components.connPluginsWeixin')
                 : connectionType === 'kook'
                   ? t('components.connPluginsKook')
-                  : t('components.connPluginsDefault')}
+                  : connectionType === 'telegram'
+                    ? t('components.connPluginsTelegram')
+                    : t('components.connPluginsDefault')}
             {' '}· {connectionName}
           </DialogTitle>
         </DialogHeader>

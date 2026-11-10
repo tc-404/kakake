@@ -14,6 +14,13 @@ import {
 } from './qq-official-https.server.js';
 import { WeixinBotClient, type WeixinBotEndpoint } from './weixin-bot.client.js';
 import { KookGatewayClient, type KookGatewayEndpoint } from './kook-gateway.client.js';
+import { TelegramBotClient } from './telegram.client.js';
+import {
+  telegramWebhookCallbackPath,
+  type TelegramEndpoint,
+  type TelegramBotProfile,
+  type TelegramWebhookInfo,
+} from './telegram.types.js';
 import {
   credentialsFromQRConfirm,
   fetchWeixinBotQRCode,
@@ -27,11 +34,15 @@ import {
   connectionTypeLabel,
   connectionWsUrl,
   isKookConnection,
+  isTelegramConnection,
   isQqOfficialConnection,
   isReconnectableOnebotMode,
   isWeixinBotConnection,
   kookConnectionReady,
   kookConnectionSummary,
+  telegramConnectionReady,
+  telegramConnectionSummary,
+  parseTelegramMode,
   qqOfficialConnectionSummary,
   weixinBotConnectionSummary,
   weixinBotLoggedIn,
@@ -57,10 +68,11 @@ import { appendQqOfficialAuthHint, fetchQqOfficialBotProfile } from './qq-offici
 import {
   fetchAndStoreAvatarFromUrl,
   getConnectionAvatarMeta,
+  setConnectionAvatar,
 } from './connection-avatar.store.js';
 import { clearImplCache } from '../proxy/resolve/impl-detect.js';
 
-type ManagedEndpoint = OneBotEndpoint | QqOfficialEndpoint | WeixinBotEndpoint | KookGatewayEndpoint;
+type ManagedEndpoint = OneBotEndpoint | QqOfficialEndpoint | WeixinBotEndpoint | KookGatewayEndpoint | TelegramEndpoint;
 
 /** makeActionCaller 对客户端的最小要求（四类端点都满足） */
 interface ActionCallableClient {
@@ -125,6 +137,7 @@ export class ConnectionManager {
       || ep instanceof QqOfficialHttpsServer
       || ep instanceof WeixinBotClient
       || ep instanceof KookGatewayClient
+      || ep instanceof TelegramBotClient
     ) {
       return undefined;
     }
@@ -147,6 +160,12 @@ export class ConnectionManager {
     return ep instanceof KookGatewayClient ? ep : undefined;
   }
 
+  /** Telegram Bot 端点（Webhook 中间件与插件 caller 都靠它定位） */
+  getTelegramClient(id: string): TelegramBotClient | undefined {
+    const ep = this.endpoints.get(id);
+    return ep instanceof TelegramBotClient ? ep : undefined;
+  }
+
   getForwardClient(id: string): ForwardWsClient | undefined {
     const ep = this.endpoints.get(id);
     return ep instanceof ForwardWsClient ? ep : undefined;
@@ -164,6 +183,7 @@ export class ConnectionManager {
         || ep instanceof QqOfficialHttpsServer
         || ep instanceof WeixinBotClient
         || ep instanceof KookGatewayClient
+        || ep instanceof TelegramBotClient
       ) {
         continue;
       }
@@ -274,6 +294,23 @@ export class ConnectionManager {
     logFailure: (prefix, _client, action, msg) => logAction(prefix, `${action} ✗ ${msg}`, undefined, 'error'),
   };
 
+  /** Telegram Bot caller 差异参数（动作名透传 Bot API，日志与回执统一走骨架） */
+  private readonly telegramCallerVariant: ActionCallerVariant<TelegramBotClient> = {
+    resultEvent: 'telegram/action_result',
+    logLabel: 'Telegram输出',
+    notReadyError: (adapterName, adapter) => `[${adapter || adapterName}] Telegram Bot 连接未就绪`,
+    resolveEndpoint: (connectionId) => {
+      if (connectionId) return this.getTelegramClient(connectionId);
+      for (const ep of this.endpoints.values()) {
+        if (ep instanceof TelegramBotClient && ep.isConnected) return ep;
+      }
+      return undefined;
+    },
+    logRequest: (prefix, _client, action, params) => logAction(prefix, action, JSON.stringify(params ?? {})),
+    logSuccess: (prefix, _client, action, result) => logAction(prefix, `${action} ✓`, JSON.stringify(result), 'debug'),
+    logFailure: (prefix, _client, action, msg) => logAction(prefix, `${action} ✗ ${msg}`, undefined, 'error'),
+  };
+
   createActionCaller(adapterName = 'plugin_manager', connectionId?: string): ActionCaller {
     const cacheKey = `${adapterName}|${connectionId ?? ''}`;
     const cached = this.actionCallerCache.get(cacheKey);
@@ -301,6 +338,10 @@ export class ConnectionManager {
 
   createKookBotActionCaller(adapterName = 'ss_plugin_manager', connectionId?: string): ActionCaller {
     return this.makeActionCaller(this.kookCallerVariant, adapterName, connectionId);
+  }
+
+  createTelegramBotActionCaller(adapterName = 'tg_plugin_manager', connectionId?: string): ActionCaller {
+    return this.makeActionCaller(this.telegramCallerVariant, adapterName, connectionId);
   }
 
   /** 四类协议 ActionCaller 的公共骨架；差异全部由 variant 承担，行为与原实现逐行一致 */
@@ -399,10 +440,30 @@ export class ConnectionManager {
         pluginAccountService.ensureWeixinAccount(connection.id);
       } else if (isKookConnection(connection)) {
         pluginAccountService.ensureKookAccount(connection.id);
+      } else if (isTelegramConnection(connection)) {
+        pluginAccountService.ensureTelegramAccount(connection.id);
       } else if (connection.botUin) {
         pluginAccountService.ensureAccountRuntimeRoot(connection.botUin);
       }
     });
+
+    if (isTelegramConnection(connection)) {
+      const life = this.bindLifecycle(connection.id, {});
+      const client = new TelegramBotClient(connection, {
+        onReady: life.onReady,
+        onDisconnect: life.onDisconnect,
+        onProfileUpdated: () => {
+          this.persistTelegramBotProfile(connection.id);
+          this.emitStatus();
+        },
+        onStatusChanged: () => this.emitStatus(),
+      }, this.logger.child(`[${connection.name}] `));
+      if (!telegramConnectionReady(connection)) {
+        this.logger.warn(`[${connection.name}] Telegram Bot 未配置 Token，启用后无法连接`);
+      }
+      client.start();
+      return this.finishStart(connection, client);
+    }
 
     if (isKookConnection(connection)) {
       const life = this.bindLifecycle(connection.id, {});
@@ -573,6 +634,15 @@ export class ConnectionManager {
     if (kook) {
       kook.stop();
       this.endpoints.delete(id);
+      this.start(conn);
+      return;
+    }
+
+    const tg = this.getTelegramClient(id);
+    if (tg) {
+      tg.stop();
+      this.endpoints.delete(id);
+      this.runningFingerprints.delete(id);
       this.start(conn);
       return;
     }
@@ -784,7 +854,7 @@ export class ConnectionManager {
   getStatusList(): Array<{
     id: string;
     name: string;
-    type: 'onebot' | 'qq_official' | 'weixin_bot' | 'kook';
+    type: 'onebot' | 'qq_official' | 'weixin_bot' | 'kook' | 'telegram';
     typeLabel: string;
     mode: ConnectionMode;
     modeLabel: string;
@@ -809,6 +879,17 @@ export class ConnectionManager {
     kookSummary?: string;
     kookReady?: boolean;
     kookBotUserId?: string;
+    telegramSummary?: string;
+    telegramReady?: boolean;
+    telegramBotUserId?: string;
+    telegramBotUsername?: string;
+    telegramMode?: 'polling' | 'webhook';
+    telegramApiBase?: string;
+    telegramWebhookUrl?: string;
+    telegramTestEnv?: boolean;
+    telegramWebhookInfo?: TelegramWebhookInfo | null;
+    telegramAllowedUpdates?: string[];
+    telegramWebhookSecretConfigured?: boolean;
     reconnectIntervalMs?: number;
     reconnectMaxAttempts?: number;
     reconnectAttempts?: number;
@@ -834,6 +915,53 @@ export class ConnectionManager {
       const type = c.type ?? 'onebot';
       const avatarMeta = getConnectionAvatarMeta(c.id);
       const createdAt = c.createdAt;
+
+      if (isTelegramConnection(c)) {
+        const tg = endpoint instanceof TelegramBotClient ? endpoint : undefined;
+        const mode = parseTelegramMode(c.mode);
+        const ready = telegramConnectionReady(c);
+        const rs = tg?.getReconnectStatus();
+        const apiBase = String(c.telegramApiBase || '').trim() || 'https://api.telegram.org';
+        return {
+          id: c.id,
+          name: c.telegramBotUsername ? `@${c.telegramBotUsername}` : c.name,
+          type: 'telegram' as const,
+          typeLabel: connectionTypeLabel('telegram'),
+          mode,
+          modeLabel: connectionModeLabel(mode),
+          host: '',
+          port: 0,
+          listenUrl: mode === 'webhook'
+            ? (tg?.resolveWebhookUrl() || telegramWebhookCallbackPath(c.id))
+            : `${apiBase}/bot<token>/getUpdates`,
+          apiUrl: apiBase,
+          enable: c.enable,
+          connected: tg?.isConnected ?? false,
+          telegramSummary: telegramConnectionSummary(c),
+          telegramReady: ready,
+          telegramBotUserId: c.telegramBotUserId,
+          telegramBotUsername: c.telegramBotUsername,
+          telegramBotFirstName: c.telegramBotFirstName,
+          telegramMode: mode,
+          telegramApiBase: apiBase,
+          telegramWebhookUrl: tg?.resolveWebhookUrl() || c.telegramWebhookUrl,
+          telegramTestEnv: c.telegramTestEnv === true,
+          telegramWebhookInfo: tg?.getWebhookInfo() ?? null,
+          telegramAllowedUpdates: c.telegramAllowedUpdates,
+          telegramWebhookSecretConfigured: !!String(c.telegramWebhookSecret || '').trim(),
+          // 与 pluginAccountService.resolveAccountKey 保持一致：tg_<bot id>
+          accountKey: c.telegramBotUserId ? `tg_${c.telegramBotUserId}` : undefined,
+          reconnectIntervalMs: rs?.intervalMs ?? c.reconnectIntervalMs ?? 5000,
+          reconnectMaxAttempts: rs?.maxAttempts ?? c.reconnectMaxAttempts ?? 15,
+          reconnectAttempts: rs?.attempts ?? 0,
+          reconnecting: rs?.reconnecting ?? false,
+          reconnectAbandoned: rs?.abandoned ?? false,
+          hasAvatar: avatarMeta.hasAvatar,
+          avatarUpdatedAt: avatarMeta.avatarUpdatedAt,
+          createdAt,
+          logLayout: c.logLayout ?? 'legacy',
+        };
+      }
 
       if (isKookConnection(c)) {
         const kook = endpoint instanceof KookGatewayClient ? endpoint : undefined;
@@ -1134,6 +1262,176 @@ export class ConnectionManager {
       this.reconnect(id);
     }
     return configService.getConnection(id);
+  }
+
+  /**
+   * 缓存 Telegram 机器人头像：getUserProfilePhotos → getFile → 本地/远端下载 → base64。
+   * 失败只记 debug，不影响连接（很多 bot 没设头像）。
+   */
+  private async cacheTelegramAvatar(connectionId: string, botUserId: number): Promise<void> {
+    try {
+      const client = this.getTelegramClient(connectionId);
+      if (!client) return;
+      const api = client.getApiClient();
+      const photos = await api.call<{ total_count: number; photos: Array<Array<{ file_id: string }>> }>(
+        'getUserProfilePhotos', { user_id: botUserId, limit: 1 },
+      );
+      const fileId = photos?.photos?.[0]?.[0]?.file_id;
+      if (!fileId) return;
+      const buf = await api.downloadFile(fileId);
+      if (!buf.length) return;
+      setConnectionAvatar(connectionId, {
+        data: buf.toString('base64'),
+        mime: 'image/jpeg',
+        accountKey: `tg_${botUserId}`,
+        force: true,
+      });
+      this.emitStatus();
+    } catch (error) {
+      this.logger.debug(`缓存 Telegram 头像失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** getMe 成功后把机器人身份写回连接配置（账号隔离键从此确定） */
+  private persistTelegramBotProfile(connectionId: string): void {
+    const client = this.getTelegramClient(connectionId);
+    const user = client?.getBotUser();
+    if (!user) return;
+    const applied = configService.mutateConnections((data) => {
+      const conn = data.connections.find((c) => c.id === connectionId);
+      if (!conn || !isTelegramConnection(conn)) return null;
+      const changed = conn.telegramBotUserId !== String(user.id)
+        || conn.telegramBotUsername !== user.username
+        || conn.telegramBotFirstName !== user.first_name;
+      conn.telegramBotUserId = String(user.id);
+      conn.telegramBotUsername = user.username;
+      conn.telegramBotFirstName = user.first_name;
+      if (!conn.name || conn.name === 'Telegram Bot') {
+        conn.name = user.username ? `@${user.username}` : user.first_name || conn.name;
+      }
+      return changed;
+    });
+    if (applied) {
+      // getMe 回填了账号 id → 指纹会变；同步一次运行指纹，避免下一次 reload
+      // 误判成「配置变了」而把刚连上的端点 stop/start 一遍。
+      const fresh = configService.getConnection(connectionId);
+      if (fresh) this.runningFingerprints.set(connectionId, connectionFingerprint(fresh));
+      void import('../plugin/plugin-account.service.js').then(({ pluginAccountService }) => {
+        pluginAccountService.ensureTelegramAccount(connectionId);
+      });
+      void this.cacheTelegramAvatar(connectionId, user.id);
+    }
+  }
+
+  /** Telegram 连接编辑：字段规范化 + Token 轮换清身份 + 保存后重连 */
+  async updateTelegramConnection(
+    id: string,
+    patch: Partial<Pick<ConnectionConfig,
+      | 'name' | 'mode' | 'telegramToken' | 'telegramApiBase' | 'telegramTestEnv'
+      | 'telegramWebhookUrl' | 'telegramWebhookSecret' | 'telegramWebhookMaxConnections'
+      | 'telegramWebhookIpAddress' | 'telegramWebhookCertificatePath'
+      | 'telegramAllowedUpdates' | 'telegramDropPendingUpdates'
+      | 'telegramPollingTimeout' | 'telegramPollingLimit' | 'telegramProxyUrl'
+      | 'telegramWebhookReplyInResponse' | 'telegramParseMode' | 'webhookBaseUrl'
+      | 'reconnectIntervalMs' | 'reconnectMaxAttempts'>>,
+  ): Promise<ConnectionConfig | undefined> {
+    const applied = configService.mutateConnections((data) => {
+      const conn = data.connections.find((c) => c.id === id);
+      if (!conn || !isTelegramConnection(conn)) return null;
+      const wasEnabled = !!conn.enable;
+
+      if (patch.name !== undefined) conn.name = String(patch.name).trim() || conn.name;
+      if (patch.mode !== undefined) conn.mode = parseTelegramMode(patch.mode);
+      if (patch.telegramToken !== undefined) {
+        const token = String(patch.telegramToken).trim();
+        if (token !== conn.telegramToken) {
+          // 换 token = 换机器人，旧身份/游标一律作废
+          conn.telegramBotUserId = undefined;
+          conn.telegramBotUsername = undefined;
+          conn.telegramBotFirstName = undefined;
+          conn.telegramBotAvatar = undefined;
+          conn.telegramOffset = undefined;
+        }
+        conn.telegramToken = token;
+      }
+      if (patch.telegramApiBase !== undefined) {
+        conn.telegramApiBase = String(patch.telegramApiBase).trim().replace(/\/+$/, '') || undefined;
+      }
+      if (patch.telegramTestEnv !== undefined) conn.telegramTestEnv = patch.telegramTestEnv === true;
+      if (patch.telegramWebhookUrl !== undefined) {
+        conn.telegramWebhookUrl = String(patch.telegramWebhookUrl).trim() || undefined;
+      }
+      if (patch.webhookBaseUrl !== undefined) {
+        conn.webhookBaseUrl = String(patch.webhookBaseUrl).trim().replace(/\/+$/, '') || undefined;
+      }
+      if (patch.telegramWebhookSecret !== undefined) {
+        const secret = String(patch.telegramWebhookSecret).trim();
+        if (secret && !/^[A-Za-z0-9_-]{1,256}$/.test(secret)) {
+          throw new Error('secret_token 只能是 1-256 位 A-Z a-z 0-9 _ -');
+        }
+        conn.telegramWebhookSecret = secret || undefined;
+      }
+      if (patch.telegramWebhookMaxConnections !== undefined) {
+        const n = Math.floor(Number(patch.telegramWebhookMaxConnections));
+        conn.telegramWebhookMaxConnections = Number.isFinite(n) ? Math.min(100000, Math.max(1, n)) : undefined;
+      }
+      if (patch.telegramWebhookIpAddress !== undefined) {
+        conn.telegramWebhookIpAddress = String(patch.telegramWebhookIpAddress).trim() || undefined;
+      }
+      if (patch.telegramWebhookCertificatePath !== undefined) {
+        conn.telegramWebhookCertificatePath = String(patch.telegramWebhookCertificatePath).trim() || undefined;
+      }
+      if (patch.telegramAllowedUpdates !== undefined) {
+        conn.telegramAllowedUpdates = Array.isArray(patch.telegramAllowedUpdates)
+          ? patch.telegramAllowedUpdates.map((v) => String(v).trim()).filter((v) => /^[a-z_]+$/.test(v))
+          : undefined;
+      }
+      if (patch.telegramDropPendingUpdates !== undefined) {
+        conn.telegramDropPendingUpdates = patch.telegramDropPendingUpdates === true;
+      }
+      if (patch.telegramPollingTimeout !== undefined) {
+        const n = Math.floor(Number(patch.telegramPollingTimeout));
+        conn.telegramPollingTimeout = Number.isFinite(n) ? Math.min(50, Math.max(0, n)) : 30;
+      }
+      if (patch.telegramPollingLimit !== undefined) {
+        const n = Math.floor(Number(patch.telegramPollingLimit));
+        conn.telegramPollingLimit = Number.isFinite(n) ? Math.min(100, Math.max(1, n)) : 100;
+      }
+      if (patch.telegramProxyUrl !== undefined) {
+        conn.telegramProxyUrl = String(patch.telegramProxyUrl).trim() || undefined;
+      }
+      if (patch.telegramWebhookReplyInResponse !== undefined) {
+        conn.telegramWebhookReplyInResponse = patch.telegramWebhookReplyInResponse === true;
+      }
+      if (patch.telegramParseMode !== undefined) {
+        conn.telegramParseMode = (['HTML', 'MarkdownV2', 'Markdown', 'Rich'] as const).includes(
+          patch.telegramParseMode as 'HTML',
+        ) ? patch.telegramParseMode : undefined;
+      }
+      if (patch.reconnectIntervalMs !== undefined) {
+        conn.reconnectIntervalMs = Math.max(500, Math.floor(Number(patch.reconnectIntervalMs) || 5000));
+      }
+      if (patch.reconnectMaxAttempts !== undefined) {
+        conn.reconnectMaxAttempts = Math.max(0, Math.floor(Number(patch.reconnectMaxAttempts) || 0));
+      }
+      return { wasEnabled };
+    });
+    if (!applied) return undefined;
+    if (applied.wasEnabled) this.reconnect(id);
+    return configService.getConnection(id);
+  }
+
+  /** 手动刷新机器人资料（getMe），并把身份写回配置 */
+  async refreshTelegramBotProfile(id: string): Promise<TelegramBotProfile> {
+    const client = this.getTelegramClient(id);
+    if (!client) throw new Error('Telegram 连接未就绪');
+    const profile = await client.getApiClient().getMe();
+    void import('../plugin/plugin-account.service.js').then(({ pluginAccountService }) => {
+      pluginAccountService.ensureTelegramAccount(id);
+    });
+    // 刷新资料时同步刷新头像（getUserProfilePhotos → getFile → 下载 → base64 缓存）
+    void this.cacheTelegramAvatar(id, profile.id).catch(() => undefined);
+    return profile;
   }
 
   /** OneBot：运行中也可改配置；保存后若启用则重连使配置生效 */

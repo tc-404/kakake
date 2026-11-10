@@ -191,7 +191,7 @@ export interface IPluginManager {
 // ==================== 插件上下文（MKbot 直接使用） ====================
 
 /** 插件事件 / 动作背后跑的是哪条协议 */
-export type KakakeProtocol = 'onebot' | 'qq_official' | 'weixin_bot' | 'kook';
+export type KakakeProtocol = 'onebot' | 'qq_official' | 'weixin_bot' | 'kook' | 'telegram';
 
 /** 插件日志接口 */
 export interface PluginLogger {

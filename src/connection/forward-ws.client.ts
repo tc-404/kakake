@@ -335,13 +335,34 @@ export class ForwardWsClient implements OneBotEndpoint {
 
   private destroySocket(): void {
     this.stopHeartbeat();
-    if (!this.ws) return;
     const socket = this.ws;
-    socket.removeAllListeners();
-    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-      socket.close();
-    }
+    if (!socket) return;
     this.ws = null;
+    // 关键修复：绝不能 removeAllListeners 把 error 监听也摘掉。
+    // 处于 CONNECTING 时调用 close()/terminate()，ws 内部 abortHandshake 会在
+    // nextTick 里 emit('error', <WebSocket was closed before the connection was established>)；
+    // 若没有 error 监听，Node 会以“未处理的 error 事件”直接崩溃（见原崩溃栈）。
+    // 故保留 error 监听做兜底，仅移除 open/message/pong/close 等业务监听，
+    // 避免旧 socket 关闭时误触发重连 / 心跳等副作用。
+    const errorListeners = socket.listeners('error') as unknown as Array<(...args: any[]) => void>;
+    socket.removeAllListeners();
+    if (errorListeners.length > 0) {
+      for (const l of errorListeners) socket.on('error', l);
+    } else {
+      // 兜底：极端情况下没有 error 监听时也挂一个空监听，绝不让 error 事件裸奔拖崩进程
+      socket.on('error', () => {});
+    }
+    // CONNECTING 状态下 .close() 与 .terminate() 都走 abortHandshake，
+    // 直接 terminate() 强拆更干脆；OPEN 才走正常 close 优雅关闭。
+    if (socket.readyState === WebSocket.CONNECTING) {
+      socket.terminate();
+    } else if (socket.readyState === WebSocket.OPEN) {
+      try {
+        socket.close();
+      } catch {
+        socket.terminate();
+      }
+    }
   }
 
   private notifyReconnectStatusChange(): void {

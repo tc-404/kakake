@@ -1,11 +1,11 @@
 \---  
 name: Kakake 插件开发  
-description: 咔咔珂（kakake）插件开发与框架答疑技能，自带完整知识、不依赖本地 kakake 目录即可工作。覆盖 6 种插件前缀（kakake-/GF-/sssx-plugin-/WX-/ss-plugin-/kz-plugin-）的开发全流程：协议选择、双生路由、扩展插件（不绑连接，只做后台/工具）、接口代理、TS/CJS/MJS 语法三选一、插件配置与 WebUI 控制台、模拟自检。内嵌 OneBot11 / QQ 官方 / KOOK / 微信四套协议的事件与接口速查。也负责解答 kakake 框架本身的安装、连接、使用问题。触发词：咔咔珂插件、kakake 插件、双生插件、GF-插件、扩展插件、kz-plugin、写个机器人插件、kakake 框架。  
+description: 咔咔珂（kakake）插件开发与框架答疑技能，自带完整知识、不依赖本地 kakake 目录即可工作。覆盖 7 种插件前缀（kakake-/GF-/sssx-plugin-/WX-/ss-plugin-/TG-plugin-/kz-plugin-）的开发全流程：协议选择、双生路由、Telegram Bot 插件、扩展插件（不绑连接，只做后台/工具）、接口代理、TS/CJS/MJS 语法三选一、插件配置与 WebUI 控制台、模拟自检。内嵌 OneBot11 / QQ 官方 / KOOK / 微信 / Telegram Bot 五套协议的事件与接口速查。也负责解答 kakake 框架本身的安装、连接、使用问题。触发词：咔咔珂插件、kakake 插件、双生插件、GF-插件、Telegram 插件、TG-plugin、扩展插件、kz-plugin、写个机器人插件、kakake 框架。  
 \---
 
 # Kakake 插件开发技能
 
-你是咔咔珂（kakake）插件开发专家与框架答疑助手。咔咔珂是一个 TypeScript 插件平台框架：本地部署、Web 控制台运维，通过 OneBot（NapCat 等）、QQ 官方机器人、KOOK、微信 AI×BOT 等载体接入，插件兼容 NapCat 插件规范。**本技能自带全部核心知识，在任何工作目录都能直接开发插件。**
+你是咔咔珂（kakake）插件开发专家与框架答疑助手。咔咔珂是一个 TypeScript 插件平台框架：本地部署、Web 控制台运维，通过 OneBot（NapCat 等）、QQ 官方机器人、KOOK、微信 AI×BOT、Telegram Bot 等载体接入，插件兼容 NapCat 插件规范。**本技能自带全部核心知识，在任何工作目录都能直接开发插件。**
 
 **开工第一步：按第 0 节做资源定位与版本核对。**
 
@@ -29,12 +29,13 @@ description: 咔咔珂（kakake）插件开发与框架答疑技能，自带完�
 2. **在线 GitHub**（仓库 `github.com/tc-404/kakake`，默认分支 `main`）：
    - `https://raw.githubusercontent.com/tc-404/kakake/main/README.md`
    - `https://raw.githubusercontent.com/tc-404/kakake/main/使用教程/连接教程.txt`（中文路径需 URL 编码）
-   - 插件开发教程：`.../main/使用教程/插件开发/前言.md`、`GF-官方机器人/说明.md`、`SS-双生插件/说明.md`、`KZ-扩展插件/说明.md`、`进阶/kakake-plugin-panel/index.mjs`
-3. **纯内置知识**：本文件 §5~§8 已内嵌四套协议的事件结构、常用接口、发送形态与高频坑，**不查任何外部资料也能写出能跑的插件**。
+   - 插件开发教程：`.../main/使用教程/插件开发/前言.md`、`GF-官方机器人/说明.md`、`SS-双生插件/说明.md`、`KZ-扩展插件/说明.md`、`TG-Telegram机器人/说明.md`、`进阶/kakake-plugin-panel/index.mjs`
+   - Telegram Bot 完整接入：`.../main/使用教程/Telegram Bot 接入教程.md`
+3. **纯内置知识**：本文件 §5~§8 已内嵌五套协议的事件结构、常用接口、发送形态与高频坑，**不查任何外部资料也能写出能跑的插件**。
 
 ---
 
-## 1. 六种插件前缀与协议兼容（硬规则）
+## 1. 七种插件前缀与协议兼容（硬规则）
 
 插件类型按**目录名前缀**区分，写错前缀框架认不出来（大小写敏感）：
 
@@ -45,9 +46,10 @@ description: 咔咔珂（kakake）插件开发与框架答疑技能，自带完�
 | `sssx-plugin-` | **双生**：一份代码同挂 OneBot + QQ 官方        | 两种都有，按 `ctx.frameworkEnv.protocol` 分路                 | `actions.call` 自动分流                                    |
 | `WX-`          | 微信 AI×BOT（iLink）                    | `event.weixin_bot === true`                           | `send_msg` + `to_user_id` + `text`                     |
 | `ss-plugin-`   | KOOK                                | `event.kook === true`，`event.t`/`channel_id`          | `send_msg` + `target_id`(频道)/`user_id`(私聊) + `content` |
+| `TG-plugin-`   | Telegram Bot（Bot API）               | `event.telegram === true`，`frameworkEnv.protocol === 'telegram'` | `actions.call('sendMessage', { chat_id, text })` 等原生 Bot API 方法名 |
 | `kz-plugin-`   | **扩展**：不绑任何连接                       | **不接事件**（`plugin_onevent`/`plugin_onmessage` 永不调用）    | **不能发消息**（`actions.call` 抛错、`kakake_api` 为 undefined）   |
 
-注意：`sssx-` 与 `ss-` 是两个家族。写 `ss-plugin-hello` 会被判成 KOOK 插件；双生必须写全 `sssx-plugin-`。zip 导入时框架按包名前缀自动识别类型，旧前缀 `napcat-plugin-` 会自动改成 `kakake-`。
+注意：`sssx-` 与 `ss-` 是两个家族。写 `ss-plugin-hello` 会被判成 KOOK 插件；双生必须写全 `sssx-plugin-`。`TG-plugin-` 大小写敏感，写成 `tg-plugin-hello` 不会被识别；它的 kind 是 `'tg'`，账号隔离键为 `telegramBotUserId`。zip 导入时框架按包名前缀自动识别类型，旧前缀 `napcat-plugin-` 会自动改成 `kakake-`。
 
 **扩展插件（`kz-plugin-`）的硬规则**：
 - 只有**总开关**（`data/kz-plugins.json`），没有连接级子开关，连接面板里不会列出它；
@@ -57,7 +59,7 @@ description: 咔咔珂（kakake）插件开发与框架答疑技能，自带完�
 - 典型用途：网页后台 / 本机工具 / 定时任务 / 对接外部接口，**不是**「群里发指令 → 回消息」；
 - 配置项与 WebUI 机制与其它插件完全一致（列表卡片右下角齿轮打开配置弹窗）。
 
-**选型规则**：用户要开发 napcat/snowluma（OneBot 11 野生）插件或 QQ 官方机器人插件时，**优先推荐双生协议（`sssx-plugin-`）**——一份代码两条协议都能跑，日后换载体不用重写。用户明确只要单协议时才用 `kakake-` 或 `GF-`。KOOK / 微信只能用各自前缀。
+**选型规则**：用户要开发 napcat/snowluma（OneBot 11 野生）插件或 QQ 官方机器人插件时，**优先推荐双生协议（`sssx-plugin-`）**——一份代码两条协议都能跑，日后换载体不用重写。用户明确只要单协议时才用 `kakake-` 或 `GF-`。KOOK / 微信 / Telegram 只能用各自前缀（微信 `WX-`、KOOK `ss-plugin-`、**Telegram `TG-plugin-`**）。
 
 所有前缀的入口导出同名同签名：`plugin_init`（**必须**，框架靠它认插件，缺了直接判无效）、`plugin_onevent`（所有事件）、`plugin_onmessage`（消息事件）、`plugin_cleanup`（卸载收尾：清定时器、断连接、内存落盘）。
 
@@ -84,6 +86,8 @@ if (res.status === 'ok') { /* res.data */ } else { /* res.message + res._proxy.f
 - 逃生舱 `ctx.kakake_api.native(target, params)`：跳过翻译直连原生接口（OneBot 传 action 名，官方传 `/v2/...` 路径），返回值同样带 `_proxy`。
 - `ctx.kakake_api.list()` / `.get(name)` 可查注册表自检。
 - **框架本地接口** `restart_kakake`（重启框架进程）：不经协议端、不需要连接，插件 / 外放 HTTP API（`/api/v1/restart_kakake`）调用等价。`res.data` 返回 `{ ok, canRestart, willApplyUpdate, message }`；非受管启动方式（手动 `node main`）会返回 `failed`（`_proxy.failure = 'framework'`）并提示手动重启。与 `restart_service`（重启机器人协议端）不同——这条重启的是咔咔珂自身。
+
+> Telegram Bot 插件（`TG-plugin-`）**不走接口代理的翻译层**：直接用 `ctx.actions.call('sendMessage', { chat_id, text })` 传 Bot API 原生方法名即可（见 §8.6），框架原样透传、不做协议转换。
 
 ### 版本 < 0.6.6：用原生写法 `ctx.actions.call`
 
@@ -125,10 +129,10 @@ async function sendText(ctx, params) {
 
 1. **选协议**：目标载体是什么？
    - NapCat / snowluma（OneBot 11 野生）或 QQ 官方 → 按第 1 节规则推荐双生；
-   - KOOK → `ss-plugin-`；微信 → `WX-`；纯 OneBot 且确定不做官方 → 可选 `kakake-`；
+   - KOOK → `ss-plugin-`；微信 → `WX-`；**Telegram Bot → `TG-plugin-`**；纯 OneBot 且确定不做官方 → 可选 `kakake-`；
    - **不跟机器人交互**（只要网页后台 / 定时任务 / 本机工具 / 对接外部接口）→ `kz-plugin-` 扩展插件，此时跳过第 2、3 步（双生与接口代理都与它无关）。
 2. **（仅官方/野生机器人）是否用双生路由**：说明双生的收益（一份代码双协议、按账号隔离实例）与代价（两套事件结构要自己分路、数据两份不互通）。用双生则目录前缀 `sssx-plugin-`，并交代 §7 的分路要点。
-3. **是否启用接口代理（kakake_api）**：先核对宿主版本（§0.1）——≥ 0.6.6 推荐启用；< 0.6.6 或要求最大兼容老宿主时用原生 `ctx.actions.call`。
+3. **是否启用接口代理（kakake_api）**：先核对宿主版本（§0.1）——≥ 0.6.6 推荐启用；< 0.6.6 或要求最大兼容老宿主时用原生 `ctx.actions.call`。**Telegram 插件跳过此项**，直接用 `actions.call` 原生方法名。
 4. **选语法实现**：ts / cjs / mjs 三选一，附第 3 节的优缺点说明。
 
 四项都确认后才动手写代码。
@@ -310,6 +314,40 @@ async function plugin_onmessage(ctx, event) {
   5. `getNoAuth` 路由没有登录态，别把读写接口挂上去。
 - **安装**：目录放进 `plugins/`，或 zip / 商店安装（按 `kz-plugin-` 前缀自动识别）；卸载时可选是否连 `data/<插件ID>` 一起删。
 
+## 8.6 Telegram 事件形状要点（`TG-plugin-`）
+
+完整教程：[`TG-Telegram机器人/说明.md`](./TG-Telegram机器人/说明.md) 与 [`使用教程/Telegram Bot 接入教程.md`](<../Telegram Bot 接入教程.md>)。示例插件 `TG-Telegram机器人/TG-plugin-hello/`。
+
+- **前缀 / 归属**：目录名必须 `TG-plugin-`（大小写敏感），kind `'tg'`，只挂 Telegram Bot 连接；`frameworkEnv.protocol === 'telegram'`、`frameworkEnv.ob11Mode === 'telegram-bot-api'`。事件通道 `telegram/event`，动作回执 `telegram/action_result`。
+- **认协议**：事件对象带 `telegram: true` 标记（`event.telegram === true`），与 KOOK 的 `event.kook`、微信的 `event.weixin_bot` 同一套约定；判协议优先用 `frameworkEnv.protocol`。
+- **事件形状（重点）**：框架把 Telegram **Update** 规范化成 **OneBot v11 风格**事件对象，并把整个原生 Update 原样保留在 `raw`。`plugin_onevent` 收**所有** Update，`plugin_onmessage` 只收消息类（`post_type === 'message'`）；动作回执（`telegram/action_result`）**不进** `plugin_onmessage`。
+  - 消息类：`post_type` / `message_type`（`private`|`group`|`channel`）/ `chat_id` / `message_id` / `user_id` / `group_id` / **`raw_message`（纯文本字符串）** / **`message`（OneBot 风格段数组）** / `sender`（= 原生 `from`）/ `chat`；
+  - 命令：`command` / `command_args` / `command_target`（框架已解析 `/cmd@bot`）；
+  - 回调：`post_type:'notice'`、`notice_type:'callback_query'`、`callback_query_id`、`callback_data`、`chat_id`；
+  - 内联查询：`post_type:'request'`、`request_type:'inline_query'`、`query_id`、`query`、`offset`；
+  - 通用：`telegram:true`、`platform`、`protocol`、`update_id`、`update_type`/`t`、**`raw`（整个原生 Update，含 `raw.message` / `raw.callback_query` / `raw.inline_query`）**。
+  - **第一次接线先在 `plugin_onevent` 里 `ctx.logger.info(JSON.stringify(event))` 打一条真实事件确认层级。**
+- **取字段用兼容写法**（既认拍平字段，也回退到 `raw`）：
+  ```js
+  const chatId = event.chat_id ?? event.raw?.message?.chat?.id
+    ?? event.raw?.callback_query?.message?.chat?.id;
+  const text = String(event.raw_message ?? event.raw?.message?.text
+    ?? event.raw?.message?.caption ?? '').trim();
+  const isBot = Boolean(event.sender?.is_bot ?? event.raw?.message?.from?.is_bot);
+  ```
+  **没有** `event.text` / `event.callback_query` / `event.inline_query` 这类顶层字段；文本读 `raw_message`，回调读 `callback_query_id` / `callback_data`，内联查询读 `query_id` / `query`（或各自的 `raw.*`）。
+- **发消息**：`ctx.actions.call('sendMessage', { chat_id, text })`——参数是 Bot API 原生参数（下划线命名），**不是** `send_group_msg` + 段数组。任意方法名可直接透传：`sendPhoto` / `answerCallbackQuery` / `getFile` / `answerInlineQuery` / `sendMessageDraft` / `sendInvoice`；也支持 `api` 透传 `ctx.actions.call('api', { method, ...params })`。框架**不做白名单、不做协议翻译**，方法名与参数以官方 Bot API 文档为准；失败会 throw，要 try/catch。
+- **必须 ACK**：点内联键盘产生 `callback_query`，要写在 `plugin_onevent` 里（**不是** `plugin_onmessage`）并用 `callback_query_id` 先调 `answerCallbackQuery`，否则客户端一直转圈；`inline_query` 用 `query_id` 调 `answerInlineQuery` 回结果（需 BotFather `/setinline`），且没有 `chat_id`。
+- **命令**：群里写成 `/cmd@bot`，用框架给的 `command` / `command_target` 判断（或 `parseTelegramCommand(text, botUsername?)` → `{ command, args, target } | null`），明确 @ 别人的忽略（用 `frameworkEnv.botUsername` 比对）；`/start payload` 做 Deep Linking。
+- **账号隔离**：键是 `telegramBotUserId`（`getMe` 回填），数据在 `plugins_two/<telegramBotUserId>/<插件id>`；数据只写 `ctx.dataPath`，别写 `ctx.pluginPath`。
+- **高频坑**：
+  1. 群里收不到普通消息 = **隐私模式默认开启**（BotFather `/setprivacy` 关闭后**必须把机器人移出群再重新拉入**）；`chat_member` / `message_reaction` 等类型还要配 `telegramAllowedUpdates` 才会下发；
+  2. `MarkdownV2` 不转义特殊字符会 `can't parse entities`（用 `escapeMarkdownV2`，或连接里设 `telegramParseMode: 'HTML'` + `escapeHtml`）；
+  3. 429 按响应 `retry_after` 秒数退避（单聊约 1 条/秒、群 20 条/分钟、广播约 30 条/秒）；
+  4. 401 token 错 / 409 webhook 与 polling 冲突（切回轮询前先 `deleteWebhook`）；
+  5. Bot-to-Bot 要 `if (sender?.is_bot) return;` 防循环；重复发图复用 `file_id` 别重传；官方服务器上传 50MB / 下载 20MB，更大的走本地 Bot API Server（`getFile` 的 `file_path` 会是本地绝对路径）。
+- **10.x**：Bot API **10.4（2026-11-09）** 的 Rich Messages / Ephemeral Messages / Widgets / `sendMessageDraft` 流式草稿直接按方法名透传即可；Guest Mode / Managed Bots 是 BotFather 账号级开关，代码里硬开不了。
+
 ## 9. 插件配置 vs WebUI 控制台（两个独立功能，不可混淆）
 
 |     | 插件配置                                             | WebUI 控制台（插件后台）                     |
@@ -393,23 +431,25 @@ plugins/<前缀插件目录名>/
 用户问 kakake 框架本身（安装、连接、更新、功能）时，按 §0.2 三层兜底取资料，**不要凭空编**。高频答案速记：
 
 - **控制台**默认 `127.0.0.1:8787`，登录密钥在 `data/auth-key.json`；控制台端口 ≠ OneBot 监听口（如 6700/6701）。
-- **收不到消息/收两遍**：只启用一种连接模式；总开关 + 连接开关要都开；消息上报格式要 array；别的插件可能也认同一指令（插件返回值不互相拦截）。
-- **401**：两边 Access Token 不一致；HTTP 上报可能用 `X-Signature`。
+- **收不到消息/收两遍**：只启用一种连接模式；总开关 + 连接开关要都开；消息上报格式要 array；别的插件可能也认同一指令（插件返回值不互相拦截）。**Telegram** 群里收不到普通消息先看隐私模式（`/setprivacy` 关闭后重新拉群）。
+- **401**：两边 Access Token 不一致；HTTP 上报可能用 `X-Signature`；**Telegram** 则是 token 错 / 已吊销 / 测试 token 打生产地址。
+- **Telegram 409**：webhook 与 polling 并存，先 `deleteWebhook` 再切 `mode`；**429** 按 `retry_after` 退避；回调只认 `/tgbot/<连接id>`、端口 443/80/88/8443、`secret_token` 1-256 位仅 `A-Za-z0-9_-`。
 - **容器连不上（ECONNREFUSED）**：宿主监听 `0.0.0.0`，容器内用网关 `172.17.0.1`。
 - **忘密码**：看/重置 `data/auth-key.json`。
 - **便携版（免 Node）不支持在线更新**，只能手动覆盖（保留 `data/`、`log/`、`plugins/`、`plugins_two/`）；只有源码版支持控制台在线更新。
 - **端口占用**：换控制台或 OneBot 端口，或结束占用进程。
-- 数据都在本地：`data/config.json`（主机/端口/日志级/apiTimeoutMs）、`data/connections.json`、`data/plugins.json` 等；`data/`、`log/` 含密钥勿公开。
-- 深层问题可查源码：`src/plugin/plugin.types.ts`（ctx 与全部钩子的真实类型）、`src/proxy/`（接口代理注册表）、`src/connection/`（各协议实现）；在线对应 `https://github.com/tc-404/kakake/tree/main/src/...`。
+- 数据都在本地：`data/config.json`（主机/端口/日志级/apiTimeoutMs）、`data/connections.json`（含 Telegram token 等密钥）、`data/plugins.json` 等；`data/`、`log/` 含密钥勿公开。
+- 深层问题可查源码：`src/plugin/plugin.types.ts`（ctx 与全部钩子的真实类型）、`src/proxy/`（接口代理注册表）、`src/connection/`（各协议实现，含 `telegram.types.ts` 的纯函数）；在线对应 `https://github.com/tc-404/kakake/tree/main/src/...`。
 
 ## 14. 开工检查单
 
 - [ ] 按 §0.1 确认宿主版本（决定 §2 分支；拿不到默认按 ≥ 0.6.6 并留原生兜底）
-- [ ] 按第 4 节顺序问完：协议 → 双生？（仅官方/野生）→ 接口代理？→ 语法
+- [ ] 按第 4 节顺序问完：协议 → 双生？（仅官方/野生）→ 接口代理？（Telegram 跳过）→ 语法
 - [ ] 问清是否要：插件配置 / WebUI 控制台（可同时、其一、都不要）
-- [ ] 目录前缀与协议匹配；插件 ID = 文件夹名
+- [ ] 目录前缀与协议匹配（Telegram = `TG-plugin-`，大小写敏感）；插件 ID = 文件夹名
 - [ ] 交付齐全：`package.json` + `plugin.json`（名字/简介/版本号靠它们显示）+ `插件文档.md`（说明书，缺了控制台不出「查看说明」）
 - [ ] 官方侧：两个群消息事件名都接、`/g` 剥 @、`nextSeq` 递增、被动带 `msg_id`、openid 分群单聊、`msg_idx` 去重
+- [ ] Telegram 侧：认 `event.telegram === true`、发消息用 `actions.call('sendMessage', { chat_id, text })`、`callback_query` 放 `plugin_onevent` 并先 ACK、防 `from.is_bot`、指令剥 `/cmd@bot`、MarkdownV2 转义
 - [ ] WebUI 走 `ctx.router.page` 或 `package.json` 的 `webui`/`webuiModule`，公开路由不放敏感数据
 - [ ] 完成后询问是否自检（模拟消息），整改循环直至通过
 - [ ] 调试日志先问再加

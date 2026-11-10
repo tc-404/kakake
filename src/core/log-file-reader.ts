@@ -10,6 +10,8 @@ const TAG_TO_CATEGORY: Record<string, LogCategory> = {
   GF_EVENT: 'gf_event',
   GF_ACTION: 'gf_action',
   GF_PLUGIN: 'gf_plugin',
+  TG_EVENT: 'tg_event',
+  TG_ACTION: 'tg_action',
   SIM_EVENT: 'sim_event',
   SIM_ACTION: 'sim_action',
 };

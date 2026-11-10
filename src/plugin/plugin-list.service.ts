@@ -4,6 +4,7 @@ import {
   isKookConnection,
   isOnebotConnection,
   isQqOfficialConnection,
+  isTelegramConnection,
   isWeixinBotConnection,
 } from '../core/types.js';
 import { buildPluginListItem } from './plugin-meta.js';
@@ -64,7 +65,7 @@ function mapOneManager(
     isMasterEnabled: (id: string) => boolean;
     getLoadedAccountKeys?: (id: string) => string[];
   },
-  kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz',
+  kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg',
   connectionId?: string,
 ) {
   const extensionPages: Array<Record<string, unknown>> = [];
@@ -157,7 +158,7 @@ function mapOneManager(
   return { plugins, extensionPages };
 }
 
-/** 全局列表：合并 OneBot + GF + 微信 + KOOK + 双生 + 扩展插件 */
+/** 全局列表：合并 OneBot + GF + 微信 + KOOK + 双生 + 扩展 + Telegram 插件 */
 export function buildGlobalPluginListPayload() {
   const a = mapOneManager(kakakeApp.pluginManager, 'kakake');
   const b = mapOneManager(kakakeApp.gfPluginManager, 'gf');
@@ -166,8 +167,9 @@ export function buildGlobalPluginListPayload() {
   const e = mapOneManager(kakakeApp.sssxPluginManager, 'sssx');
   // 扩展插件不绑连接：只出现在总列表，不参与任何 connectionId 作用域的列表
   const f = mapOneManager(kakakeApp.kzPluginManager, 'kz');
+  const g = mapOneManager(kakakeApp.tgPluginManager, 'tg');
   return {
-    plugins: [...a.plugins, ...b.plugins, ...c.plugins, ...d.plugins, ...e.plugins, ...f.plugins],
+    plugins: [...a.plugins, ...b.plugins, ...c.plugins, ...d.plugins, ...e.plugins, ...f.plugins, ...g.plugins],
     extensionPages: [
       ...a.extensionPages,
       ...b.extensionPages,
@@ -175,6 +177,7 @@ export function buildGlobalPluginListPayload() {
       ...d.extensionPages,
       ...e.extensionPages,
       ...f.extensionPages,
+      ...g.extensionPages,
     ],
     pluginManagerNotFound: false,
   };
@@ -192,7 +195,9 @@ export function buildPluginListPayload(connectionId?: string) {
       ? kakakeApp.wxPluginManager
       : kind === 'ss'
         ? kakakeApp.ssPluginManager
-        : kakakeApp.pluginManager;
+        : kind === 'tg'
+          ? kakakeApp.tgPluginManager
+          : kakakeApp.pluginManager;
   const native = mapOneManager(pm, kind ?? 'kakake', connectionId);
   // 双生插件在「任意一条受支持的协议连接」上都要能看到并可单独开关
   const twin = mapOneManager(kakakeApp.sssxPluginManager, 'sssx', connectionId);
@@ -206,13 +211,14 @@ export function buildPluginListPayload(connectionId?: string) {
 
 export function resolveConnectionPluginKind(
   connectionId?: string,
-): 'kakake' | 'gf' | 'wx' | 'ss' | undefined {
+): 'kakake' | 'gf' | 'wx' | 'ss' | 'tg' | undefined {
   if (!connectionId) return undefined;
   const conn = configService.getConnection(connectionId);
   if (!conn) return undefined;
   if (isQqOfficialConnection(conn)) return 'gf';
   if (isWeixinBotConnection(conn)) return 'wx';
   if (isKookConnection(conn)) return 'ss';
+  if (isTelegramConnection(conn)) return 'tg';
   return 'kakake';
 }
 

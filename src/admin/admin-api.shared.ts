@@ -6,6 +6,7 @@ import { isWxPluginDir } from '../plugin/wx-plugin-id.js';
 import { isSsPluginDir } from '../plugin/ss-plugin-id.js';
 import { isSssxPluginDir } from '../plugin/sssx-plugin-id.js';
 import { isKzPluginDir } from '../plugin/kz-plugin-id.js';
+import { isTgPluginDir } from '../plugin/tg-plugin-id.js';
 
 /**
  * 媒体代理被域名白名单拒绝时告警：同一主机只报一次。
@@ -31,17 +32,18 @@ export function warnProxyDenied(message: string): void {
   );
 }
 
-export function resolveConnectionPluginKindFromConn(connectionId: string): 'kakake' | 'gf' | 'wx' | 'ss' {
+export function resolveConnectionPluginKindFromConn(connectionId: string): 'kakake' | 'gf' | 'wx' | 'ss' | 'tg' {
   const type = configService.getConnection(connectionId)?.type ?? 'onebot';
   if (type === 'qq_official') return 'gf';
   if (type === 'weixin_bot') return 'wx';
   if (type === 'kook') return 'ss';
+  if (type === 'telegram') return 'tg';
   return 'kakake';
 }
 
 /**
  * 连接状态变化后同步所有插件管理器。
- * 双生插件（sssx）同时挂在两条协议上，所以五套管理器一个都不能漏。
+ * 双生插件（sssx）同时挂在两条协议上，所以各套管理器一个都不能漏。
  */
 export function syncAllPluginManagers(): void {
   void kakakeApp.pluginManager?.syncAllPluginRuntimes();
@@ -49,11 +51,12 @@ export function syncAllPluginManagers(): void {
   void kakakeApp.wxPluginManager?.syncAllPluginRuntimes();
   void kakakeApp.sssxPluginManager?.syncAllPluginRuntimes();
   void kakakeApp.ssPluginManager?.syncAllPluginRuntimes();
+  void kakakeApp.tgPluginManager?.syncAllPluginRuntimes();
   // 扩展插件不依赖连接，这里只是保持「连接变化后各管理器对齐一次」的形状一致
   void kakakeApp.kzPluginManager?.syncAllPluginRuntimes();
 }
 
-/** 按 ID 路由到 扩展 / 双生 / GF / 微信 / KOOK / 普通插件管理器 */
+/** 按 ID 路由到 扩展 / Telegram / 双生 / GF / 微信 / KOOK / 普通插件管理器 */
 export function resolvePluginManager(id: string) {
   const trimmed = String(id || '').trim();
   // 扩展插件前缀与其它几套不重叠，先判省得被兜底成普通插件
@@ -71,6 +74,16 @@ export function resolvePluginManager(id: string) {
     || /^wxbot/i.test(trimmed)
   ) {
     return { kind: 'wx' as const, manager: kakakeApp.wxPluginManager };
+  }
+  // Telegram 插件必须早于 KOOK：tgbot-plugin-* 等别名不能被 ss 的宽松正则误吞；
+  // 宽松正则只认 tg/tgbot + plugin 段，不会误吞 tg- 开头的其它名字
+  if (
+    kakakeApp.tgPluginManager?.getPluginInfo(trimmed)
+    || isTgPluginDir(trimmed)
+    || /^tg[-_]?plugin/i.test(trimmed)
+    || /^tgbot[-_]?plugin/i.test(trimmed)
+  ) {
+    return { kind: 'tg' as const, manager: kakakeApp.tgPluginManager };
   }
   // 双生插件必须早于 KOOK：sssx-plugin-* 的宽松别名正则会被 ss 的规则误吞
   if (
@@ -99,7 +112,7 @@ export function resolvePluginManager(id: string) {
 
 /**
  * 导入 / 商店安装 / 分享包还原后的统一登记入口：按导入器识别出的类型
- * 交给对应管理器（六套类型各一处，别再在三个控制器里各抄一份三元链）。
+ * 交给对应管理器（七套类型各一处，别再在三个控制器里各抄一份三元链）。
  */
 export async function registerImportedPluginByKind(
   pluginId: string,
@@ -110,6 +123,7 @@ export async function registerImportedPluginByKind(
     case 'gf': return kakakeApp.gfPluginManager.registerImportedPlugin(pluginId);
     case 'wx': return kakakeApp.wxPluginManager.registerImportedPlugin(pluginId);
     case 'ss': return kakakeApp.ssPluginManager.registerImportedPlugin(pluginId);
+    case 'tg': return kakakeApp.tgPluginManager.registerImportedPlugin(pluginId);
     case 'kz': return kakakeApp.kzPluginManager.registerImportedPlugin(pluginId);
     default: return kakakeApp.pluginManager.registerImportedPlugin(pluginId);
   }

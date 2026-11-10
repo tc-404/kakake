@@ -27,6 +27,12 @@ function copyText(text: string) {
 }
 
 function connAddress(conn: ConnectionStatus): string {
+  if (conn.type === 'telegram') {
+    // Telegram 没有 ws 监听地址：优先显示机器人用户名，其次 webhook 回调地址
+    if (conn.telegramBotUsername) return `@${conn.telegramBotUsername}`;
+    if (conn.telegramWebhookUrl) return conn.telegramWebhookUrl;
+    return conn.telegramSummary || t('connections.tg.dash');
+  }
   if (conn.type === 'weixin_bot') {
     return conn.weixinSummary || conn.weixinAccountId || t('dashboard.notLoggedIn');
   }

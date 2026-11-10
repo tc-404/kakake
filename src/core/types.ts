@@ -60,18 +60,26 @@ export function normalizeApiTimeoutMs(value: unknown): number {
   return Math.min(600_000, Math.max(5_000, Math.floor(n)));
 }
 
-/** 连接协议类型：OneBot、QQ 开放平台官方机器人、微信 iLink BOT、KOOK */
-export type ConnectionType = 'onebot' | 'qq_official' | 'weixin_bot' | 'kook';
+/** 连接协议类型：OneBot、QQ 开放平台官方机器人、微信 iLink BOT、KOOK、Telegram Bot */
+export type ConnectionType = 'onebot' | 'qq_official' | 'weixin_bot' | 'kook' | 'telegram';
 
 /**
- * OneBot 连接模式：
+ * 连接模式：
  * - reverse / forward：WebSocket
  * - http：HTTP 服务器（收 POST 事件 + 调对端 HTTP API）
  * - http_sse：连接对端 HTTP SSE 服务端
  * - http_client：HTTP 客户端（调对端 HTTP API + 事件上报到框架路径）
  * - https：QQ 官方 HTTPS Webhook（仅 qq_official）
+ * - polling：Telegram Bot `getUpdates` 长轮询（仅 telegram）
+ * - webhook：Telegram Bot `setWebhook` HTTPS 回调（仅 telegram）
+ *
+ * 注意：Telegram 的两种模式与「本地 Bot API Server」是正交的——后者由
+ * `telegramApiBase` 决定请求发到官方服务器还是自建服务器，两种模式都能用。
  */
-export type ConnectionMode = 'reverse' | 'forward' | 'http' | 'http_sse' | 'http_client' | 'https';
+export type ConnectionMode = 'reverse' | 'forward' | 'http' | 'http_sse' | 'http_client' | 'https' | 'polling' | 'webhook';
+
+/** Telegram Bot 的两种收更新方式（getUpdates / Webhook 互斥，官方文档明确二选一） */
+export type TelegramMode = 'polling' | 'webhook';
 
 export type ConnectionLogLayout = 'legacy' | 'account';
 
@@ -167,6 +175,51 @@ export interface ConnectionConfig {
   kookBotIdentifyNum?: string;
   /** KOOK：缓存的机器人头像 */
   kookBotAvatar?: string;
+  // ───────────────────────── Telegram Bot ─────────────────────────
+  /** BotFather 签发的 token（形如 `123456:ABC-DEF...`），全部权限，等同密钥 */
+  telegramToken?: string;
+  /** getMe 得到的机器人 ID，作为 plugins_two/ 账号隔离键 */
+  telegramBotUserId?: string;
+  /** getMe 得到的 @username（不带 @） */
+  telegramBotUsername?: string;
+  /** getMe 得到的显示名 */
+  telegramBotFirstName?: string;
+  /** getUserProfilePhotos 缓存的头像 */
+  telegramBotAvatar?: string;
+  /**
+   * Bot API 基址。默认 `https://api.telegram.org`；填自建地址即切换到
+   * 本地 Bot API Server（可用 HTTP / 任意端口、上传 2000MB、下载无大小限制、
+   * getFile 直接返回本地绝对路径）。
+   */
+  telegramApiBase?: string;
+  /** 是否走测试环境：`/bot<token>/test/METHOD_NAME` */
+  telegramTestEnv?: boolean;
+  /** Webhook：完整公网回调 URL（本地 Bot API Server 时可为 http 内网地址） */
+  telegramWebhookUrl?: string;
+  /** Webhook：secret_token，1-256 位，仅 A-Z a-z 0-9 _ -；对应 X-Telegram-Bot-Api-Secret-Token 头 */
+  telegramWebhookSecret?: string;
+  /** Webhook：并发连接数 1-100（本地服务器可到 100000） */
+  telegramWebhookMaxConnections?: number;
+  /** Webhook：固定投递 IP（替代 DNS 解析） */
+  telegramWebhookIpAddress?: string;
+  /** Webhook：自签公钥证书 PEM 路径（作为 certificate InputFile 上传） */
+  telegramWebhookCertificatePath?: string;
+  /** 订阅的 Update 类型；留空用框架默认全集（含 chat_member / message_reaction 等需显式订阅的类型） */
+  telegramAllowedUpdates?: string[];
+  /** 切换接入方式时丢弃积压更新 */
+  telegramDropPendingUpdates?: boolean;
+  /** getUpdates 长轮询超时（秒），默认 30 */
+  telegramPollingTimeout?: number;
+  /** getUpdates 单次取回上限 1-100，默认 100 */
+  telegramPollingLimit?: number;
+  /** getUpdates 游标（offset = 已处理最大 update_id + 1），持久化避免重启后重复收 */
+  telegramOffset?: number;
+  /** 可选 HTTP 代理地址（如 http://127.0.0.1:7897），用于服务器无法直连 Telegram 的场景 */
+  telegramProxyUrl?: string;
+  /** Webhook 模式下把本次事件产生的首个 API 调用直接放进 2xx 响应体（省一次请求，拿不到 result） */
+  telegramWebhookReplyInResponse?: boolean;
+  /** 默认文本解析模式：HTML（默认，最省心）| MarkdownV2 | Markdown | Rich */
+  telegramParseMode?: 'HTML' | 'MarkdownV2' | 'Markdown' | 'Rich';
   /** 首次添加时间（毫秒时间戳）；同状态排序时越早越靠前 */
   createdAt?: number;
   logLayout?: ConnectionLogLayout;
@@ -247,8 +300,37 @@ export function isKookConnection(conn: Pick<ConnectionConfig, 'type'>): boolean 
   return (conn.type ?? 'onebot') === 'kook';
 }
 
+/** 仅判断「类型是 Telegram Bot 连接」；不保证 token 已填 */
+export function isTelegramConnection(
+  conn: Pick<ConnectionConfig, 'type'>,
+): conn is ConnectionConfig & { type: 'telegram' } {
+  return (conn.type ?? 'onebot') === 'telegram';
+}
+
 export function kookConnectionReady(conn: ConnectionConfig): boolean {
   return !!String(conn.kookToken || '').trim();
+}
+
+export function telegramConnectionReady(conn: ConnectionConfig): boolean {
+  return !!String(conn.telegramToken || '').trim();
+}
+
+/** Telegram 连接的接入方式：默认长轮询（无需公网地址，开箱即用） */
+export function parseTelegramMode(value: unknown): TelegramMode {
+  return value === 'webhook' ? 'webhook' : 'polling';
+}
+
+/** Telegram 连接在 UI 中展示的摘要 */
+export function telegramConnectionSummary(conn: ConnectionConfig): string {
+  if (!isTelegramConnection(conn)) return '';
+  if (!telegramConnectionReady(conn)) return '未配置 Bot Token';
+  const user = String(conn.telegramBotUsername || '').trim();
+  const mode = parseTelegramMode(conn.mode);
+  const modeLabel = mode === 'webhook' ? 'Webhook' : '长轮询';
+  const env = conn.telegramTestEnv ? ' · 测试环境' : '';
+  const local = conn.telegramApiBase && !/api\.telegram\.org/i.test(conn.telegramApiBase)
+    ? ' · 本地 API' : '';
+  return user ? `@${user} · ${modeLabel}${env}${local}` : `Token 已配置 · ${modeLabel}${env}${local}`;
 }
 
 export function weixinBotLoggedIn(conn: ConnectionConfig): boolean {
@@ -277,12 +359,69 @@ export function isReconnectableOnebotMode(mode?: ConnectionMode): boolean {
 }
 
 /** 将旧版 url 格式迁移为 host + port */
+const clampInt = (value: unknown, min: number, max: number, fallback: number): number => {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+};
+
 export function normalizeConnection(conn: StoredConnectionConfig): ConnectionConfig {
   const type: ConnectionType =
     conn.type === 'qq_official' ? 'qq_official'
       : conn.type === 'weixin_bot' ? 'weixin_bot'
         : conn.type === 'kook' ? 'kook'
-          : 'onebot';
+          : conn.type === 'telegram' ? 'telegram'
+            : 'onebot';
+
+  if (type === 'telegram') {
+    const allowed = Array.isArray(conn.telegramAllowedUpdates)
+      ? conn.telegramAllowedUpdates
+        .map((v) => String(v || '').trim())
+        .filter((v) => /^[a-z_]+$/.test(v))
+      : undefined;
+    const base: ConnectionConfig = {
+      id: conn.id,
+      name: conn.name,
+      type: 'telegram',
+      mode: parseTelegramMode(conn.mode),
+      host: '',
+      port: 0,
+      enable: conn.enable ?? false,
+      telegramToken: String(conn.telegramToken || '').trim(),
+      telegramBotUserId: conn.telegramBotUserId ? String(conn.telegramBotUserId).trim() : undefined,
+      telegramBotUsername: conn.telegramBotUsername ? String(conn.telegramBotUsername).trim() : undefined,
+      telegramBotFirstName: conn.telegramBotFirstName,
+      telegramBotAvatar: conn.telegramBotAvatar,
+      telegramApiBase: String(conn.telegramApiBase || '').trim().replace(/\/+$/, '') || undefined,
+      telegramTestEnv: conn.telegramTestEnv === true,
+      telegramWebhookUrl: String(conn.telegramWebhookUrl || '').trim() || undefined,
+      telegramWebhookSecret: String(conn.telegramWebhookSecret || '').trim() || undefined,
+      telegramWebhookMaxConnections: conn.telegramWebhookMaxConnections !== undefined
+        ? clampInt(conn.telegramWebhookMaxConnections, 1, 100000, 40) : undefined,
+      telegramWebhookIpAddress: String(conn.telegramWebhookIpAddress || '').trim() || undefined,
+      telegramWebhookCertificatePath: String(conn.telegramWebhookCertificatePath || '').trim() || undefined,
+      telegramAllowedUpdates: allowed,
+      telegramDropPendingUpdates: conn.telegramDropPendingUpdates === true,
+      telegramPollingTimeout: conn.telegramPollingTimeout !== undefined
+        ? clampInt(conn.telegramPollingTimeout, 0, 50, 30) : undefined,
+      telegramPollingLimit: conn.telegramPollingLimit !== undefined
+        ? clampInt(conn.telegramPollingLimit, 1, 100, 100) : undefined,
+      telegramOffset: conn.telegramOffset !== undefined
+        ? clampInt(conn.telegramOffset, 0, Number.MAX_SAFE_INTEGER, 0) : undefined,
+      telegramProxyUrl: String(conn.telegramProxyUrl || '').trim() || undefined,
+      telegramWebhookReplyInResponse: conn.telegramWebhookReplyInResponse === true,
+      telegramParseMode: (['HTML', 'MarkdownV2', 'Markdown', 'Rich'] as const).includes(
+        conn.telegramParseMode as 'HTML',
+      ) ? conn.telegramParseMode : undefined,
+      reconnectIntervalMs: conn.reconnectIntervalMs,
+      reconnectMaxAttempts: conn.reconnectMaxAttempts,
+      createdAt: typeof conn.createdAt === 'number' && Number.isFinite(conn.createdAt)
+        ? Math.floor(conn.createdAt)
+        : undefined,
+      logLayout: conn.logLayout === 'account' ? 'account' : undefined,
+    };
+    return base;
+  }
 
   if (type === 'kook') {
     return {
@@ -411,7 +550,7 @@ export function connectionWsUrl(conn: Pick<ConnectionConfig, 'host' | 'port'>): 
  *
  * 其余三种协议（官方 / KOOK / 微信）一个账号只会有一条连接，按账号 id 判即可。
  */
-export function connectionFingerprint(conn: Pick<ConnectionConfig, 'type' | 'host' | 'port' | 'accessToken' | 'botUin' | 'appId' | 'kookBotUserId' | 'weixinAccountId'>): string {
+export function connectionFingerprint(conn: Pick<ConnectionConfig, 'type' | 'host' | 'port' | 'accessToken' | 'botUin' | 'appId' | 'kookBotUserId' | 'weixinAccountId' | 'telegramBotUserId'>): string {
   const type = conn.type ?? 'onebot';
   if (type === 'onebot') {
     const uin = String(conn.botUin || '').trim();
@@ -424,6 +563,7 @@ export function connectionFingerprint(conn: Pick<ConnectionConfig, 'type' | 'hos
   if (type === 'qq_official') account = String(conn.appId || '').trim();
   else if (type === 'kook') account = String(conn.kookBotUserId || '').trim();
   else if (type === 'weixin_bot') account = String(conn.weixinAccountId || '').trim();
+  else if (type === 'telegram') account = String(conn.telegramBotUserId || '').trim();
   return `${type}|${account}`;
 }
 
@@ -441,12 +581,13 @@ export function onebotLooseFingerprint(conn: Pick<ConnectionConfig, 'host' | 'po
 }
 
 /** 该连接的账号是否已确定（未回填 botUin 的 OneBot 连接算未确定） */
-export function hasResolvedAccount(conn: Pick<ConnectionConfig, 'type' | 'botUin' | 'appId' | 'kookBotUserId' | 'weixinAccountId'>): boolean {
+export function hasResolvedAccount(conn: Pick<ConnectionConfig, 'type' | 'botUin' | 'appId' | 'kookBotUserId' | 'weixinAccountId' | 'telegramBotUserId'>): boolean {
   const type = conn.type ?? 'onebot';
   if (type === 'onebot') return Boolean(String(conn.botUin || '').trim());
   if (type === 'qq_official') return Boolean(String(conn.appId || '').trim());
   if (type === 'kook') return Boolean(String(conn.kookBotUserId || '').trim());
   if (type === 'weixin_bot') return Boolean(String(conn.weixinAccountId || '').trim());
+  if (type === 'telegram') return Boolean(String(conn.telegramBotUserId || '').trim());
   return false;
 }
 
@@ -462,6 +603,10 @@ export function connectionModeLabel(mode?: ConnectionMode): string {
       return 'HTTP 客户端';
     case 'https':
       return '官方 HTTPS';
+    case 'webhook':
+      return 'Webhook 回调';
+    case 'polling':
+      return '长轮询';
     default:
       return '反向 WS';
   }
@@ -471,6 +616,7 @@ export function connectionTypeLabel(type?: ConnectionType): string {
   if (type === 'qq_official') return 'QQ 官方机器人';
   if (type === 'weixin_bot') return '微信 AI×BOT';
   if (type === 'kook') return 'KOOK';
+  if (type === 'telegram') return 'Telegram Bot';
   return 'OneBot';
 }
 

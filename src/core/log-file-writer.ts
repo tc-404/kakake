@@ -29,6 +29,8 @@ const CATEGORY_TAG: Record<LogCategory, string> = {
   gf_event: 'GF_EVENT',
   gf_action: 'GF_ACTION',
   gf_plugin: 'GF_PLUGIN',
+  tg_event: 'TG_EVENT',
+  tg_action: 'TG_ACTION',
   action: 'ACTION',
   plugin: 'PLUGIN',
   sim_event: 'SIM_EVENT',
@@ -128,7 +130,7 @@ export function writeLogToFile(entry: LogEntry): void {
     const w = streamFor(targetFor(entry));
     const time = entry.time;
 
-    if ((entry.category === 'event' || entry.category === 'gf_event') && entry.raw) {
+    if ((entry.category === 'event' || entry.category === 'gf_event' || entry.category === 'tg_event') && entry.raw) {
       w.write(`[${time}] [${CATEGORY_TAG[entry.category]}]\t${entry.raw}\n`);
       return;
     }

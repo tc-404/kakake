@@ -4,6 +4,7 @@ import type { WxPluginManager } from './wx-plugin.manager.js';
 import type { SsPluginManager } from './ss-plugin.manager.js';
 import type { SssxPluginManager } from './sssx-plugin.manager.js';
 import type { KzPluginManager } from './kz-plugin.manager.js';
+import type { TgPluginManager } from './tg-plugin.manager.js';
 import type { PluginConfigSchema, PluginEntry } from './plugin.types.js';
 import { readJsonSafe, writeJsonAtomic } from '../storage/atomic-file.js';
 
@@ -16,14 +17,14 @@ export interface PluginConfigView {
   hasConfig: boolean;
 }
 
-type PluginKind = 'ob' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
+type PluginKind = 'ob' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg';
 
 type ResolvedPlugin = {
   entry: PluginEntry;
   kind: PluginKind;
 };
 
-/** 配置视图只需要管理器的这两项能力，避免为六套类型写六个分支 */
+/** 配置视图只需要管理器的这两项能力，避免为七套类型写七个分支 */
 type ConfigRuntimeHost = {
   getRuntimeEntry?(pluginId: string, accountKey: string): PluginEntry | undefined;
   getPluginConfigPath?(pluginId: string, accountKey?: string | null): string;
@@ -37,6 +38,7 @@ export class PluginConfigService {
     private readonly ssPluginManager?: SsPluginManager,
     private readonly sssxPluginManager?: SssxPluginManager,
     private readonly kzPluginManager?: KzPluginManager,
+    private readonly tgPluginManager?: TgPluginManager,
   ) {}
 
   private resolvePlugin(pluginId: string): ResolvedPlugin | null {
@@ -54,6 +56,8 @@ export class PluginConfigService {
     if (sssx) return { entry: sssx, kind: 'sssx' };
     const ss = this.ssPluginManager?.getPluginInfo(pluginId);
     if (ss) return { entry: ss, kind: 'ss' };
+    const tg = this.tgPluginManager?.getPluginInfo(pluginId);
+    if (tg) return { entry: tg, kind: 'tg' };
     return null;
   }
 
@@ -68,7 +72,9 @@ export class PluginConfigService {
             ? this.ssPluginManager
             : kind === 'kz'
               ? this.kzPluginManager
-              : this.pluginManager;
+              : kind === 'tg'
+                ? this.tgPluginManager
+                : this.pluginManager;
     return manager as unknown as ConfigRuntimeHost | undefined;
   }
 
@@ -105,6 +111,10 @@ export class PluginConfigService {
     }
     if (kind === 'kz') {
       await this.kzPluginManager?.reloadPlugin(pluginId);
+      return;
+    }
+    if (kind === 'tg') {
+      await this.tgPluginManager?.reloadPlugin(pluginId);
       return;
     }
     await this.pluginManager.reloadPlugin(pluginId);

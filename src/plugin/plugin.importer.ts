@@ -4,17 +4,18 @@ import { extractArchive } from './archive.js';
 import { PATHS } from '../paths.js';
 import type { Logger } from '../core/logger.js';
 import { PluginLoader } from './plugin.loader.js';
-import { copyTreeSync } from './plugin-account.service.js';
+import { moveDirectorySafe } from './plugin-dir-ops.js';
 import { toKakakePluginDirName } from './plugin-id.js';
 import { isGfPluginDir, toGfPluginDirName } from './gf-plugin-id.js';
 import { isWxPluginDir, toWxPluginDirName } from './wx-plugin-id.js';
 import { isSsPluginDir, toSsPluginDirName } from './ss-plugin-id.js';
 import { isSssxPluginDir, toSssxPluginDirName } from './sssx-plugin-id.js';
 import { isKzPluginDir, toKzPluginDirName } from './kz-plugin-id.js';
+import { isTgPluginDir, toTgPluginDirName } from './tg-plugin-id.js';
 import { writeJsonAtomic } from '../storage/atomic-file.js';
 
-/** 'sssx' = 双生插件：一包代码同时挂 OneBot 与 QQ 官方机器人两条协议；'kz' = 扩展插件：不挂任何连接 */
-export type ImportPluginKind = 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
+/** 'sssx' = 双生插件：一包代码同时挂 OneBot 与 QQ 官方机器人两条协议；'kz' = 扩展插件：不挂任何连接；'tg' = Telegram Bot */
+export type ImportPluginKind = 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg';
 
 export interface ImportResult {
   ok: boolean;
@@ -28,6 +29,7 @@ export interface ImportResult {
  * 导入 zip 插件包。
  * 根据包名/目录名自动识别：
  * - sssx-plugin- → 双生插件（OneBot + QQ 官方双协议）
+ * - TG-plugin- / tg-plugin- / tgbot-plugin- → Telegram Bot 插件
  * - GF- / gf-plugin- → 官方机器人插件
  * - WX- / wx-plugin- / wxbot → 微信机器人插件
  * - ss-plugin- → 其他类型插件
@@ -40,6 +42,7 @@ export class PluginImporter {
   private readonly ssLoader: PluginLoader;
   private readonly sssxLoader: PluginLoader;
   private readonly kzLoader: PluginLoader;
+  private readonly tgLoader: PluginLoader;
 
   constructor(private readonly logger: Logger) {
     this.kakakeLoader = new PluginLoader(PATHS.plugins, PATHS.pluginsStatus, logger);
@@ -48,6 +51,7 @@ export class PluginImporter {
     this.ssLoader = new PluginLoader(PATHS.plugins, PATHS.ssPluginsStatus, logger, isSsPluginDir);
     this.sssxLoader = new PluginLoader(PATHS.plugins, PATHS.sssxPluginsStatus, logger, isSssxPluginDir);
     this.kzLoader = new PluginLoader(PATHS.plugins, PATHS.kzPluginsStatus, logger, isKzPluginDir);
+    this.tgLoader = new PluginLoader(PATHS.plugins, PATHS.tgPluginsStatus, logger, isTgPluginDir);
   }
 
   async importFromZip(zipPath: string): Promise<ImportResult> {
@@ -71,7 +75,9 @@ export class PluginImporter {
               ? toSsPluginDirName(rawId)
               : kind === 'kz'
                 ? toKzPluginDirName(rawId)
-                : toKakakePluginDirName(rawId);
+                : kind === 'tg'
+                  ? toTgPluginDirName(rawId)
+                  : toKakakePluginDirName(rawId);
       const pluginsRoot = PATHS.plugins;
       const loader = kind === 'sssx'
         ? this.sssxLoader
@@ -83,7 +89,9 @@ export class PluginImporter {
               ? this.ssLoader
               : kind === 'kz'
                 ? this.kzLoader
-                : this.kakakeLoader;
+                : kind === 'tg'
+                  ? this.tgLoader
+                  : this.kakakeLoader;
       const targetDir = path.join(pluginsRoot, pluginId);
       // 目录断言兜底：ID 消毒之外，最终落点必须仍在插件根内
       if (!path.resolve(targetDir).startsWith(path.resolve(pluginsRoot) + path.sep)) {
@@ -129,8 +137,10 @@ export class PluginImporter {
             ? '微信机器人'
             : kind === 'ss'
               ? '其他（KOOK）'
-              : kind === 'kz'
-                ? '扩展（不绑连接）'
+            : kind === 'kz'
+              ? '扩展（不绑连接）'
+              : kind === 'tg'
+                ? 'Telegram Bot'
                 : 'OneBot';
       return {
         ok: true,
@@ -165,6 +175,17 @@ export class PluginImporter {
       || /^kz[-_]?plugin/i.test(base)
     ) {
       return 'kz';
+    }
+    // Telegram 插件：TG-plugin- / tg-plugin- / TGPlugin- / tgbot-plugin-（大小写不敏感）
+    if (
+      isTgPluginDir(name)
+      || isTgPluginDir(base)
+      || /^tg[-_]?plugin/i.test(name)
+      || /^tg[-_]?plugin/i.test(base)
+      || /^tgbot[-_]?plugin/i.test(name)
+      || /^tgbot[-_]?plugin/i.test(base)
+    ) {
+      return 'tg';
     }
     if (
       isWxPluginDir(name)
@@ -216,6 +237,7 @@ export class PluginImporter {
           runtime?: string;
         };
         const t = `${m.type ?? ''} ${m.platform ?? ''} ${m.runtime ?? ''}`.toLowerCase();
+        if (t.includes('telegram') || t.includes('tgbot')) return 'tg';
         if (t.includes('sssx') || t.includes('twin') || t.includes('双生')) return 'sssx';
         if (t.includes('wx') || t.includes('weixin') || t.includes('wechat')) return 'wx';
         if (t.includes('gf') || t.includes('qq_official') || t.includes('qq-official')) return 'gf';
@@ -224,56 +246,8 @@ export class PluginImporter {
     return 'kakake';
   }
 
-  /** Windows 上 rename 目录常遇 EPERM（杀软/句柄未释放）；失败则 cp + rm，并短重试 */
   private async movePluginDir(sourceDir: string, targetDir: string): Promise<void> {
-    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-    const isRetryable = (e: unknown) => {
-      const code = e && typeof e === 'object' && 'code' in e ? String((e as { code?: string }).code) : '';
-      return code === 'EPERM' || code === 'EACCES' || code === 'EBUSY' || code === 'ENOTEMPTY';
-    };
-
-    for (let attempt = 0; attempt < 6; attempt++) {
-      try {
-        if (fs.existsSync(targetDir)) {
-          fs.rmSync(targetDir, { recursive: true, force: true });
-        }
-        break;
-      } catch (e) {
-        if (attempt === 5 || !isRetryable(e)) throw e;
-        await sleep(120 * (attempt + 1));
-      }
-    }
-
-    try {
-      fs.renameSync(sourceDir, targetDir);
-      return;
-    } catch (renameErr) {
-      // EXDEV（跨盘）或 Windows EPERM：改为复制
-      try {
-        copyTreeSync(sourceDir, targetDir);
-      } catch (cpErr) {
-        throw renameErr instanceof Error ? renameErr : cpErr;
-      }
-      for (let attempt = 0; attempt < 6; attempt++) {
-        try {
-          if (fs.existsSync(sourceDir)) {
-            fs.rmSync(sourceDir, { recursive: true, force: true });
-          }
-          return;
-        } catch (e) {
-          if (attempt === 5) {
-            // 目标已就位，源目录清不掉不阻断导入
-            this.logger.warn('[PluginImporter] 已安装到目标，清理临时目录失败', e);
-            return;
-          }
-          if (!isRetryable(e)) {
-            this.logger.warn('[PluginImporter] 清理临时目录失败', e);
-            return;
-          }
-          await sleep(120 * (attempt + 1));
-        }
-      }
-    }
+    await moveDirectorySafe(sourceDir, targetDir, { overwrite: true, logger: this.logger });
   }
 
   private resolvePluginRoot(extractDir: string): { pluginId: string; sourceDir: string } {

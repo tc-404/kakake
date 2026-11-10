@@ -293,6 +293,39 @@ export type SharpEnvState = {
   updatedAt: string;
 };
 
+/**
+ * Telegram Bot 连接的可写配置（前后端共享形状）。
+ * 新增 / 编辑共用，字段名与后端 ConnectionConfig 一一对应；密钥类字段留空表示不修改。
+ * 'polling' = getUpdates 长轮询，'webhook' = setWebhook HTTPS 回调。
+ */
+export interface TelegramConnectionConfig {
+  telegramToken?: string;
+  telegramBotUserId?: string;
+  telegramBotUsername?: string;
+  telegramBotFirstName?: string;
+  telegramBotAvatar?: string;
+  /** 默认 https://api.telegram.org，可填本地 Bot API Server 的 http://127.0.0.1:8081 */
+  telegramApiBase?: string;
+  /** 测试环境：/bot<token>/test/METHOD */
+  telegramTestEnv?: boolean;
+  telegramWebhookUrl?: string;
+  /** secret_token，1-256 位 A-Za-z0-9_- */
+  telegramWebhookSecret?: string;
+  /** 1-100，本地 server 可到 100000 */
+  telegramWebhookMaxConnections?: number;
+  telegramWebhookIpAddress?: string;
+  telegramWebhookCertificatePath?: string;
+  telegramAllowedUpdates?: string[];
+  telegramDropPendingUpdates?: boolean;
+  telegramPollingTimeout?: number;
+  telegramPollingLimit?: number;
+  telegramOffset?: number;
+  telegramProxyUrl?: string;
+  telegramWebhookReplyInResponse?: boolean;
+  telegramParseMode?: 'HTML' | 'MarkdownV2' | 'Markdown';
+  telegramMode?: 'polling' | 'webhook';
+}
+
 export const api = {
   authState: () =>
     request<{
@@ -708,7 +741,7 @@ export const api = {
       enable?: boolean;
       webhookBaseUrl?: string;
       kookToken?: string;
-    }) => {
+    } & TelegramConnectionConfig) => {
       const res = await request<{ ok?: boolean; message?: string; connection?: unknown }>(
         '/api/connections',
         {
@@ -745,6 +778,8 @@ export const api = {
       id: string,
       body: {
         name?: string;
+        /** 切换 Telegram 接入方式（polling / webhook）时透传 */
+        mode?: ConnectionMode;
         host?: string;
         port?: number;
         accessToken?: string;
@@ -756,7 +791,7 @@ export const api = {
         reconnectIntervalMs?: number;
         reconnectMaxAttempts?: number;
         resetReconnect?: boolean;
-      },
+      } & TelegramConnectionConfig,
     ) =>
       request<{ ok: boolean; message?: string; connection?: unknown }>(`/api/connections/${id}`, {
         method: 'PUT',
@@ -805,6 +840,24 @@ export const api = {
           body: JSON.stringify(body),
         },
       ),
+    /** Telegram Bot：用 getMe 预览机器人身份（@username），不落库、不改连接 */
+    previewTelegramBot: (body: { token: string; apiBase?: string; testEnv?: boolean }) =>
+      request<{
+        ok: boolean;
+        profile?: {
+          id: string | number;
+          username: string;
+          first_name?: string;
+          can_join_groups?: boolean;
+          can_read_all_group_messages?: boolean;
+          supports_inline_queries?: boolean;
+        };
+        message?: string;
+      }>('/api/connections/telegram/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
     weixinQrcode: (id: string) =>
       request<{
         ok: boolean;
@@ -878,6 +931,28 @@ export const api = {
         markdown?: string;
         message?: string;
       }>(`/api/plugins/${encodeURIComponent(id)}/docs`),
+    getMeta: (id: string) =>
+      request<{
+        ok: boolean;
+        meta?: { name: string; displayName: string; version: string; author: string };
+        message?: string;
+      }>(`/api/plugins/${encodeURIComponent(id)}/meta`),
+    updateMeta: (
+      id: string,
+      payload: { name: string; displayName: string; version: string; author: string },
+    ) =>
+      request<{
+        ok: boolean;
+        code?: string;
+        message?: string;
+        pluginId?: string;
+        renamed?: boolean;
+        plugin?: PluginItem;
+      }>(`/api/plugins/${encodeURIComponent(id)}/meta`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }),
     rescan: (connectionId?: string) =>
       request<{
         code: number;
@@ -923,7 +998,7 @@ export const api = {
       new Promise<{
         ok: boolean;
         pluginId?: string;
-        kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
+        kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg';
         message: string;
       }>((resolve, reject) => {
         const fd = new FormData();
@@ -938,17 +1013,19 @@ export const api = {
           if (e.lengthComputable) onProgress?.(e.loaded, e.total);
         };
         xhr.onload = () => {
-          let data: { ok?: boolean; message?: string; pluginId?: string; kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' } | null = null;
+          let data: { ok?: boolean; message?: string; pluginId?: string; kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg' } | null = null;
           try {
             data = JSON.parse(xhr.responseText) as typeof data;
           } catch {
             /* 非 JSON 响应按 HTTP 状态处理 */
           }
           if (xhr.status >= 200 && xhr.status < 300) {
-            if (data) resolve(data as { ok: boolean; pluginId?: string; kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz'; message: string });
+            if (data) resolve(data as { ok: boolean; pluginId?: string; kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg'; message: string });
             else reject(new Error(`HTTP ${xhr.status}`));
           } else {
-            reject(new Error(data?.message || `HTTP ${xhr.status}`));
+            // 显式断言后取 message：TS 会把此分支的 data 收窄成 never，直接 data?.message 会报 TS2339
+            const msg = (data as { message?: string } | null)?.message;
+            reject(new Error(msg || `HTTP ${xhr.status}`));
           }
         };
         xhr.onerror = () => reject(new Error('网络连接失败，上传中断'));
@@ -1026,7 +1103,7 @@ export const api = {
         code?: string;
         message?: string;
         pluginId?: string;
-        kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
+        kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg';
         name?: string;
         hasData?: boolean;
         accounts?: string[];

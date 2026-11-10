@@ -82,6 +82,8 @@ export const PATHS = {
   gfPluginsStatus: path.join(DATA_DIR, 'gf-plugins.json'),
   wxPluginsStatus: path.join(DATA_DIR, 'wx-plugins.json'),
   ssPluginsStatus: path.join(DATA_DIR, 'ss-plugins.json'),
+  /** Telegram Bot 插件（TG-plugin-*）启停总开关 */
+  tgPluginsStatus: path.join(DATA_DIR, 'tg-plugins.json'),
   /** 双生插件（sssx-plugin-*，OneBot + QQ 官方双协议）启停总开关 */
   sssxPluginsStatus: path.join(DATA_DIR, 'sssx-plugins.json'),
   /** 扩展插件（kz-plugin-*，不绑连接）启停总开关 */

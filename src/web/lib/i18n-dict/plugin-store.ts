@@ -35,6 +35,7 @@ registerMessages({
   'plugin-store.cat-official': { zh: '官方', en: 'Official' },
   'plugin-store.cat-twin': { zh: '双生', en: 'Twin' },
   'plugin-store.cat-wechat': { zh: '微信', en: 'WeChat' },
+  'plugin-store.cat-telegram': { zh: 'Telegram', en: 'Telegram' },
   'plugin-store.cat-extension': { zh: '扩展', en: 'Extension' },
   'plugin-store.cat-other': { zh: '其他', en: 'Other' },
   // 角标（卡片右上角）
@@ -42,6 +43,7 @@ registerMessages({
   'plugin-store.badge-official': { zh: '官方', en: 'Official' },
   'plugin-store.badge-twin': { zh: '双生', en: 'Twin' },
   'plugin-store.badge-wechat': { zh: '微信', en: 'WeChat' },
+  'plugin-store.badge-telegram': { zh: 'TG', en: 'TG' },
   'plugin-store.badge-extension': { zh: '扩展', en: 'Extension' },
   'plugin-store.badge-other': { zh: '其他', en: 'Other' },
 

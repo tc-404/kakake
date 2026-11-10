@@ -5,6 +5,7 @@ import { isKakakePluginDir } from './plugin-id.js';
 import { isGfPluginDir } from './gf-plugin-id.js';
 import { isSsPluginDir } from './ss-plugin-id.js';
 import { isKzPluginDir } from './kz-plugin-id.js';
+import { isTgPluginDir } from './tg-plugin-id.js';
 import { PATHS } from '../paths.js';
 
 import { DEFAULT_PLUGIN_ICON, DEFAULT_PLUGIN_ICON_DATA_URI } from './default-plugin-icon.js';
@@ -159,8 +160,9 @@ export function mergePluginMetadata(
   pluginJson?: KakakePluginManifest,
 ): Pick<PluginEntry, 'id' | 'name' | 'version' | 'author' | 'description'> {
   const manifestId = packageJson?.name || pluginJson?.name;
-  // 目录名即稳定 ID（kakake-* / GF-* / ss-plugin-* / kz-plugin-*），勿用 package.json name 覆盖
-  const id = isKakakePluginDir(dirname) || isGfPluginDir(dirname) || isSsPluginDir(dirname) || isKzPluginDir(dirname)
+  // 目录名即稳定 ID（kakake-* / GF-* / ss-plugin-* / kz-plugin-* / TG-plugin-*），勿用 package.json name 覆盖
+  const id = isKakakePluginDir(dirname) || isGfPluginDir(dirname) || isSsPluginDir(dirname)
+    || isKzPluginDir(dirname) || isTgPluginDir(dirname)
     ? dirname
     : (manifestId || dirname);
   return {

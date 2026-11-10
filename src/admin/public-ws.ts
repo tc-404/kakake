@@ -95,8 +95,10 @@ export function attachPublicWs(server: Server): void {
     if (
       entry.category === 'event'
       || entry.category === 'gf_event'
+      || entry.category === 'tg_event'
       || entry.category === 'action'
       || entry.category === 'gf_action'
+      || entry.category === 'tg_action'
     ) {
       scheduleBroadcast();
     }

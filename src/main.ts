@@ -50,11 +50,13 @@ import { WxPluginManager } from './plugin/wx-plugin.manager.js';
 import { SsPluginManager } from './plugin/ss-plugin.manager.js';
 import { SssxPluginManager } from './plugin/sssx-plugin.manager.js';
 import { KzPluginManager } from './plugin/kz-plugin.manager.js';
+import { TgPluginManager } from './plugin/tg-plugin.manager.js';
 import { PluginConfigService } from './plugin/plugin-config.service.js';
 import { PluginImporter } from './plugin/plugin.importer.js';
 import { createPluginHttpMiddleware } from './plugin/plugin-http.handler.js';
 import { createOnebotHttpClientWebhookMiddleware } from './connection/onebot-http.client.js';
 import { createQqOfficialHttpsWebhookMiddleware } from './connection/qq-official-https.server.js';
+import { createTelegramWebhookMiddleware } from './connection/telegram-webhook.server.js';
 import { kakakeApp } from './kakake-app.js';
 import { PATHS } from './paths.js';
 import { authMiddleware, banGate, clearAllSessions, isRequestAuthed, createLoginTicket, isBehindTls } from './admin/auth.middleware.js';
@@ -77,6 +79,7 @@ function isFrameworkPassthroughPath(p: string): boolean {
     || p.startsWith('/onebot/')
     || p.startsWith('/gfbot/')
     || p.startsWith('/gf_bot/')
+    || p.startsWith('/tgbot/')
   );
 }
 
@@ -392,6 +395,13 @@ async function bootstrap() {
     config.port,
     true,
   );
+  const tgPluginManager = new TgPluginManager(
+    rootLogger.child('[Telegram插件] '),
+    connectionManager,
+    config.host,
+    config.port,
+    true,
+  );
 
   kakakeApp.connectionManager = connectionManager;
   kakakeApp.pluginManager = pluginManager;
@@ -400,6 +410,7 @@ async function bootstrap() {
   kakakeApp.ssPluginManager = ssPluginManager;
   kakakeApp.sssxPluginManager = sssxPluginManager;
   kakakeApp.kzPluginManager = kzPluginManager;
+  kakakeApp.tgPluginManager = tgPluginManager;
   kakakeApp.pluginConfigService = new PluginConfigService(
     pluginManager,
     gfPluginManager,
@@ -407,7 +418,9 @@ async function bootstrap() {
     ssPluginManager,
     sssxPluginManager,
     kzPluginManager,
+    tgPluginManager,
   );
+  kakakeApp.tgPluginConfigService = kakakeApp.pluginConfigService;
   kakakeApp.pluginImporter = new PluginImporter(rootLogger.child('[导入] '));
 
   const app = await NestFactory.create(AppModule, {
@@ -449,7 +462,7 @@ async function bootstrap() {
     // 不带 Origin 的非浏览器客户端不受影响。webhook/插件/外放通道有自己的鉴权，不在此列。
     const method = (req.method || 'GET').toUpperCase();
     const origin = req.headers.origin;
-    const csrfExempt = ['/onebot/', '/gfbot/', '/gf_bot/', '/plugin/', '/api/v1/', '/api/public'].some((p) =>
+    const csrfExempt = ['/onebot/', '/gfbot/', '/gf_bot/', '/tgbot/', '/plugin/', '/api/v1/', '/api/public'].some((p) =>
       req.path.startsWith(p),
     );
     if (
@@ -486,6 +499,7 @@ async function bootstrap() {
   app.use(createPluginHttpMiddleware());
   app.use(createOnebotHttpClientWebhookMiddleware());
   app.use(createQqOfficialHttpsWebhookMiddleware());
+  app.use(createTelegramWebhookMiddleware());
 
   app.use(authMiddleware());
 
@@ -502,12 +516,14 @@ async function bootstrap() {
   ssPluginManager.bindEvents();
   sssxPluginManager.bindEvents();
   kzPluginManager.bindEvents();
+  tgPluginManager.bindEvents();
   await pluginManager.open();
   await gfPluginManager.open();
   await wxPluginManager.open();
   await ssPluginManager.open();
   await sssxPluginManager.open();
   await kzPluginManager.open();
+  await tgPluginManager.open();
 
   connectionManager.reload();
 
@@ -538,6 +554,7 @@ async function bootstrap() {
         ssPluginManager.close(),
         sssxPluginManager.close(),
         kzPluginManager.close(),
+        tgPluginManager.close(),
       ]).finally(() => {
         try { flushDau(); } catch { /* ignore */ }
         try { closeLogStream(); } catch { /* ignore */ }

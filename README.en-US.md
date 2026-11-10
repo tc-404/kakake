@@ -8,7 +8,7 @@
 
 English | [简体中文](./README.md)
 
-Kakake is a TypeScript **plugin platform framework**: deploy locally, operate via a web console, and plug bot capabilities into OneBot carriers (e.g. NapCat), the official QQ Bot platform, KOOK, WeChat AI×BOT and more — compatible with the NapCat plugin spec.
+Kakake is a TypeScript **plugin platform framework**: deploy locally, operate via a web console, and plug bot capabilities into OneBot carriers (e.g. NapCat), the official QQ Bot platform, KOOK, WeChat AI×BOT, Telegram Bot and more — compatible with the NapCat plugin spec.
 
 > 📦 **[Download / view the latest release →](../../releases/latest)**　·　All releases and changelogs live on the repo's **Releases** page.
 
@@ -41,6 +41,7 @@ Kakake is a TypeScript **plugin platform framework**: deploy locally, operate vi
 | OneBot access | Forward / reverse WebSocket, HTTP / HTTP SSE / HTTP client |
 | Official QQ bot | Gateway WebSocket, HTTPS Webhook |
 | KOOK bot | Bot Token access (`Authorization: Bot <token>`), isolated per account |
+| Telegram Bot | `getUpdates` long polling, `setWebhook` HTTPS callbacks, and a self-hosted local Bot API Server; test environment, secret token verification and proxy support |
 | WeChat AI×BOT | iLink bot_token QR-code login access |
 | Plugin platform | Compatible with the NapCat plugin spec; per-account isolated copies; includes a plugin store and a "plugin development" tutorial |
 | Local persistence | Config, keys, connections and plugin state stay in local `data/` |
@@ -65,7 +66,7 @@ Optional companions:
 
 - A OneBot implementation such as [NapCat](https://github.com/NapNeko/NapCatQQ)
 - A QQ open-platform bot (official WS / Webhook)
-- A KOOK bot (Bot Token), or WeChat AI×BOT (iLink bot_token)
+- A KOOK bot (Bot Token), WeChat AI×BOT (iLink bot_token), or a Telegram bot created with @BotFather
 
 ---
 
@@ -206,6 +207,18 @@ Create an app in the [KOOK Developer Center](https://developer.kook.cn/), get th
 
 Enter the iLink **bot_token** and scan the QR code in the console to connect; accounts are keyed by `ilink_bot_id`.
 
+### Telegram Bot
+
+Create a bot with [@BotFather](https://t.me/BotFather), paste the token into a Telegram Bot connection, and pick an inbound mode:
+
+| Mode | Meaning |
+|------|---------|
+| `getUpdates` long polling | Default, no public address required. `offset` is persisted so updates are not replayed after a restart |
+| `setWebhook` HTTPS callback | Telegram POSTs each Update to `/tgbot/<connection id>` on the console port; protect it with `secret_token` (`X-Telegram-Bot-Api-Secret-Token`). Official servers accept only ports 443/80/88/8443 |
+| Local Bot API Server | Point `telegramApiBase` at a self-hosted server: HTTP webhooks on any port, 2000 MB uploads, unlimited downloads, and `getFile` returning a local absolute path |
+
+The test environment (`/bot<token>/test/METHOD`) and an optional HTTP proxy are supported as well. All official Update types are normalised into plugin events while the raw Update stays available on `event.raw`; plugins in `TG-plugin-*` directories are isolated per bot id and call any Bot API method through `context.actions.call('sendMessage', {...})`. See [`使用教程/Telegram Bot 接入教程.md`](./使用教程/Telegram%20Bot%20接入教程.md) for the full guide (BotFather switches, certificates, rate limits, privacy mode, 10.x features and troubleshooting).
+
 ### Detailed tutorials
 
 The tutorials folder (`使用教程/`) is in Chinese. For one-shot NapCat / Kakake / Node setup on Linux, service management and port troubleshooting, see [`使用教程/MK工具教程.txt`](./使用教程/MK工具教程.txt) (the `mk` script at repo root). Step-by-step connection details (Docker gateway addresses, Token / X-Signature, parameter tables) are in [`使用教程/连接教程.txt`](./使用教程/连接教程.txt).
@@ -226,7 +239,7 @@ When NapCat runs in Docker and Kakake on the host, the container-side host gatew
 - Per-account isolated copies: `plugins_two/<QQ or AppID>/<pluginId>/`
 - Compatible with the NapCat plugin package layout (`package.json` / `plugin.json` etc.)
 - Manage enablement and plugin config from the console; connections and plugins can be bound per account
-- Plugin types are distinguished by directory prefix: `kakake-` (OneBot), `GF-` (official QQ bot), `sssx-plugin-` (**dual**: the same code attached to both OneBot and official QQ), `WX-` (WeChat), `ss-plugin-` (KOOK etc.), `kz-plugin-` (**extension**: bound to no connection, toggled only by the master switch, data under `data/<pluginId>`)
+- Plugin types are distinguished by directory prefix: `kakake-` (OneBot), `GF-` (official QQ bot), `sssx-plugin-` (**dual**: the same code attached to both OneBot and official QQ), `WX-` (WeChat), `ss-plugin-` (KOOK etc.), `TG-plugin-` (**Telegram Bot**: isolated by bot id, events on `telegram/event`), `kz-plugin-` (**extension**: bound to no connection, toggled only by the master switch, data under `data/<pluginId>`)
 
 When developing / installing plugins:
 

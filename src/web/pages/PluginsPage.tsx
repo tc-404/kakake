@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useLang, useT } from '@/lib/i18n';
 import {
   Loader2, Package, Puzzle, RefreshCw, Upload, BookOpen, ExternalLink, Github, Search, Activity, Trash2, X,
-  ChevronDown, ChevronUp, Share2, Download, Settings2,
+  ChevronDown, ChevronUp, Share2, Download, Settings2, Pencil,
 } from 'lucide-react';
 import { QuietExternal } from '@/components/quiet-link';
 import { api, UPLOAD_TIMEOUT_MS } from '@/lib/api';
@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { PluginDocsDialog } from '@/components/plugin-docs-dialog';
 import { PluginShareDialog } from '@/components/plugin-share-dialog';
 import { PluginConfigDialog } from '@/components/plugin-config-dialog';
+import { PluginMetaDialog } from '@/components/plugin-meta-dialog';
 import { PluginImportLinkDialog, type PluginLinkImportResult } from '@/components/plugin-import-link-dialog';
 import {
   Dialog,
@@ -192,10 +193,11 @@ export default function PluginsPage() {
   const [plugins, setPlugins] = useState<PluginItem[]>([]);
   const [pages, setPages] = useState<ExtensionPage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz'>('all');
+  const [filter, setFilter] = useState<'all' | 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg'>('all');
   const [query, setQuery] = useState('');
   const [docsPlugin, setDocsPlugin] = useState<PluginItem | null>(null);
   const [sharePlugin, setSharePlugin] = useState<PluginItem | null>(null);
+  const [metaPlugin, setMetaPlugin] = useState<PluginItem | null>(null);
   /** 配置弹窗目标：多账号插件要带上被选中的账号 */
   const [configTarget, setConfigTarget] = useState<{ plugin: PluginItem; accountKey?: string } | null>(null);
   /** 多账号时先问「打开哪个账号的配置」，与 WebUI 按钮同口径 */
@@ -253,6 +255,7 @@ export default function PluginsPage() {
     gf: plugins.filter((p) => p.kind === 'gf').length,
     wx: plugins.filter((p) => p.kind === 'wx').length,
     ss: plugins.filter((p) => p.kind === 'ss').length,
+    tg: plugins.filter((p) => p.kind === 'tg').length,
     sssx: plugins.filter((p) => p.kind === 'sssx').length,
     kz: plugins.filter((p) => p.kind === 'kz').length,
   }), [plugins]);
@@ -264,6 +267,7 @@ export default function PluginsPage() {
       { id: 'gf' as const, label: t('plugins.filterOfficial'), count: counts.gf },
       { id: 'wx' as const, label: t('plugins.filterWechat'), count: counts.wx },
       { id: 'ss' as const, label: t('plugins.kindOther'), count: counts.ss },
+      { id: 'tg' as const, label: t('plugins.filterTelegram'), count: counts.tg },
       { id: 'sssx' as const, label: t('plugins.filterTwin'), count: counts.sssx },
       // 扩展插件有才出现：没人装扩展时保持六格布局（六格是中英文都不挤的上限）
       ...(counts.kz > 0
@@ -276,7 +280,7 @@ export default function PluginsPage() {
   const activeFilter = filterTabs.some((tab) => tab.id === filter) ? filter : 'all';
   const filterIndex = Math.max(0, filterTabs.findIndex((tab) => tab.id === activeFilter));
   // lang 也要进 key：中英切换会改变标签宽度/换行，指示条必须重测
-  const layoutKey = `${lang}-${counts.all}-${counts.kakake}-${counts.gf}-${counts.wx}-${counts.ss}-${counts.sssx}-${counts.kz}`;
+  const layoutKey = `${lang}-${counts.all}-${counts.kakake}-${counts.gf}-${counts.wx}-${counts.ss}-${counts.tg}-${counts.sssx}-${counts.kz}`;
   const { navRef, setItemRef, box } = useLiquidIndicator(filterIndex, filterTabs.length, layoutKey);
   // 六格是中英文手机端都不挤的上限；出现第七格（扩展）时改为换行排布，避免互相压字
   const tabsWrapped = lang === 'en' || filterTabs.length > 6;
@@ -415,7 +419,9 @@ export default function PluginsPage() {
                   ? t('plugins.kindWechat')
                   : r.kind === 'ss'
                     ? t('plugins.kindOther')
-                    : t('plugins.kindOnebot');
+                    : r.kind === 'tg'
+                      ? t('plugins.kindTelegram')
+                      : t('plugins.kindOnebot');
           setQueueItems((prev) => prev.map((q) => (
             q.id === item.id
               ? {
@@ -739,7 +745,9 @@ export default function PluginsPage() {
                       ? t('plugins.kindWechat')
                       : plugin.kind === 'ss'
                         ? t('plugins.kindOther')
-                        : t('plugins.kindOnebot');
+                        : plugin.kind === 'tg'
+                          ? t('plugins.kindTelegram')
+                          : t('plugins.kindOnebot');
               const hasAdmin = (plugin.hasPages || pagesOf(plugin.id).length > 0)
                 && masterOn
                 && plugin.status === 'active';
@@ -754,7 +762,9 @@ export default function PluginsPage() {
                       ? 'border-purple-300/60 bg-purple-400/10 text-purple-700'
                       : plugin.kind === 'sssx'
                         ? 'border-fuchsia-300/60 bg-fuchsia-400/10 text-fuchsia-700'
-                        : 'border-teal-300/60 bg-teal-400/10 text-teal-700';
+                        : plugin.kind === 'tg'
+                          ? 'border-blue-300/60 bg-blue-400/10 text-blue-700'
+                          : 'border-teal-300/60 bg-teal-400/10 text-teal-700';
               const showDesc = hasRealDescription(plugin.description);
               return (
                 <article
@@ -858,6 +868,21 @@ export default function PluginsPage() {
                       </button>
                     </div>
                     <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        title={masterOn ? t('plugins.meta.editDisabled') : t('plugins.meta.editTitle')}
+                        aria-label={t('plugins.meta.editTitle')}
+                        disabled={masterOn}
+                        onClick={() => setMetaPlugin(plugin)}
+                        className={cn(
+                          'rounded-lg p-1.5 transition-colors',
+                          masterOn
+                            ? 'cursor-not-allowed text-slate-400'
+                            : 'text-slate-500 hover:bg-white/40 hover:text-teal-700 active:scale-95',
+                        )}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
                       {plugin.homepage ? (
                         <QuietExternal
                           href={plugin.homepage}
@@ -945,6 +970,13 @@ export default function PluginsPage() {
         plugin={sharePlugin}
         open={!!sharePlugin}
         onClose={() => setSharePlugin(null)}
+      />
+
+      <PluginMetaDialog
+        plugin={metaPlugin}
+        open={!!metaPlugin}
+        onClose={() => setMetaPlugin(null)}
+        onSaved={() => void load({ silent: true })}
       />
 
       {/* 卡片上的配置入口：与连接面板同一个弹窗，多账号时先选账号 */}

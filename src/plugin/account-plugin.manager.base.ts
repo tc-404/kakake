@@ -63,7 +63,7 @@ export interface AccountPluginManagerOptions {
   /** 双生插件用：额外监听的事件 / 动作回执总线通道（与 extraConnTypes 对应） */
   extraChannels?: Array<{ eventName: string; actionResultName: string }>;
   /** 连接插件开关分类 */
-  pluginKind: 'wx' | 'ss' | 'gf' | 'sssx';
+  pluginKind: 'wx' | 'ss' | 'gf' | 'sssx' | 'tg';
   /** 事件总线：事件名 */
   eventName: string;
   /** 事件总线：动作回执名 */

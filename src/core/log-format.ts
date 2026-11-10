@@ -1,4 +1,5 @@
 import type { OB11Event } from '../connection/onebot.types.js';
+import { formatTelegramUpdate } from '../connection/telegram.types.js';
 import {
   getBotSelf,
   groupLabel,
@@ -582,6 +583,16 @@ export function summarizeEventReport(
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return bail;
   const o = parsed as Record<string, unknown>;
+
+  // Telegram Bot 原生 Update：带 update_id（OneBot / 官方网关都不带）。
+  // 回读落盘文件时复用与实时视图同一个 formatTelegramUpdate，保证两边预览一致。
+  if (typeof o.update_id === 'number' && !o.post_type && o.t === undefined) {
+    return {
+      message: formatTelegramUpdate(o).message || fallback,
+      source: typeof o.update_id === 'number' ? `#${o.update_id}` : '',
+      level: 'info',
+    };
+  }
 
   // OneBot11 及同源实现（NapCat / LLOneBot / go-cqhttp…）：以 post_type 为准
   const pt = typeof o.post_type === 'string' ? o.post_type.trim() : '';

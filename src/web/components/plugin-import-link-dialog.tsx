@@ -83,7 +83,7 @@ export function PluginImportLinkDialog({
         },
         isOk: (x) => x.ok,
         errorMessage: (x) => x.message || t('plugins.importLinkFailed'),
-        onCancel: () => api.pluginStore.cancelInstall(taskId),
+        onCancel: async () => { await api.pluginStore.cancelInstall(taskId); },
       });
       if (r.hasData && r.token) {
         onResumeAskData(r);

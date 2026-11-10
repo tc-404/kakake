@@ -45,6 +45,7 @@ registerMessages({
   'components.connPluginsGf': { zh: 'GF 插件', en: 'GF Plugins' },
   'components.connPluginsWeixin': { zh: '微信插件', en: 'WeChat Plugins' },
   'components.connPluginsKook': { zh: 'KOOK 插件', en: 'KOOK Plugins' },
+  'components.connPluginsTelegram': { zh: 'Telegram 插件', en: 'Telegram Plugins' },
   'components.connPluginsDefault': { zh: '插件', en: 'Plugins' },
 
   // ───────── 正向重连弹窗 ─────────

@@ -1,4 +1,4 @@
-import type { ConnectionStatus } from '@/lib/types';
+import type { ConnectionMode, ConnectionStatus } from '@/lib/types';
 
 export type ConnVisualStatus =
   | 'disabled'
@@ -9,6 +9,16 @@ export type ConnVisualStatus =
 
 function isOutboundMode(mode: ConnectionStatus['mode']): boolean {
   return mode === 'forward' || mode === 'http_client';
+}
+
+/** Telegram 的两种接入方式：getUpdates 长轮询 / setWebhook HTTPS 回调 */
+export function isTelegramMode(mode?: ConnectionMode | null): boolean {
+  return mode === 'polling' || mode === 'webhook';
+}
+
+/** 取 Telegram 接入方式；非 Telegram 模式返回 null */
+export function telegramMode(mode?: ConnectionMode | 'polling' | 'webhook' | null): 'polling' | 'webhook' | null {
+  return mode === 'polling' || mode === 'webhook' ? mode : null;
 }
 
 /**
@@ -60,6 +70,31 @@ export function resolveConnVisual(conn: ConnectionStatus): {
     if (conn.connected) {
       return { key: 'connected', msgKey: 'connections.status.connectedKook', variant: 'success', failed: false };
     }
+  }
+  /*
+   * Telegram Bot：polling / webhook 都要能区分「已连接」与「未就绪」。
+   * 没配 Token（telegramReady=false）时一律不算连上；webhook 还要单独说清楚
+   * 「已连上但等 Telegram 推回调」和「回调已就绪」不是一回事。
+   */
+  if (conn.type === 'telegram') {
+    const tgMode = telegramMode(conn.telegramMode ?? conn.mode);
+    if (!conn.telegramReady) {
+      return { key: 'waiting', msgKey: 'connections.status.telegramNoToken', variant: 'warning', failed: false };
+    }
+    if (conn.connected) {
+      return {
+        key: 'connected',
+        msgKey: tgMode === 'webhook'
+          ? 'connections.status.telegramWebhookReady'
+          : 'connections.status.telegramPolling',
+        variant: 'success',
+        failed: false,
+      };
+    }
+    if (tgMode === 'webhook') {
+      return { key: 'waiting', msgKey: 'connections.status.telegramWaitingWebhook', variant: 'warning', failed: false };
+    }
+    return { key: 'connecting', msgKey: 'connections.status.telegramPollingStarting', variant: 'warning', failed: false };
   }
   if (conn.connected) {
     const msgKey =
@@ -142,6 +177,17 @@ const CONN_LABEL_KEY: Record<string, string> = {
   '微信 AI×BOT': 'connections.labelWeixinBot',
   KOOK: 'connections.labelKook',
   OneBot: 'connections.labelOnebot',
+  // Telegram Bot：后端可能返回 typeLabel="Telegram Bot"，modeLabel 两种接入方式各一
+  'Telegram Bot': 'connections.labelTelegramBot',
+  Telegram: 'connections.labelTelegramBot',
+  'getUpdates 长轮询': 'connections.labelTelegramPolling',
+  '长轮询': 'connections.labelTelegramPolling',
+  'Telegram 长轮询': 'connections.labelTelegramPolling',
+  'Telegram 轮询': 'connections.labelTelegramPolling',
+  'setWebhook 回调': 'connections.labelTelegramWebhook',
+  'Webhook 回调': 'connections.labelTelegramWebhook',
+  'Telegram Webhook': 'connections.labelTelegramWebhook',
+  'Telegram 回调': 'connections.labelTelegramWebhook',
 };
 
 export function connLabelKey(label?: string | null): string | null {

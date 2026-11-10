@@ -74,6 +74,11 @@ const EXACT: Array<[string, string, string]> = [
   ['请填写 AppID', '请填写 AppID', 'Please enter AppID'],
   ['请填写 AppID 与 AppSecret', '请填写 AppID 与 AppSecret', 'Please enter AppID and AppSecret'],
   ['请填写 KOOK 机器人 Token', '请填写 KOOK 机器人 Token', 'Please enter the KOOK bot token'],
+  ['请填写 Telegram Bot Token', '请填写 Telegram Bot Token', 'Please enter the Telegram Bot Token'],
+  ['Telegram Bot Token 未配置', 'Telegram Bot Token 未配置', 'Telegram Bot Token not configured'],
+  ['Telegram 连接未就绪', 'Telegram 连接未就绪', 'Telegram connection is not ready'],
+  ['非 Telegram 连接', '非 Telegram 连接', 'Not a Telegram connection'],
+  ['无法获取 Telegram 机器人资料，请检查 Token 或网络', '无法获取 Telegram 机器人资料，请检查 Token 或网络', 'Could not fetch the Telegram bot profile; check the Token or network'],
   ['无法获取机器人资料，请检查凭证或连接状态', '无法获取机器人资料，请检查凭证或连接状态', 'Could not fetch the bot profile; check credentials or connection status'],
   ['该账号未配置 AppID / AppSecret', '该账号未配置 AppID / AppSecret', 'This account has no AppID / AppSecret configured'],
   ['账号不存在', '账号不存在', 'Account not found'],
@@ -284,6 +289,7 @@ const RULES: Array<[RegExp, string, string]> = [
   [/^上游错误：(.+)$/, '上游错误：$1', 'Upstream error: $1'],
   [/^API 超时: (.+)$/, 'API 超时：$1', 'API timed out: $1'],
   [/^KOOK API 请求超时: (.+)$/, 'KOOK API 请求超时：$1', 'KOOK API request timed out: $1'],
+  [/^Telegram API 响应异常（HTTP (\d+)）: (.+)$/, 'Telegram API 响应异常（HTTP $1）', 'Telegram API returned an abnormal response (HTTP $1)'],
 
   // 分类 / 路径 / 版本
   [/^未找到分类「(.+)」$/, '未找到分类「$1」', 'Category "$1" not found'],
@@ -306,8 +312,10 @@ const RULES: Array<[RegExp, string, string]> = [
   [/^\[(.+)\] KOOK 连接未就绪$/, '[$1] KOOK 连接未就绪', '[$1] KOOK connection is not ready'],
   [/^\[(.+)\] QQ 官方连接未就绪$/, '[$1] QQ 官方连接未就绪', '[$1] QQ official connection is not ready'],
   [/^\[(.+)\] 微信 BOT 连接未就绪$/, '[$1] 微信 BOT 连接未就绪', '[$1] WeChat bot connection is not ready'],
+  [/^\[(.+)\] Telegram 连接未就绪$/, '[$1] Telegram 连接未就绪', '[$1] Telegram connection is not ready'],
   [/^KOOK 不支持动作: (.+)$/, 'KOOK 不支持动作：$1', 'KOOK does not support this action: $1'],
   [/^微信 BOT 不支持动作: (.+)$/, '微信 BOT 不支持动作：$1', 'WeChat bot does not support this action: $1'],
+  [/^Telegram 不支持动作: (.+)$/, 'Telegram 不支持动作：$1', 'Telegram does not support this action: $1'],
   [/^Gateway 响应缺少 url \[(.+)\] (.+)$/, 'Gateway 响应缺少 url', 'Gateway response is missing the url field'],
 
   // 编码 / 进制

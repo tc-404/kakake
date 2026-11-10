@@ -29,6 +29,7 @@ import {
 } from '../core/types.js';
 import { matchExistingConnection, mergePluginSwitches } from '../core/connection-import.js';
 import { fetchQqOfficialBotProfile, appendQqOfficialAuthHint } from '../connection/qq-official-api.js';
+import { TelegramApiClient } from '../connection/telegram-api.js';
 import { buildPluginListPayload } from '../plugin/plugin-list.service.js';
 import { connectionPluginService } from '../plugin/connection-plugin.service.js';
 import { saveMultipartFile } from './multipart-file.js';
@@ -112,8 +113,56 @@ export class ConnectionsApiController {
     }
   }
 
+  /** Telegram Bot：保存前用 getMe 验一下 token，顺便把 @username 回填到界面 */
+  @Post('connections/telegram/preview')
+  async previewTelegramBot(
+    @Body() body: { token?: string; apiBase?: string; testEnv?: boolean } = {},
+  ) {
+    const token = (body.token ?? '').trim();
+    if (!token) return { ok: false, message: '请填写 Bot Token' };
+    try {
+      const api = new TelegramApiClient({
+        token,
+        apiBase: body.apiBase,
+        testEnv: body.testEnv === true,
+        timeoutMs: 15_000,
+        rateLimit: false,
+      });
+      const profile = await api.getMe();
+      return {
+        ok: true,
+        profile: {
+          id: profile.id,
+          username: profile.username ?? '',
+          first_name: profile.first_name ?? '',
+          can_join_groups: profile.can_join_groups ?? false,
+          can_read_all_group_messages: profile.can_read_all_group_messages ?? false,
+          supports_inline_queries: profile.supports_inline_queries ?? false,
+        },
+        localServer: api.isLocalServer,
+        testEnv: api.usesTestEnv,
+      };
+    } catch (e: unknown) {
+      const raw = e instanceof Error ? e.message : String(e);
+      const hint = /401|Unauthorized|Not Found/i.test(raw)
+        ? '（Token 无效，或测试环境未用测试服机器人）'
+        : /fetch failed|ENOTFOUND|ETIMEDOUT|timeout|代理/i.test(raw)
+          ? '（无法连接 Telegram API，检查网络或代理设置；切换本地 Bot API Server 需先 logOut）'
+          : '';
+      return { ok: false, message: `${raw}${hint}` };
+    }
+  }
+
   @Post('connections/:id/refresh-bot-profile')
   async refreshQqOfficialBotProfile(@Param('id') id: string) {
+    if (configService.getConnection(id)?.type === 'telegram') {
+      try {
+        const profile = await kakakeApp.connectionManager.refreshTelegramBotProfile(id);
+        return { ok: true, profile, connections: kakakeApp.connectionManager.getStatusList() };
+      } catch (e: unknown) {
+        return { ok: false, message: e instanceof Error ? e.message : String(e) };
+      }
+    }
     const profile = await kakakeApp.connectionManager.refreshQqOfficialBotProfile(id);
     if (!profile) {
       return { ok: false, message: '无法获取机器人资料，请检查凭证或连接状态' };
@@ -129,7 +178,7 @@ export class ConnectionsApiController {
   async addConnection(
     @Body() body: {
       name?: string;
-      type?: 'onebot' | 'qq_official' | 'weixin_bot' | 'kook';
+      type?: 'onebot' | 'qq_official' | 'weixin_bot' | 'kook' | 'telegram';
       mode?: ConnectionMode;
       host?: string;
       port?: number;
@@ -144,6 +193,22 @@ export class ConnectionsApiController {
       enable?: boolean;
       webhookBaseUrl?: string;
       kookToken?: string;
+      /** Telegram Bot：BotFather 签发的 token */
+      telegramToken?: string;
+      telegramApiBase?: string;
+      telegramTestEnv?: boolean;
+      telegramWebhookUrl?: string;
+      telegramWebhookSecret?: string;
+      telegramWebhookMaxConnections?: number;
+      telegramWebhookIpAddress?: string;
+      telegramWebhookCertificatePath?: string;
+      telegramAllowedUpdates?: string[];
+      telegramDropPendingUpdates?: boolean;
+      telegramPollingTimeout?: number;
+      telegramPollingLimit?: number;
+      telegramProxyUrl?: string;
+      telegramWebhookReplyInResponse?: boolean;
+      telegramParseMode?: 'HTML' | 'MarkdownV2' | 'Markdown' | 'Rich';
       reconnectIntervalMs?: number;
       reconnectMaxAttempts?: number;
     } = {},
@@ -155,7 +220,56 @@ export class ConnectionsApiController {
         ? 'weixin_bot'
         : body.type === 'kook'
           ? 'kook'
-          : 'onebot';
+          : body.type === 'telegram'
+            ? 'telegram'
+            : 'onebot';
+
+    if (type === 'telegram') {
+      const token = (body.telegramToken ?? '').trim();
+      if (!token) return { ok: false, message: '请填写 BotFather 签发的 Bot Token' };
+      const mode = body.mode === 'webhook' ? 'webhook' as const : 'polling' as const;
+      if (mode === 'webhook' && !String(body.telegramWebhookUrl || body.webhookBaseUrl || '').trim()) {
+        return { ok: false, message: 'Webhook 模式需要填写完整回调 URL 或公网基址' };
+      }
+      const secret = String(body.telegramWebhookSecret || '').trim();
+      if (secret && !/^[A-Za-z0-9_-]{1,256}$/.test(secret)) {
+        return { ok: false, message: 'secret_token 只能是 1-256 位 A-Z a-z 0-9 _ -' };
+      }
+      const conn = normalizeConnection({
+        id: randomUUID().slice(0, 8),
+        name: (body.name ?? '').trim() || 'Telegram Bot',
+        type: 'telegram',
+        mode,
+        host: '',
+        port: 0,
+        enable: body.enable === true,
+        telegramToken: token,
+        telegramApiBase: body.telegramApiBase,
+        telegramTestEnv: body.telegramTestEnv === true,
+        telegramWebhookUrl: body.telegramWebhookUrl,
+        telegramWebhookSecret: secret,
+        telegramWebhookMaxConnections: body.telegramWebhookMaxConnections,
+        telegramWebhookIpAddress: body.telegramWebhookIpAddress,
+        telegramWebhookCertificatePath: body.telegramWebhookCertificatePath,
+        telegramAllowedUpdates: body.telegramAllowedUpdates,
+        telegramDropPendingUpdates: body.telegramDropPendingUpdates === true,
+        telegramPollingTimeout: body.telegramPollingTimeout,
+        telegramPollingLimit: body.telegramPollingLimit,
+        telegramProxyUrl: body.telegramProxyUrl,
+        telegramWebhookReplyInResponse: body.telegramWebhookReplyInResponse === true,
+        telegramParseMode: body.telegramParseMode,
+        webhookBaseUrl: body.webhookBaseUrl,
+        reconnectIntervalMs: Number(body.reconnectIntervalMs) || 5000,
+        reconnectMaxAttempts: Number.isFinite(Number(body.reconnectMaxAttempts))
+          ? Math.max(0, Math.floor(Number(body.reconnectMaxAttempts)))
+          : 15,
+        createdAt: Date.now(),
+      });
+      data.connections.push(conn);
+      configService.saveConnections(data);
+      if (conn.enable) startConnection(conn);
+      return { ok: true, connection: conn };
+    }
 
     if (type === 'kook') {
       const token = (body.kookToken ?? '').trim();
@@ -312,10 +426,57 @@ export class ConnectionsApiController {
       reconnectIntervalMs?: number;
       reconnectMaxAttempts?: number;
       resetReconnect?: boolean;
+      /** Telegram Bot 编辑字段 */
+      mode?: ConnectionMode;
+      telegramToken?: string;
+      telegramApiBase?: string;
+      telegramTestEnv?: boolean;
+      telegramWebhookUrl?: string;
+      telegramWebhookSecret?: string;
+      telegramWebhookMaxConnections?: number;
+      telegramWebhookIpAddress?: string;
+      telegramWebhookCertificatePath?: string;
+      telegramAllowedUpdates?: string[];
+      telegramDropPendingUpdates?: boolean;
+      telegramPollingTimeout?: number;
+      telegramPollingLimit?: number;
+      telegramProxyUrl?: string;
+      telegramWebhookReplyInResponse?: boolean;
+      telegramParseMode?: 'HTML' | 'MarkdownV2' | 'Markdown' | 'Rich';
     },
   ) {
     const conn = configService.getConnection(id);
     if (!conn) return { ok: false, message: 'not found' };
+
+    if ((conn.type ?? 'onebot') === 'telegram') {
+      try {
+        const updated = await kakakeApp.connectionManager.updateTelegramConnection(id, {
+          name: body.name,
+          mode: body.mode === 'webhook' || body.mode === 'polling' ? body.mode : undefined,
+          telegramToken: body.telegramToken,
+          telegramApiBase: body.telegramApiBase,
+          telegramTestEnv: body.telegramTestEnv,
+          telegramWebhookUrl: body.telegramWebhookUrl,
+          telegramWebhookSecret: body.telegramWebhookSecret,
+          telegramWebhookMaxConnections: body.telegramWebhookMaxConnections,
+          telegramWebhookIpAddress: body.telegramWebhookIpAddress,
+          telegramWebhookCertificatePath: body.telegramWebhookCertificatePath,
+          telegramAllowedUpdates: body.telegramAllowedUpdates,
+          telegramDropPendingUpdates: body.telegramDropPendingUpdates,
+          telegramPollingTimeout: body.telegramPollingTimeout,
+          telegramPollingLimit: body.telegramPollingLimit,
+          telegramProxyUrl: body.telegramProxyUrl,
+          telegramWebhookReplyInResponse: body.telegramWebhookReplyInResponse,
+          telegramParseMode: body.telegramParseMode,
+          webhookBaseUrl: body.webhookBaseUrl,
+          reconnectIntervalMs: body.reconnectIntervalMs,
+          reconnectMaxAttempts: body.reconnectMaxAttempts,
+        });
+        return { ok: true, connection: updated };
+      } catch (e: unknown) {
+        return { ok: false, message: e instanceof Error ? e.message : String(e) };
+      }
+    }
 
     if ((conn.type ?? 'onebot') === 'qq_official') {
       try {
@@ -447,6 +608,10 @@ export class ConnectionsApiController {
     if (!conn.enable && (conn.type ?? 'onebot') === 'weixin_bot' && !weixinBotLoggedIn(conn)) {
       return { ok: false, message: '请先扫码登录微信 AI×BOT' };
     }
+    if (!conn.enable && (conn.type ?? 'onebot') === 'telegram'
+      && !String(conn.telegramToken || '').trim()) {
+      return { ok: false, message: '请先配置 BotFather 签发的 Bot Token' };
+    }
     conn.enable = !conn.enable;
     configService.saveConnections(data);
     if (conn.enable) kakakeApp.connectionManager.start(conn);
@@ -570,7 +735,7 @@ export class ConnectionsApiController {
     for (const item of rawList) {
       if (!item || typeof item !== 'object') { skipped += 1; continue; }
       const rec = item as Partial<ExportedConnection>;
-      if (!rec.name && !rec.id && !rec.host && !rec.appId && !rec.kookToken && !rec.weixinToken) {
+      if (!rec.name && !rec.id && !rec.host && !rec.appId && !rec.kookToken && !rec.weixinToken && !rec.telegramToken) {
         skipped += 1;
         continue;
       }

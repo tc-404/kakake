@@ -10,15 +10,24 @@ import { resolveWxPluginId, isWxPluginDir } from './wx-plugin-id.js';
 import { resolveSsPluginId, isSsPluginDir } from './ss-plugin-id.js';
 import { resolveSssxPluginId, isSssxPluginDir } from './sssx-plugin-id.js';
 import { resolveKzPluginId, isKzPluginDir } from './kz-plugin-id.js';
+import { resolveTgPluginId, isTgPluginDir } from './tg-plugin-id.js';
 import { PATHS } from '../paths.js';
 
-/** 'sssx' = 双生插件：同一份代码同时可挂在 OneBot 与 QQ 官方机器人两条协议上 */
-export type PluginKind = 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
+/** 'sssx' = 双生插件：同一份代码同时可挂在 OneBot 与 QQ 官方机器人两条协议上；'tg' = Telegram Bot */
+export type PluginKind = 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg';
 
 function resolvePluginKind(pluginId: string): PluginKind {
   // 扩展插件不挂任何连接（connectionTypesForKind 返回空），识别它只是为了别被兜底成普通插件
   if (isKzPluginDir(pluginId) || /^kz[-_]?plugin/i.test(pluginId)) {
     return 'kz';
+  }
+  // Telegram 必须早于 ss：tgbot-plugin-foo 等别名不能被 ss 的宽松正则误吞
+  if (
+    isTgPluginDir(pluginId)
+    || /^tg[-_]?plugin/i.test(pluginId)
+    || /^tgbot[-_]?plugin/i.test(pluginId)
+  ) {
+    return 'tg';
   }
   // sssx 必须早于 ss：sssx-plugin-foo 的宽松别名正则会被 ss 的规则误吞
   if (isSssxPluginDir(pluginId) || /^sssx[-_]?plugin/i.test(pluginId)) {
@@ -47,6 +56,7 @@ function connectionTypesForKind(kind: PluginKind): ConnectionType[] {
   if (kind === 'gf') return ['qq_official'];
   if (kind === 'wx') return ['weixin_bot'];
   if (kind === 'ss') return ['kook'];
+  if (kind === 'tg') return ['telegram'];
   return ['onebot'];
 }
 
@@ -67,6 +77,7 @@ class ConnectionPluginService {
     if (k === 'gf') return resolveGfPluginId(pluginId);
     if (k === 'wx') return resolveWxPluginId(pluginId);
     if (k === 'ss') return resolveSsPluginId(pluginId);
+    if (k === 'tg') return resolveTgPluginId(pluginId);
     return resolveKakakePluginId(pluginId);
   }
 
@@ -173,6 +184,44 @@ class ConnectionPluginService {
           delete bucket[key];
           changed = true;
         }
+      }
+    }
+    if (changed) this.save(config);
+  }
+
+  renamePluginEverywhere(oldId: string, newId: string, kind?: PluginKind): void {
+    const oldResolved = this.resolvePluginId(oldId, kind);
+    const newResolved = this.resolvePluginId(newId, kind);
+    const oldLower = oldId.toLowerCase();
+    const oldResolvedLower = oldResolved.toLowerCase();
+    const config = this.load();
+    let changed = false;
+    for (const bucket of Object.values(config)) {
+      const moved: Array<[string, boolean]> = [];
+      for (const key of Object.keys(bucket)) {
+        const keyLower = key.toLowerCase();
+        if (
+          key === oldId
+          || key === oldResolved
+          || key === `GF-plugin-${oldId}`
+          || key === `WX-plugin-${oldId}`
+          || keyLower === oldLower
+          || keyLower === oldResolvedLower
+        ) {
+          moved.push([key, bucket[key]]);
+          delete bucket[key];
+          changed = true;
+        }
+      }
+      for (const [key, value] of moved) {
+        const target = key.startsWith('GF-plugin-')
+          ? `GF-plugin-${newId}`
+          : key.startsWith('WX-plugin-')
+            ? `WX-plugin-${newId}`
+            : key === oldId
+              ? newId
+              : newResolved;
+        if (!(target in bucket)) bucket[target] = value;
       }
     }
     if (changed) this.save(config);

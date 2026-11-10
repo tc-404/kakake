@@ -24,7 +24,8 @@ function matches(conn: ConnectionConfig, candidate: string): boolean {
     || c === String(conn.botUin || '').trim()
     || c === String(conn.appId || '').trim()
     || c === String(conn.weixinAccountId || '').trim()
-    || c === String(conn.kookBotUserId || '').trim();
+    || c === String(conn.kookBotUserId || '').trim()
+    || c === String(conn.telegramBotUserId || '').trim();
 }
 
 function candidates(prefix: string): string[] {

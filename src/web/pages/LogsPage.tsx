@@ -50,6 +50,8 @@ const CATEGORY_TEXT: Record<LogCategory, string> = {
   gf_event: 'text-emerald-700',
   gf_action: 'text-amber-700',
   gf_plugin: 'text-fuchsia-700',
+  tg_event: 'text-cyan-700',
+  tg_action: 'text-indigo-700',
   sim_event: 'text-blue-700',
   sim_action: 'text-purple-700',
 };

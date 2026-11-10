@@ -7,6 +7,8 @@ export type LogCategory =
   | 'gf_event'
   | 'gf_action'
   | 'gf_plugin'
+  | 'tg_event'
+  | 'tg_action'
   | 'sim_event'
   | 'sim_action';
 
@@ -26,8 +28,8 @@ export interface LogFileInfo {
   mtime: number;
 }
 
-export type ConnectionType = 'onebot' | 'qq_official' | 'weixin_bot' | 'kook';
-export type ConnectionMode = 'reverse' | 'forward' | 'http' | 'http_sse' | 'http_client' | 'https';
+export type ConnectionType = 'onebot' | 'qq_official' | 'weixin_bot' | 'kook' | 'telegram';
+export type ConnectionMode = 'reverse' | 'forward' | 'http' | 'http_sse' | 'http_client' | 'https' | 'polling' | 'webhook';
 
 export interface ConnectionStatus {
   id: string;
@@ -64,6 +66,27 @@ export interface ConnectionStatus {
   kookSummary?: string;
   kookReady?: boolean;
   kookBotUserId?: string;
+  /** Telegram Bot：getMe/接入状态摘要 */
+  telegramSummary?: string;
+  /** 是否已配置 Token 且机器人身份就绪（未就绪时“已连接”没有意义） */
+  telegramReady?: boolean;
+  telegramBotUserId?: string;
+  telegramBotUsername?: string;
+  /** getMe 得到的机器人显示名（如「咔咔」），用于卡片副行，避免与 @用户名 重复 */
+  telegramBotFirstName?: string;
+  telegramMode?: 'polling' | 'webhook';
+  /** API 基址：默认 https://api.telegram.org，可填本地 Bot API Server */
+  telegramApiBase?: string;
+  telegramWebhookUrl?: string;
+  /** 测试环境：/bot<token>/test/METHOD */
+  telegramTestEnv?: boolean;
+  telegramAllowedUpdates?: string[];
+  telegramWebhookInfo?: {
+    url?: string;
+    pending_update_count?: number;
+    last_error_message?: string;
+    has_custom_certificate?: boolean;
+  };
   botProfile?: {
     id: string;
     username: string;
@@ -97,8 +120,8 @@ export interface PluginItem {
   connectionEnabled?: boolean;
   /** 插件总开关（plugins.json / gf-plugins.json / wx-plugins.json） */
   masterEnabled?: boolean;
-  /** 插件类型；'sssx' = 双生插件（OneBot + QQ 官方双协议）；'kz' = 扩展插件（不绑连接） */
-  kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz';
+  /** 插件类型；'sssx' = 双生插件（OneBot + QQ 官方双协议）；'kz' = 扩展插件（不绑连接）；'tg' = Telegram 插件 */
+  kind?: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg';
   /** 连接作用域：账号是否已锁定（QQ / AppID / 微信账号） */
   accountReady?: boolean;
   accountKey?: string;
@@ -210,11 +233,13 @@ export const CATEGORY_LABEL_KEY: Record<LogCategory, string> = {
   gf_event: 'logs.cat.gf_event',
   gf_action: 'logs.cat.gf_action',
   gf_plugin: 'logs.cat.gf_plugin',
+  tg_event: 'logs.cat.tg_event',
+  tg_action: 'logs.cat.tg_action',
   sim_event: 'logs.cat.sim_event',
   sim_action: 'logs.cat.sim_action',
 };
 
-/** 与后端 LOG_CATEGORY_ORDER 一致：官方三项挨在一起，模拟两项挨在一起 */
+/** 与后端 LOG_CATEGORY_ORDER 一致：官方三项挨在一起，TG 两项挨在一起，模拟两项挨在一起 */
 export const CATEGORY_ORDER: LogCategory[] = [
   'system',
   'event',
@@ -223,6 +248,8 @@ export const CATEGORY_ORDER: LogCategory[] = [
   'gf_event',
   'gf_action',
   'gf_plugin',
+  'tg_event',
+  'tg_action',
   'sim_event',
   'sim_action',
 ];

@@ -56,7 +56,7 @@ async function toggleMaster(
   manager: ToggleManager,
   pluginId: string,
   enable: boolean,
-  kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz',
+  kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'kz' | 'tg',
 ): Promise<ToggleResult> {
   await manager.setMasterPluginStatus(pluginId, enable);
   const entry = manager.getPluginInfo(pluginId);
@@ -218,6 +218,7 @@ export class ApiController {
         ...kakakeApp.wxPluginManager.getAllPlugins().map(mapPlugin),
         ...kakakeApp.ssPluginManager.getAllPlugins().map(mapPlugin),
         ...kakakeApp.sssxPluginManager.getAllPlugins().map(mapPlugin),
+        ...kakakeApp.tgPluginManager.getAllPlugins().map(mapPlugin),
       ],
     };
   }
@@ -624,10 +625,11 @@ export class PluginApiController {
       const d = await kakakeApp.ssPluginManager.rescanPlugins();
       const e = await kakakeApp.sssxPluginManager.rescanPlugins();
       const f = await kakakeApp.kzPluginManager.rescanPlugins();
+      const g = await kakakeApp.tgPluginManager.rescanPlugins();
       return {
         code: 0,
         message: 'ok',
-        data: { count: a + b + c + d + e + f, ...buildPluginListPayload() },
+        data: { count: a + b + c + d + e + f + g, ...buildPluginListPayload() },
       };
     }
     const kind = resolveConnectionPluginKind(connectionId);
@@ -637,7 +639,9 @@ export class PluginApiController {
         ? await kakakeApp.wxPluginManager.rescanPlugins()
         : kind === 'ss'
           ? await kakakeApp.ssPluginManager.rescanPlugins()
-          : await kakakeApp.pluginManager.rescanPlugins();
+          : kind === 'tg'
+            ? await kakakeApp.tgPluginManager.rescanPlugins()
+            : await kakakeApp.pluginManager.rescanPlugins();
     // 双生插件在受支持的连接上同样要重扫
     const twinCount = await kakakeApp.sssxPluginManager.rescanPlugins();
     return {
@@ -669,7 +673,8 @@ export class PluginApiController {
       ?? kakakeApp.gfPluginManager.getPluginInfo(id)
       ?? kakakeApp.wxPluginManager.getPluginInfo(id)
       ?? kakakeApp.sssxPluginManager.getPluginInfo(id)
-      ?? kakakeApp.ssPluginManager.getPluginInfo(id);
+      ?? kakakeApp.ssPluginManager.getPluginInfo(id)
+      ?? kakakeApp.tgPluginManager.getPluginInfo(id);
     if (!entry) {
       res.status(404).json({ code: -1, message: 'plugin not found' });
       return;
@@ -731,7 +736,7 @@ export class PluginApiController {
     if (!body.connectionId) {
       // 按插件 ID 路由管理器（双生插件 sssx-plugin-* 也在这里被认出来）
       const { kind, manager } = resolvePluginManager(body.id) as unknown as {
-        kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx';
+        kind: 'kakake' | 'gf' | 'wx' | 'ss' | 'sssx' | 'tg';
         manager: ToggleManager;
       };
       return toggleMaster(manager, body.id, body.enable, kind);

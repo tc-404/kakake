@@ -82,7 +82,7 @@ function checkWebDist(): MaintenanceCheck {
   return { key: 'web', label: 'Web 控制台产物', ok, detail: ok ? PATHS.webSpaDist : '缺少 index.html' };
 }
 
-/** 插件登记情况：六个管理器的已登记数量汇总（个别未接线就跳过，不让单点炸掉自检） */
+/** 插件登记情况：各管理器的已登记数量汇总（个别未接线就跳过，不让单点炸掉自检） */
 function checkPlugins(): MaintenanceCheck {
   try {
     const managers = [
@@ -92,6 +92,7 @@ function checkPlugins(): MaintenanceCheck {
       kakakeApp.ssPluginManager,
       kakakeApp.sssxPluginManager,
       kakakeApp.kzPluginManager,
+      kakakeApp.tgPluginManager,
     ].filter((m) => !!m);
     if (managers.length === 0) {
       return { key: 'plugins', label: '插件扫描', ok: false, detail: '插件管理器尚未初始化' };
@@ -101,7 +102,7 @@ function checkPlugins(): MaintenanceCheck {
       key: 'plugins',
       label: '插件扫描',
       ok: true,
-      detail: `共 ${total} 个已登记插件（${managers.length}/6 个管理器）`,
+      detail: `共 ${total} 个已登记插件（${managers.length}/7 个管理器）`,
     };
   } catch (e) {
     return { key: 'plugins', label: '插件扫描', ok: false, detail: String((e as Error).message || e) };

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Plus, RefreshCw, CloudDownload, CloudUpload, Bot,
-  Server, Radio, Globe, MessageCircle, Mic, Share2, FileInput, Loader2,
+  Server, Radio, Globe, MessageCircle, Mic, Share2, FileInput, Loader2, Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -24,6 +24,11 @@ import { ForwardReconnectDialog } from '@/components/forward-reconnect-dialog';
 import { ConnectionCard } from '@/components/connection-card';
 import { ConnectionManageDialog } from '@/components/connection-manage-dialog';
 import { WeixinBotLoginDialog } from '@/components/weixin-bot-login-dialog';
+import {
+  TelegramEditDialog, TelegramFields,
+  DEFAULT_TELEGRAM_CONFIG, telegramConfigToBody, validateTelegramConfig,
+  type TelegramConfigValues,
+} from '@/components/telegram-edit-dialog';
 import { usePageHeader } from '@/components/header-actions';
 import { t, useT } from '@/lib/i18n';
 import { errText, resText } from '@/lib/server-error';
@@ -132,9 +137,24 @@ const MODE_OPTIONS: {
     descKey: 'connections.modeKookDesc',
     icon: Mic,
   },
+  {
+    // 推荐模式：getUpdates 长轮询。三种对接方式（长轮询 / Webhook / 本地 Bot API Server）
+    // 都在添加表单里配置：接入方式单选 + API 基址字段。
+    type: 'telegram',
+    mode: 'polling',
+    titleKey: 'connections.modeTelegram',
+    descKey: 'connections.modeTelegramDesc',
+    icon: Send,
+  },
 ];
 
 function addFormMeta(type: ConnectionType, mode: ConnectionMode) {
+  if (type === 'telegram') {
+    return {
+      title: t('connections.formTelegramTitle'),
+      desc: t('connections.formTelegramDesc'),
+    };
+  }
   if (type === 'kook') {
     return {
       title: t('connections.formKookTitle'),
@@ -215,6 +235,10 @@ export default function ConnectionsPage() {
   const [kookToken, setKookToken] = useState('');
   const [qqPreview, setQqPreview] = useState<ConnectionStatus['botProfile'] | null>(null);
   const [qqPreviewing, setQqPreviewing] = useState(false);
+  /** Telegram 添加表单：完整字段集与编辑对话框共用同一份形状 */
+  const [tgValues, setTgValues] = useState<TelegramConfigValues>({ ...DEFAULT_TELEGRAM_CONFIG });
+  /** Telegram 连接（polling / webhook）走专用编辑对话框，不走通用管理弹窗 */
+  const [telegramEditConnId, setTelegramEditConnId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   /** 导入连接配置：读文件 → 校验 → 上传，整个过程锁住按钮与拖拽 */
   const [importing, setImporting] = useState(false);
@@ -224,6 +248,10 @@ export default function ConnectionsPage() {
 
   const manageConn = manageConnId
     ? (connections.find((c) => c.id === manageConnId) ?? null)
+    : null;
+
+  const telegramEditConn = telegramEditConnId
+    ? (connections.find((c) => c.id === telegramEditConnId) ?? null)
     : null;
 
   const syncAvatars = useCallback(async (list: ConnectionStatus[]) => {
@@ -519,6 +547,7 @@ export default function ConnectionsPage() {
     setWebhookBaseUrl('');
     setKookToken('');
     setQqPreview(null);
+    setTgValues({ ...DEFAULT_TELEGRAM_CONFIG, telegramMode: m === 'webhook' ? 'webhook' : 'polling' });
     setFormModalOpen(true);
   };
 
@@ -550,7 +579,20 @@ export default function ConnectionsPage() {
   const onAdd = async () => {
     setSubmitting(true);
     try {
-      if (addType === 'kook') {
+      if (addType === 'telegram') {
+        const errKey = validateTelegramConfig(tgValues, true);
+        if (errKey) {
+          toast.error(t(errKey));
+          return;
+        }
+        await api.connections.add({
+          name: name.trim() || t('connections.phTelegramBot'),
+          type: 'telegram',
+          enable: true,
+          ...telegramConfigToBody(tgValues),
+        });
+        toast.success(t('connections.addedTelegram'));
+      } else if (addType === 'kook') {
         if (!kookToken.trim()) {
           toast.error(t('connections.fillKookToken'));
           return;
@@ -660,7 +702,10 @@ export default function ConnectionsPage() {
               conn={conn}
               index={index}
               avatarDataUrl={avatarMap[conn.id]?.dataUrl}
-              onOpen={(c) => setManageConnId(c.id)}
+              onOpen={(c) => {
+                if (c.mode === 'polling' || c.mode === 'webhook') setTelegramEditConnId(c.id);
+                else setManageConnId(c.id);
+              }}
             />
           ))}
         </div>
@@ -680,6 +725,15 @@ export default function ConnectionsPage() {
         onRequestWeixinLogin={(c, enableAfter) => {
           setWeixinEnableAfterLogin(!!enableAfter);
           setWeixinLoginConn(c);
+        }}
+      />
+
+      <TelegramEditDialog
+        open={!!telegramEditConn}
+        conn={telegramEditConn}
+        onClose={() => setTelegramEditConnId(null)}
+        onSaved={async () => {
+          await load({ silent: true });
         }}
       />
 
@@ -761,7 +815,7 @@ export default function ConnectionsPage() {
       </Dialog>
 
       <Dialog open={formModalOpen} onOpenChange={setFormModalOpen}>
-        <DialogContent data-tour="conn-form">
+        <DialogContent data-tour="conn-form" className={addType === 'telegram' ? 'sm:max-w-2xl' : undefined}>
           <DialogHeader>
             <DialogTitle>{formMeta.title}</DialogTitle>
             <DialogDescription>{formMeta.desc}</DialogDescription>
@@ -852,6 +906,22 @@ export default function ConnectionsPage() {
               <p className="text-xs text-muted-foreground">
                 {t('connections.kookAddHint')}
               </p>
+            </div>
+          ) : addType === 'telegram' ? (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>{t('label.name')}</Label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t('connections.phTelegramBot')}
+                />
+              </div>
+              <TelegramFields
+                values={tgValues}
+                onChange={(p) => setTgValues((prev) => ({ ...prev, ...p }))}
+                disabled={submitting}
+              />
             </div>
           ) : (
             <div className="space-y-3">
@@ -954,6 +1024,7 @@ export default function ConnectionsPage() {
                   toast.success(t('connections.deletedName', { name: deleteConn.name }));
                   setDeleteConn(null);
                   setManageConnId((cur) => (cur === id ? null : cur));
+                  setTelegramEditConnId((cur) => (cur === id ? null : cur));
                   setAvatarMap((prev) => {
                     if (!(id in prev)) return prev;
                     const next = { ...prev };
@@ -979,6 +1050,7 @@ export default function ConnectionsPage() {
                   toast.success(t('connections.deletedAndCleared', { name: deleteConn.name }));
                   setDeleteConn(null);
                   setManageConnId((cur) => (cur === id ? null : cur));
+                  setTelegramEditConnId((cur) => (cur === id ? null : cur));
                   setAvatarMap((prev) => {
                     if (!(id in prev)) return prev;
                     const next = { ...prev };

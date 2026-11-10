@@ -6,6 +6,7 @@ import {
   isKookConnection,
   isOnebotConnection,
   isQqOfficialConnection,
+  isTelegramConnection,
   isWeixinBotConnection,
   type ConnectionConfig,
 } from '../core/types.js';
@@ -104,7 +105,7 @@ function forgetEnsuredDir(absDir: string): void {
 }
 
 class PluginAccountService {
-  /** OneBot → QQ 号；官方 → AppID；微信 → ilink_bot_id；KOOK → 机器人用户 ID */
+  /** OneBot → QQ 号；官方 → AppID；微信 → ilink_bot_id；KOOK → 机器人用户 ID；Telegram → tg_<bot id> */
   resolveAccountKey(conn: ConnectionConfig | undefined | null): string | null {
     if (!conn) return null;
     if (isQqOfficialConnection(conn)) {
@@ -118,6 +119,11 @@ class PluginAccountService {
     if (isKookConnection(conn)) {
       const id = String(conn.kookBotUserId || '').trim();
       return id || null;
+    }
+    if (isTelegramConnection(conn)) {
+      // 加 tg_ 前缀：Telegram 的 bot id 也是纯数字，避免与 OneBot 的 QQ 号 / KOOK 用户 ID 撞号
+      const id = String(conn.telegramBotUserId || '').trim();
+      return id ? `tg_${id}` : null;
     }
     if (isOnebotConnection(conn)) {
       const uin = String(conn.botUin || '').trim();
@@ -394,6 +400,16 @@ class PluginAccountService {
   ensureKookAccount(connectionId: string): boolean {
     const conn = configService.getConnection(connectionId);
     if (!conn || !isKookConnection(conn)) return false;
+    const key = this.resolveAccountKey(conn);
+    if (!key) return false;
+    this.ensureAccountRuntimeRoot(key);
+    return true;
+  }
+
+  /** Telegram Bot：用 getMe 得到的机器人 ID 建运行目录（首次调用 getMe 后才有） */
+  ensureTelegramAccount(connectionId: string): boolean {
+    const conn = configService.getConnection(connectionId);
+    if (!conn || !isTelegramConnection(conn)) return false;
     const key = this.resolveAccountKey(conn);
     if (!key) return false;
     this.ensureAccountRuntimeRoot(key);
