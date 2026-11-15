@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>本地便签板</title>
+  <!--
+    扩展插件的经典 HTML 后台。
+    宿主会把页面放在 /plugin/<插件ID>/page/admin，并注入：
+      window.__KAKAKE_PLUGIN_ID__     插件 ID
+      window.__KAKAKE_PLUGIN_ACCOUNT__ 占位账号（扩展插件恒为 local，可以不管）
+    所以接口用绝对路径拼，别依赖相对路径。
+  -->
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px;
+      font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(160deg, #f6fbfa 0%, #eef6fb 100%);
+      color: #2f3a3e;
+    }
+    .card {
+      max-width: 720px; margin: 0 auto; padding: 20px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(45, 96, 110, 0.08);
+      backdrop-filter: blur(10px);
+    }
+    header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    h1 { margin: 0; font-size: 18px; letter-spacing: .02em; }
+    #count { font-size: 12px; color: #7b8b91; }
+    .row { display: flex; gap: 8px; margin: 16px 0; }
+    input {
+      flex: 1; min-width: 0; height: 38px; padding: 0 12px;
+      border: 1px solid #cfe0e6; border-radius: 10px; background: #fff;
+      font-size: 14px; outline: none;
+    }
+    input:focus { border-color: #4fb3a6; box-shadow: 0 0 0 3px rgba(79, 179, 166, .15); }
+    button {
+      height: 38px; padding: 0 16px; border: none; border-radius: 10px;
+      background: #3aa79a; color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .2s;
+    }
+    button:hover { background: #2f8f84; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px; border-radius: 12px;
+      background: rgba(255, 255, 255, .72); border: 1px solid rgba(207, 224, 230, .7);
+    }
+    .text { flex: 1; min-width: 0; word-break: break-word; font-size: 14px; line-height: 1.5; }
+    .time { display: block; margin-top: 4px; font-size: 11px; color: #93a3a9; }
+    .del {
+      height: 28px; padding: 0 10px; background: #f3f6f7; color: #b04a4a;
+      border: 1px solid #e6d3d3; font-size: 12px; font-weight: 500;
+    }
+    .del:hover { background: #fbecec; }
+    .empty { padding: 28px 0; text-align: center; color: #9aa9ae; font-size: 13px; }
+    .err { margin-top: 8px; color: #b04a4a; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <h1 id="title">便签板</h1>
+      <span id="count"></span>
+    </header>
+
+    <div class="row">
+      <input id="text" maxlength="200" placeholder="写点什么，回车或点添加…">
+      <button id="add">添加</button>
+    </div>
+    <div class="err" id="err"></div>
+
+    <ul id="list"></ul>
+  </div>
+
+  <script>
+    // 插件 ID 由宿主注入；硬编码兜底只是为了直接双击打开 html 时不报错
+    const PLUGIN_ID = window.__KAKAKE_PLUGIN_ID__ || 'kz-plugin-hello';
+    // 需登录接口：/api/Plugin/ext/<插件ID>/<路径>
+    const API = `/api/Plugin/ext/${PLUGIN_ID}`;
+
+    const $title = document.getElementById('title');
+    const $count = document.getElementById('count');
+    const $list = document.getElementById('list');
+    const $text = document.getElementById('text');
+    const $add = document.getElementById('add');
+    const $err = document.getElementById('err');
+
+    function fail(message) {
+      $err.textContent = message || '';
+    }
+
+    function render(data) {
+      $title.textContent = data.title || '便签板';
+      $count.textContent = `${data.notes.length} 条`;
+      $list.textContent = '';
+
+      if (!data.notes.length) {
+        const empty = document.createElement('li');
+        empty.className = 'empty';
+        empty.textContent = '还没有便签，写一条试试';
+        $list.appendChild(empty);
+        return;
+      }
+
+      for (const note of data.notes) {
+        const li = document.createElement('li');
+
+        const text = document.createElement('div');
+        text.className = 'text';
+        text.textContent = note.text;            // textContent 而不是 innerHTML：避免内容被当标签执行
+        const time = document.createElement('span');
+        time.className = 'time';
+        time.textContent = new Date(note.at).toLocaleString();
+        text.appendChild(time);
+
+        const del = document.createElement('button');
+        del.className = 'del';
+        del.textContent = '删除';
+        del.onclick = () => removeNote(note.id);
+
+        li.append(text, del);
+        $list.appendChild(li);
+      }
+    }
+
+    async function load() {
+      try {
+        const res = await fetch(`${API}/notes`, { headers: { Accept: 'application/json' } });
+        if (res.status === 401) { fail('未登录或登录已过期，请从控制台重新打开这个页面'); return; }
+        const body = await res.json();
+        if (body.code !== 0) { fail(body.message || '读取失败'); return; }
+        fail('');
+        render(body.data);
+      } catch (e) {
+        fail(`读取失败：${e.message}`);
+      }
+    }
+
+    async function addNote() {
+      const text = $text.value.trim();
+      if (!text) return;
+      $add.disabled = true;
+      try {
+        const res = await fetch(`${API}/notes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        const body = await res.json();
+        if (body.code !== 0) { fail(body.message || '保存失败'); return; }
+        $text.value = '';
+        fail('');
+        await load();
+      } catch (e) {
+        fail(`保存失败：${e.message}`);
+      } finally {
+        $add.disabled = false;
+      }
+    }
+
+    async function removeNote(id) {
+      try {
+        await fetch(`${API}/notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await load();
+      } catch (e) {
+        fail(`删除失败：${e.message}`);
+      }
+    }
+
+    $add.onclick = addNote;
+    $text.addEventListener('keydown', (e) => { if (e.key === 'Enter') addNote(); });
+
+    load();
+  </script>
+</body>
+</html>

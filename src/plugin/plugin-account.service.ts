@@ -1,0 +1,420 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { PATHS } from '../paths.js';
+import { configService } from '../core/config.service.js';
+import {
+  isKookConnection,
+  isOnebotConnection,
+  isQqOfficialConnection,
+  isTelegramConnection,
+  isWeixinBotConnection,
+  type ConnectionConfig,
+} from '../core/types.js';
+import { rootLogger } from '../core/logger.js';
+
+/**
+ * 账号作用域插件运行时：
+ * - 安装源：plugins/<pluginId>
+ * - 运行副本：plugins_two/<accountKey>/<pluginId>
+ * - 数据：data/<accountKey>/<pluginId>（账号未知时 data/tmp/<pluginId>）
+ */
+
+/** 已确保存在的目录记忆：消息热路径上避免每条消息重复 mkdirSync 系统调用 */
+const ensuredDirs = new Set<string>();
+
+/** 运行副本的源目录指纹文件名（副本根下）：prepareRuntimeCopy 靠它判断副本是否过期 */
+export const COPY_FINGERPRINT_FILE = '.kk-copy-fingerprint.json';
+
+/**
+ * 递归复制目录（手工实现，不依赖 fs.cpSync——后者在部分 Windows 环境 + Node 22.22
+ * 组合下对不存在的目标目录会抛 EIO）。刻意不保留源文件时间戳：副本拿到全新 mtime，
+ * 正是「副本内容变化 → 加载缓存失效」机制想要的。
+ */
+export function copyTreeSync(src: string, dest: string): void {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const ent of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, ent.name);
+    const d = path.join(dest, ent.name);
+    if (ent.isDirectory()) {
+      copyTreeSync(s, d);
+      continue;
+    }
+    if (ent.isSymbolicLink()) {
+      // 链接按指向目标处理：目标目录递归、目标文件复制；断链跳过
+      let st: fs.Stats | null = null;
+      try { st = fs.statSync(s); } catch { continue; }
+      if (st.isDirectory()) copyTreeSync(s, d);
+      else if (st.isFile()) fs.copyFileSync(s, d);
+      continue;
+    }
+    if (ent.isFile()) fs.copyFileSync(s, d);
+  }
+}
+
+/**
+ * 目录规模指纹：文件数 / 总字节 / 最大 mtime（递归；条目超过 4000 返回 null——
+ * 极端目录交给调用方兜底，不给热路径加无谓的巨量 stat 开销）。
+ * 被 copyPluginToAccount（写指纹）与 prepareRuntimeCopy（比对指纹）共用。
+ */
+export function summarizeDir(dir: string): { files: number; bytes: number; maxMtime: number } | null {
+  let files = 0;
+  let bytes = 0;
+  let maxMtime = 0;
+  const walk = (d: string): boolean => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      return true;
+    }
+    for (const ent of entries) {
+      if (files > 4000) return false;
+      const p = path.join(d, ent.name);
+      if (ent.isDirectory()) {
+        if (!walk(p)) return false;
+        continue;
+      }
+      if (!ent.isFile()) continue;
+      try {
+        const st = fs.statSync(p);
+        files++;
+        bytes += st.size;
+        maxMtime = Math.max(maxMtime, st.mtimeMs);
+      } catch {
+        /* 竞态（复制中读不到）按跳过处理 */
+      }
+    }
+    return true;
+  };
+  return walk(dir) ? { files, bytes, maxMtime } : null;
+}
+
+function ensureDirMemo(absDir: string): void {
+  if (ensuredDirs.has(absDir)) return;
+  fs.mkdirSync(absDir, { recursive: true });
+  ensuredDirs.add(absDir);
+}
+
+/** 目录被删除时从记忆中移除（含其子路径），保证之后能正常重建 */
+function forgetEnsuredDir(absDir: string): void {
+  ensuredDirs.delete(absDir);
+  const prefix = absDir.endsWith(path.sep) ? absDir : absDir + path.sep;
+  for (const d of [...ensuredDirs]) {
+    if (d.startsWith(prefix)) ensuredDirs.delete(d);
+  }
+}
+
+class PluginAccountService {
+  /** OneBot → QQ 号；官方 → AppID；微信 → ilink_bot_id；KOOK → 机器人用户 ID；Telegram → tg_<bot id> */
+  resolveAccountKey(conn: ConnectionConfig | undefined | null): string | null {
+    if (!conn) return null;
+    if (isQqOfficialConnection(conn)) {
+      const id = String(conn.appId || '').trim();
+      return id || null;
+    }
+    if (isWeixinBotConnection(conn)) {
+      const id = String(conn.weixinAccountId || '').trim();
+      return id || null;
+    }
+    if (isKookConnection(conn)) {
+      const id = String(conn.kookBotUserId || '').trim();
+      return id || null;
+    }
+    if (isTelegramConnection(conn)) {
+      // 加 tg_ 前缀：Telegram 的 bot id 也是纯数字，避免与 OneBot 的 QQ 号 / KOOK 用户 ID 撞号
+      const id = String(conn.telegramBotUserId || '').trim();
+      return id ? `tg_${id}` : null;
+    }
+    if (isOnebotConnection(conn)) {
+      const uin = String(conn.botUin || '').trim();
+      return uin || null;
+    }
+    return null;
+  }
+
+  accountKeyForConnectionId(connectionId: string): string | null {
+    return this.resolveAccountKey(configService.getConnection(connectionId));
+  }
+
+  /** 安装目录（统一 plugins/） */
+  installPluginDir(pluginId: string): string {
+    return path.join(PATHS.plugins, pluginId);
+  }
+
+  accountRuntimeRoot(accountKey: string): string {
+    return path.join(PATHS.pluginsTwo, accountKey);
+  }
+
+  runtimePluginDir(accountKey: string, pluginId: string): string {
+    return path.join(this.accountRuntimeRoot(accountKey), pluginId);
+  }
+
+  /** 数据目录：有账号 → data/<account>/<plugin>；否则 data/tmp/<plugin> */
+  pluginDataDir(pluginId: string, accountKey?: string | null): string {
+    const key = (accountKey || '').trim();
+    const dir = key
+      ? path.join(PATHS.data, key, pluginId)
+      : path.join(PATHS.data, 'tmp', pluginId);
+    ensureDirMemo(dir);
+    return dir;
+  }
+
+  pluginConfigPath(pluginId: string, accountKey?: string | null): string {
+    return path.join(this.pluginDataDir(pluginId, accountKey), 'config.json');
+  }
+
+  ensureAccountRuntimeRoot(accountKey: string): string {
+    const root = this.accountRuntimeRoot(accountKey);
+    ensureDirMemo(root);
+    return root;
+  }
+
+  hasRuntimeCopy(accountKey: string, pluginId: string): boolean {
+    const dir = this.runtimePluginDir(accountKey, pluginId);
+    return fs.existsSync(dir) && fs.statSync(dir).isDirectory();
+  }
+
+  /**
+   * 从 plugins/ 复制到 plugins_two/<account>/
+   * 总开关关闭时禁止复制
+   */
+  copyPluginToAccount(pluginId: string, accountKey: string, opts?: { allowWhenMasterOff?: boolean }): string {
+    if (!opts?.allowWhenMasterOff) {
+      // 调用方应先校验 master；此处再防一层
+    }
+    const src = this.installPluginDir(pluginId);
+    if (!fs.existsSync(src) || !fs.statSync(src).isDirectory()) {
+      throw new Error(`插件安装目录不存在: ${pluginId}`);
+    }
+    this.ensureAccountRuntimeRoot(accountKey);
+    const dest = this.runtimePluginDir(accountKey, pluginId);
+    if (fs.existsSync(dest)) {
+      fs.rmSync(dest, { recursive: true, force: true });
+      forgetEnsuredDir(dest);
+    }
+    copyTreeSync(src, dest);
+    // 落一份源目录指纹：prepareRuntimeCopy 靠它判断「副本是否已过期需要刷新」，
+    // 这是「更新 / 重新导入插件后关开总开关仍跑旧代码」的修复点之一。
+    const fp = summarizeDir(src);
+    if (fp) {
+      try {
+        fs.writeFileSync(path.join(dest, COPY_FINGERPRINT_FILE), JSON.stringify({ ...fp, at: Date.now() }), 'utf8');
+      } catch { /* 指纹写不进去只影响下次刷新判定，不影响本次副本可用性 */ }
+    }
+    rootLogger.info(`[PluginAccount] 已复制 ${pluginId} → plugins_two/${accountKey}/`);
+    return dest;
+  }
+
+  removeAccountRuntime(accountKey: string): void {
+    const key = String(accountKey || '').trim();
+    if (!key) return;
+    const root = this.accountRuntimeRoot(key);
+    if (!fs.existsSync(root)) return;
+    fs.rmSync(root, { recursive: true, force: true });
+    forgetEnsuredDir(root);
+    rootLogger.info(`[PluginAccount] 已删除运行目录 plugins_two/${key}`);
+  }
+
+  /** 仅删除某账号下单个插件的运行副本（不影响 plugins/ 安装源） */
+  removeRuntimePlugin(accountKey: string, pluginId: string, cleanData = false): void {
+    const key = String(accountKey || '').trim();
+    const id = String(pluginId || '').trim();
+    if (!key || !id) return;
+    const copy = this.runtimePluginDir(key, id);
+    if (fs.existsSync(copy)) {
+      fs.rmSync(copy, { recursive: true, force: true });
+      forgetEnsuredDir(copy);
+      rootLogger.info(`[PluginAccount] 已删除运行副本 plugins_two/${key}/${id}`);
+    }
+    if (!cleanData || key === 'tmp') return;
+    const dataDir = path.join(PATHS.data, key, id);
+    if (fs.existsSync(dataDir)) {
+      fs.rmSync(dataDir, { recursive: true, force: true });
+      forgetEnsuredDir(dataDir);
+      rootLogger.info(`[PluginAccount] 已删除账号数据 data/${key}/${id}`);
+    }
+  }
+
+  removeAccountData(accountKey: string): void {
+    const key = String(accountKey || '').trim();
+    if (!key || key === 'tmp') return;
+    const root = path.join(PATHS.data, key);
+    if (!fs.existsSync(root)) return;
+    fs.rmSync(root, { recursive: true, force: true });
+    forgetEnsuredDir(root);
+    rootLogger.info(`[PluginAccount] 已删除数据目录 data/${key}`);
+  }
+
+  /** 删除连接时：按账号清 plugins_two；可选清 data */
+  cleanupConnectionAccount(conn: ConnectionConfig, clearData: boolean): void {
+    const key = this.resolveAccountKey(conn);
+    if (!key) return;
+    // 若还有其它连接占用同一账号，则不删共享目录
+    const others = configService.getConnections().connections.filter((c) => {
+      if (c.id === conn.id) return false;
+      return this.resolveAccountKey(c) === key;
+    });
+    if (others.length > 0) {
+      rootLogger.info(`[PluginAccount] 账号 ${key} 仍被其它连接使用，跳过目录清理`);
+      return;
+    }
+    this.removeAccountRuntime(key);
+    if (clearData) this.removeAccountData(key);
+  }
+
+  /** 卸载插件时：清掉各账号下的运行副本与数据 */
+  removePluginEverywhere(pluginId: string, cleanData: boolean): void {
+    if (fs.existsSync(PATHS.pluginsTwo)) {
+      for (const ent of fs.readdirSync(PATHS.pluginsTwo, { withFileTypes: true })) {
+        if (!ent.isDirectory()) continue;
+        const copy = this.runtimePluginDir(ent.name, pluginId);
+        if (fs.existsSync(copy)) {
+          fs.rmSync(copy, { recursive: true, force: true });
+          forgetEnsuredDir(copy);
+        }
+      }
+    }
+    if (!cleanData) return;
+    const tmp = path.join(PATHS.data, 'tmp', pluginId);
+    if (fs.existsSync(tmp)) {
+      fs.rmSync(tmp, { recursive: true, force: true });
+      forgetEnsuredDir(tmp);
+    }
+    // 旧路径兼容
+    for (const legacy of [
+      path.join(PATHS.data, 'plugins', pluginId),
+      path.join(PATHS.data, 'gf-plugins', pluginId),
+    ]) {
+      if (fs.existsSync(legacy)) fs.rmSync(legacy, { recursive: true, force: true });
+    }
+    if (!fs.existsSync(PATHS.data)) return;
+    for (const ent of fs.readdirSync(PATHS.data, { withFileTypes: true })) {
+      if (!ent.isDirectory()) continue;
+      if (ent.name === 'tmp' || ent.name === 'plugins' || ent.name === 'gf-plugins') continue;
+      const dir = path.join(PATHS.data, ent.name, pluginId);
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+        forgetEnsuredDir(dir);
+      }
+    }
+  }
+
+  /**
+   * 启动时：把旧 GF_plugins 迁入统一 plugins/，并建 plugins_two
+   */
+  migrateLegacyLayout(): void {
+    fs.mkdirSync(PATHS.plugins, { recursive: true });
+    fs.mkdirSync(PATHS.pluginsTwo, { recursive: true });
+    fs.mkdirSync(path.join(PATHS.data, 'tmp'), { recursive: true });
+
+    const legacy = PATHS.gfPluginsLegacy;
+    if (!fs.existsSync(legacy)) return;
+    let moved = 0;
+    for (const ent of fs.readdirSync(legacy, { withFileTypes: true })) {
+      if (!ent.isDirectory()) continue;
+      const src = path.join(legacy, ent.name);
+      const dest = path.join(PATHS.plugins, ent.name);
+      if (fs.existsSync(dest)) {
+        rootLogger.warn(`[PluginAccount] 跳过迁移（目标已存在）: ${ent.name}`);
+        continue;
+      }
+      try {
+        fs.renameSync(src, dest);
+        moved += 1;
+      } catch {
+        try {
+          copyTreeSync(src, dest);
+          fs.rmSync(src, { recursive: true, force: true });
+          moved += 1;
+        } catch (e) {
+          rootLogger.warn(`[PluginAccount] 迁移 GF 插件失败 ${ent.name}:`, e);
+        }
+      }
+    }
+    if (moved > 0) {
+      rootLogger.info(`[PluginAccount] 已从 GF_plugins 迁入 ${moved} 个插件到 plugins/`);
+    }
+    // 空目录可保留；有残余文件也不强删，避免误伤
+  }
+
+  /**
+   * 写入 / 锁定 OneBot 账号 QQ 号；换号时更新并确保运行目录
+   * @returns 是否发生变化
+   */
+  lockOnebotAccount(connectionId: string, selfId: string | number): boolean {
+    const uin = String(selfId ?? '').trim();
+    if (!uin || uin === '0') return false;
+    const data = configService.getConnections();
+    const conn = data.connections.find((c) => c.id === connectionId);
+    if (!conn || !isOnebotConnection(conn)) return false;
+    if (conn.botUin === uin) {
+      this.ensureAccountRuntimeRoot(uin);
+      void this.ensureOnebotAvatar(connectionId, uin);
+      return false;
+    }
+    const prev = conn.botUin;
+    conn.botUin = uin;
+    configService.saveConnections(data);
+    this.ensureAccountRuntimeRoot(uin);
+    if (prev && prev !== uin) {
+      rootLogger.info(`[PluginAccount] 连接 ${connectionId} 账号由 ${prev} 切换为 ${uin}`);
+    } else {
+      rootLogger.info(`[PluginAccount] 连接 ${connectionId} 锁定账号 ${uin}`);
+    }
+    void this.ensureOnebotAvatar(connectionId, uin, true);
+    return true;
+  }
+
+  private ensureOnebotAvatar(connectionId: string, uin: string, force = false): void {
+    void import('../connection/connection-avatar.store.js').then(async ({ fetchAndStoreOnebotQlogoAvatar }) => {
+      const wrote = await fetchAndStoreOnebotQlogoAvatar(connectionId, uin, { force });
+      if (!wrote) return;
+      try {
+        const { kakakeApp } = await import('../kakake-app.js');
+        kakakeApp.connectionManager?.notifyStatus?.();
+      } catch { /* ignore */ }
+    }).catch(() => undefined);
+  }
+
+  /** 官方机器人：用 AppID 建运行目录 */
+  ensureOfficialAccount(connectionId: string): boolean {
+    const conn = configService.getConnection(connectionId);
+    if (!conn || !isQqOfficialConnection(conn)) return false;
+    const key = this.resolveAccountKey(conn);
+    if (!key) return false;
+    this.ensureAccountRuntimeRoot(key);
+    return true;
+  }
+
+  /** 微信 BOT：用 ilink_bot_id 建运行目录 */
+  ensureWeixinAccount(connectionId: string): boolean {
+    const conn = configService.getConnection(connectionId);
+    if (!conn || !isWeixinBotConnection(conn)) return false;
+    const key = this.resolveAccountKey(conn);
+    if (!key) return false;
+    this.ensureAccountRuntimeRoot(key);
+    return true;
+  }
+
+  /** KOOK：用机器人用户 ID 建运行目录（首次连上网关后才有） */
+  ensureKookAccount(connectionId: string): boolean {
+    const conn = configService.getConnection(connectionId);
+    if (!conn || !isKookConnection(conn)) return false;
+    const key = this.resolveAccountKey(conn);
+    if (!key) return false;
+    this.ensureAccountRuntimeRoot(key);
+    return true;
+  }
+
+  /** Telegram Bot：用 getMe 得到的机器人 ID 建运行目录（首次调用 getMe 后才有） */
+  ensureTelegramAccount(connectionId: string): boolean {
+    const conn = configService.getConnection(connectionId);
+    if (!conn || !isTelegramConnection(conn)) return false;
+    const key = this.resolveAccountKey(conn);
+    if (!key) return false;
+    this.ensureAccountRuntimeRoot(key);
+    return true;
+  }
+}
+
+export const pluginAccountService = new PluginAccountService();

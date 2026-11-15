@@ -1,0 +1,456 @@
+@property --kk-sp-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@property --kk-sp-shine {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.kk-sp-page {
+  --sp-ver: 2;
+  width: 100%;
+}
+
+.kk-sp-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.kk-sp-card {
+  --sp-name: hsl(215 18% calc(28% + 38% * var(--kk-dark)));
+  --sp-amount: hsl(215 20% calc(26% + 38% * var(--kk-dark)));
+  --sp-ring: color-mix(in srgb, hsl(var(--primary)) 76%, var(--sp-name));
+  --sp-glow: hsl(var(--primary) / 0.28);
+  position: relative;
+  height: 176px;
+  border-radius: var(--radius);
+  isolation: isolate;
+  animation: kk-sp-rise 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition:
+    transform 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.26s ease;
+}
+
+.kk-sp-card__inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 14px 10px;
+  border-radius: var(--radius);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 0 0 1.5px var(--sp-ring);
+  overflow: hidden;
+}
+
+.kk-sp-card:hover {
+  transform: translateY(-3px);
+  filter: drop-shadow(0 12px 18px var(--sp-glow));
+}
+
+.kk-sp-card:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+.kk-sp-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  overflow: hidden;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: hsl(215 18% calc(30% + 36% * var(--kk-dark)) / 0.85);
+  -webkit-text-fill-color: hsl(215 18% calc(30% + 36% * var(--kk-dark)) / 0.85);
+  background: var(--glass-bg-soft);
+  box-shadow: inset 0 0 0 1px var(--sp-ring);
+}
+
+.kk-sp-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kk-sp-card__name {
+  margin: 0;
+  max-width: 100%;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--sp-name);
+  -webkit-text-fill-color: var(--sp-name);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kk-sp-card__amount {
+  max-width: 100%;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sp-amount);
+  -webkit-text-fill-color: var(--sp-amount);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kk-sp-avatar,
+.kk-sp-card__name,
+.kk-sp-card__amount {
+  transition:
+    filter 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease;
+}
+
+.kk-sp-card__reveal {
+  position: absolute;
+  inset: 1.5px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  overflow: auto;
+  border-radius: calc(var(--radius) - 1.5px);
+  background: color-mix(in srgb, var(--glass-bg-strong) 48%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.35);
+  backdrop-filter: blur(14px) saturate(1.35);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.24s ease, visibility 0.24s ease;
+}
+
+.kk-sp-card:hover .kk-sp-card__reveal,
+.kk-sp-card:focus-visible .kk-sp-card__reveal,
+.kk-sp-card[data-open='true'] .kk-sp-card__reveal {
+  opacity: 1;
+  visibility: visible;
+}
+
+.kk-sp-card:is(:hover, :focus-visible, [data-open='true']) :is(.kk-sp-avatar, .kk-sp-card__name, .kk-sp-card__amount) {
+  filter: blur(7px);
+  opacity: 0.38;
+}
+
+.kk-sp-card__thanks {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: hsl(215 16% calc(30% + 36% * var(--kk-dark)) / 0.9);
+  -webkit-text-fill-color: hsl(215 16% calc(30% + 36% * var(--kk-dark)) / 0.9);
+  text-align: center;
+  word-break: break-word;
+}
+
+.kk-sp-card--rainbow .kk-sp-card__inner {
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 0 0 1.5px var(--sp-ring);
+}
+
+.kk-sp-card--rainbow .kk-sp-card__name {
+  background: linear-gradient(
+    96deg,
+    hsl(348 86% calc(45% + 18% * var(--kk-dark))),
+    hsl(288 84% calc(45% + 18% * var(--kk-dark))),
+    hsl(228 86% calc(45% + 18% * var(--kk-dark))),
+    hsl(168 80% calc(45% + 18% * var(--kk-dark))),
+    hsl(108 82% calc(45% + 18% * var(--kk-dark))),
+    hsl(48 88% calc(45% + 18% * var(--kk-dark))),
+    hsl(348 86% calc(45% + 18% * var(--kk-dark)))
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.kk-sp-card--rainbow .kk-sp-card__amount {
+  background: linear-gradient(
+    96deg,
+    hsl(348 88% calc(43% + 18% * var(--kk-dark))),
+    hsl(288 86% calc(43% + 18% * var(--kk-dark))),
+    hsl(228 88% calc(43% + 18% * var(--kk-dark))),
+    hsl(168 82% calc(43% + 18% * var(--kk-dark))),
+    hsl(108 84% calc(43% + 18% * var(--kk-dark))),
+    hsl(48 90% calc(43% + 18% * var(--kk-dark))),
+    hsl(348 88% calc(43% + 18% * var(--kk-dark)))
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+html:not(.kk-lowtier) .kk-sp-card--rainbow .kk-sp-card__name {
+  animation: kk-sp-flow 9s linear infinite;
+}
+
+html:not(.kk-lowtier) .kk-sp-card--rainbow .kk-sp-card__amount {
+  animation: kk-sp-flow 6.4s linear infinite;
+}
+
+html:not(.kk-lowtier) .kk-sp-card--rainbow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 1.5px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--kk-sp-angle),
+    hsl(var(--kk-comp-h) 90% 58%),
+    hsl(calc(var(--kk-comp-h) + 55) 90% 58%),
+    hsl(calc(var(--kk-comp-h) + 110) 90% 60%),
+    hsl(calc(var(--kk-comp-h) + 165) 90% 58%),
+    hsl(calc(var(--kk-comp-h) + 220) 90% 58%),
+    hsl(calc(var(--kk-comp-h) + 275) 90% 58%),
+    hsl(var(--kk-comp-h) 90% 58%)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: kk-sp-glint 14s linear infinite;
+}
+
+html:not(.kk-lowtier) .kk-sp-card--rainbow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  padding: 1.5px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--kk-sp-shine),
+    transparent 0deg 246deg,
+    rgb(255 255 255 / 0.1) 272deg,
+    rgb(255 255 255 / 0.95) 300deg,
+    rgb(255 255 255 / 0.95) 328deg,
+    rgb(255 255 255 / 0.12) 352deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: kk-sp-shine 3.2s linear infinite;
+}
+
+html:not(.kk-lowtier):not([data-kk-bg-preset='waves']) .kk-sp-card--rainbow .kk-sp-card__inner::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  bottom: -40%;
+  left: 0;
+  width: 16%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgb(var(--kk-hi-base) / 0.04) 24%,
+    rgb(var(--kk-hi-base) / 0.26) 40%,
+    rgb(var(--kk-hi-base) / 0.92) 50%,
+    rgb(var(--kk-hi-base) / 0.26) 60%,
+    rgb(var(--kk-hi-base) / 0.04) 76%,
+    transparent 100%
+  );
+  transform: translateX(-320%) skewX(-14deg);
+  pointer-events: none;
+  opacity: 0;
+  animation: kk-sp-sweep 6.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.kk-sp-card .kk-sp-card__amount--text,
+.kk-sp-card--rainbow .kk-sp-card__amount--text {
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.kk-sp-card--gold {
+  --sp-name: hsl(34 80% calc(30% + 36% * var(--kk-dark)));
+  --sp-amount: hsl(32 84% calc(34% + 34% * var(--kk-dark)));
+  --sp-ring: color-mix(in srgb, hsl(38 82% 46%) 62%, var(--sp-name));
+  --sp-glow: hsl(38 82% 46% / 0.3);
+}
+
+.kk-sp-card--silver {
+  --sp-name: hsl(215 18% calc(30% + 36% * var(--kk-dark)));
+  --sp-amount: hsl(215 22% calc(34% + 34% * var(--kk-dark)));
+  --sp-ring: color-mix(in srgb, hsl(215 18% 54%) 58%, var(--sp-name));
+  --sp-glow: hsl(215 20% 45% / 0.26);
+}
+
+.kk-sp-card--bronze {
+  --sp-name: hsl(22 68% calc(32% + 34% * var(--kk-dark)));
+  --sp-amount: hsl(22 74% calc(36% + 32% * var(--kk-dark)));
+  --sp-ring: color-mix(in srgb, hsl(24 74% 44%) 62%, var(--sp-name));
+  --sp-glow: hsl(24 74% 44% / 0.28);
+}
+
+.kk-sp-skeleton {
+  position: relative;
+  height: 176px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--glass-bg);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 0 0 1.5px hsl(var(--border));
+  animation: kk-sp-rise 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.kk-sp-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(100deg, transparent 24%, rgb(var(--kk-hi-base) / 0.45) 50%, transparent 76%);
+  animation: kk-sp-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes kk-sp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes kk-sp-flow {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 150% 50%;
+  }
+}
+
+@keyframes kk-sp-glint {
+  to {
+    --kk-sp-angle: 360deg;
+  }
+}
+
+@keyframes kk-sp-sweep {
+  0% {
+    transform: translateX(-320%) skewX(-14deg);
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  64% {
+    transform: translateX(780%) skewX(-14deg);
+    opacity: 1;
+  }
+  64.01%,
+  100% {
+    transform: translateX(780%) skewX(-14deg);
+    opacity: 0;
+  }
+}
+
+@keyframes kk-sp-shine {
+  to {
+    --kk-sp-shine: 360deg;
+  }
+}
+
+@keyframes kk-sp-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (max-width: 420px) {
+  .kk-sp-wall {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+  }
+
+  .kk-sp-card,
+  .kk-sp-skeleton {
+    height: 164px;
+  }
+
+  .kk-sp-avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 1.15rem;
+  }
+
+  .kk-sp-card__name {
+    font-size: 15px;
+  }
+
+  .kk-sp-card__amount {
+    font-size: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kk-sp-card,
+  .kk-sp-skeleton,
+  .kk-sp-skeleton::after,
+  .kk-sp-card--rainbow::before,
+  .kk-sp-card--rainbow::after,
+  .kk-sp-card--rainbow .kk-sp-card__name,
+  .kk-sp-card--rainbow .kk-sp-card__amount {
+    animation: none;
+  }
+
+  .kk-sp-card--rainbow .kk-sp-card__inner::after {
+    animation: none;
+  }
+
+  .kk-sp-card:hover {
+    transform: none;
+  }
+
+  .kk-sp-avatar,
+  .kk-sp-card__name,
+  .kk-sp-card__amount {
+    transition: none;
+  }
+}

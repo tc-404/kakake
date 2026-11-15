@@ -1,0 +1,8 @@
+{
+  "name": "kakake-plugin-hello",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.mjs",
+  "plugin": "你好示例",
+  "description": "指令：你好 / 帮助 / ping"
+}

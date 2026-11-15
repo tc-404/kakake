@@ -1,0 +1,8 @@
+{
+  "name": "kz-plugin-hello",
+  "displayName": "本地便签板",
+  "author": "教程",
+  "version": "0.1.0",
+  "entry": "index.mjs",
+  "description": "扩展插件示例：网页便签 + 配置项，不绑任何连接"
+}

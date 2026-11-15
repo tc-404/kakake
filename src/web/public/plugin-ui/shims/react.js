@@ -1,0 +1,40 @@
+const S = globalThis.__KAKAKE_SHARED__;
+if (!S?.react) {
+  throw new Error('[kakake] shared react missing — call ensureKakakeSharedLibs() before importing plugin modules');
+}
+const R = S.react;
+export default R;
+export const {
+  Children,
+  Component,
+  Fragment,
+  Profiler,
+  PureComponent,
+  StrictMode,
+  Suspense,
+  cloneElement,
+  createContext,
+  createElement,
+  createRef,
+  forwardRef,
+  isValidElement,
+  lazy,
+  memo,
+  startTransition,
+  useCallback,
+  useContext,
+  useDebugValue,
+  useDeferredValue,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useInsertionEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  version,
+} = R;

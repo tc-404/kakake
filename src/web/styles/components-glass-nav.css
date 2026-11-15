@@ -1,0 +1,1088 @@
+/* 组件2 玻璃 / 连接状态角标 / 导航液态玻璃与长按拖动 —— @layer components（接上一文件同层） */
+@layer components {
+  /* —— 组件2 玻璃：悬浮窗 / 插件与资源界面等次级表面，透明度与模糊由「组件2」控制 —— */
+  .kk-glass-2 {
+    position: relative;
+    background: var(--glass2-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: var(--glass2-shadow);
+    -webkit-backdrop-filter: blur(var(--glass2-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass2-blur)) saturate(var(--glass-saturate));
+    transition:
+      box-shadow calc(0.25s * var(--kk-motion)) ease,
+      transform calc(0.2s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1),
+      background calc(0.2s * var(--kk-motion)) ease,
+      border-color calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-glass-2::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      var(--glass-highlight) 0%,
+      transparent 42%,
+      transparent 58%,
+      var(--glass-sheen) 100%
+    );
+    opacity: 0.55;
+    mix-blend-mode: soft-light;
+  }
+
+  .kk-glass-2-strong {
+    background: var(--glass2-bg-strong);
+    border-color: var(--glass-border);
+    box-shadow: var(--glass2-shadow-hover);
+  }
+
+  .kk-glass-2-soft {
+    background: var(--glass2-bg-soft);
+    border-color: var(--glass-border-soft);
+  }
+
+  /*
+   * 更新中心悬浮窗：正文里有 10–12px 的密集信息，而标准浮层底（组件2 透明度 0.2、
+   * strong 0.3）在图片背景上对比不够。这里仍按「组件2 透明度」派生，只把系数抬到 2.6
+   * （默认约 0.52），用户把透明度拉到 40% 以上时自然趋向不透明；拉回 0 时仍完全透明，
+   * 不破坏设置语义。模糊也略加深一点，避免透过来的背景细节干扰小字。
+   */
+  .kk-update-surface {
+    background: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card2-alpha) * 2.6)));
+    -webkit-backdrop-filter: blur(calc(var(--kk-blur2) * 1.15)) saturate(1.5);
+    backdrop-filter: blur(calc(var(--kk-blur2) * 1.15)) saturate(1.5);
+  }
+
+  .kk-glass-nav {
+    position: relative;
+    background: linear-gradient(
+      145deg,
+      rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.25))) 0%,
+      rgb(var(--kk-glass-base) / calc(var(--kk-card-alpha) * 0.5)) 52%,
+      rgb(var(--kk-glass-base) / calc(var(--kk-card-alpha) * 0.3125)) 100%
+    );
+    /* 渐变按边框盒定位：侧栏是圆角 + 1px 透明描边，默认 padding-box
+       会让渐变在描边环里重复，圆角端点处出现一道方角接缝 */
+    background-origin: border-box;
+    border: 1px solid rgb(var(--kk-hi-base) / 0);
+    box-shadow:
+      0 0 1px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.6)),
+      0 1px 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.7)),
+      0 4px 10px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.5)),
+      0 0 16px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.32));
+    -webkit-backdrop-filter: blur(var(--sidebar-blur)) saturate(1.75);
+    backdrop-filter: blur(var(--sidebar-blur)) saturate(1.75);
+  }
+
+  /* 侧栏：更透、中性玻璃，避免自成一块“青色世界” */
+  .kk-sidebar {
+    position: relative;
+    isolation: isolate;
+    background: linear-gradient(
+      160deg,
+      rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.25))) 0%,
+      rgb(var(--kk-glass-base) / calc(var(--kk-card-alpha) * 0.5625)) 48%,
+      rgb(var(--kk-glass-base) / calc(var(--kk-card-alpha) * 0.3125)) 100%
+    );
+    /* 同 .kk-glass-nav：渐变铺满边框盒，圆角处不留方角接缝 */
+    background-origin: border-box;
+    border: 1px solid rgb(var(--kk-hi-base) / 0);
+    box-shadow:
+      0 0 1px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.7)),
+      0 1px 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.8)),
+      0 6px 16px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.58)),
+      0 0 18px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.36));
+    -webkit-backdrop-filter: blur(var(--sidebar-blur)) saturate(1.75);
+    backdrop-filter: blur(var(--sidebar-blur)) saturate(1.75);
+  }
+
+  .kk-sidebar::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      125deg,
+      var(--glass-sheen-strong) 0%,
+      var(--glass-sheen-mid) 28%,
+      transparent 48%,
+      transparent 70%,
+      var(--glass-sheen) 100%
+    );
+    /* 1px 内描边必须留在这层：::after 带动画，描边跟着位移会变成第二条轮廓线。
+       颜色给全透明——白色内描边会在侧栏四周镶出一圈亮线 */
+    box-shadow: inset 0 0 0 1px rgb(var(--kk-glass-base) / calc(var(--kk-shadow-alpha) * 0));
+  }
+
+  .kk-sidebar::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    opacity: 0.7;
+    background: radial-gradient(
+      ellipse 120% 40% at 20% -10%,
+      var(--glass-sheen-glow),
+      transparent 55%
+    );
+    animation: kk-sidebar-sheen 10s ease-in-out infinite alternate;
+  }
+
+  .kk-sidebar > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .kk-glass-panel {
+    @apply kk-glass;
+    overflow: hidden;
+  }
+
+  .kk-glass-interactive:hover {
+    box-shadow: var(--glass-shadow-hover);
+    background: var(--glass-bg-strong);
+    transform: translateY(-1px);
+  }
+
+  .kk-glass-interactive:active {
+    transform: scale(0.985) translateY(0);
+  }
+
+  /* 玻璃内嵌控件槽：底色与模糊同样跟随外观设置（原为写死的 0.35 / 8px） */
+  .kk-glass-inset {
+    background: var(--glass-inset);
+    border: 1px solid var(--glass-border);
+    /* 内凹投影的浓度也挂 --kk-shadow-alpha（原来写死 0.04，滑块管不到） */
+    box-shadow: inset 0 1px 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.3));
+    -webkit-backdrop-filter: blur(calc(var(--kk-blur) * 0.36));
+    backdrop-filter: blur(calc(var(--kk-blur) * 0.36));
+  }
+
+  /* AI 输入槽：跟随「卡片透明度 / 组件模糊度」，与所在卡片同组变化。
+     用独立合成层（isolation + translateZ）把光标闪烁的重绘限制在自身层内，
+     这样既能被外观配置调节，也不会出现「光标一闪、输入框背景跟着闪」。 */
+  .kk-input-slot {
+    position: relative;
+    isolation: isolate;
+    transform: translateZ(0);
+    background: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.35)));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    -webkit-backdrop-filter: blur(calc(var(--kk-blur) * 0.6)) saturate(1.4);
+    backdrop-filter: blur(calc(var(--kk-blur) * 0.6)) saturate(1.4);
+    transition:
+      box-shadow calc(0.25s * var(--kk-motion)) ease,
+      background calc(0.2s * var(--kk-motion)) ease,
+      border-color calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  /* 卡片内嵌小面（AI 工具步骤 / diff / 文件网格）：跟随「组件2透明度 / 组件2模糊度」 */
+  .kk-inset-slot {
+    background: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card2-alpha) * 1.6)));
+    border: 1px solid var(--glass-border-soft);
+    -webkit-backdrop-filter: blur(calc(var(--kk-blur2) * 0.4));
+    backdrop-filter: blur(calc(var(--kk-blur2) * 0.4));
+    transition:
+      background calc(0.2s * var(--kk-motion)) ease,
+      border-color calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-card {
+    @apply kk-glass text-card-foreground;
+    border-radius: calc(var(--radius) + 2px);
+    background: rgb(var(--kk-glass-base) / min(1, calc(var(--kk-card-alpha) * 1.0625)));
+    -webkit-backdrop-filter: blur(calc(var(--kk-blur) * 0.82)) saturate(1.6);
+    backdrop-filter: blur(calc(var(--kk-blur) * 0.82)) saturate(1.6);
+  }
+
+  .kk-card-interactive:hover {
+    box-shadow: var(--glass-shadow-hover);
+    background: var(--glass-bg-strong);
+  }
+
+  /* 连接卡片网格
+   * 正方形；边距 15px；名称/类型贴底；头像占剩余区域居中完整显示；与文字间隔 10px
+   * 手机：两列半宽；文字 10px（对齐底部 Tab）
+   * 电脑：卡边长 = 15×2 + 偏好头像 + 间隔 + 文案区
+   */
+  .kk-conn-grid {
+    --kk-conn-edge: 15px;
+    --kk-conn-avatar-gap: 10px;
+    --kk-conn-grid-gap: 10px;
+    display: grid;
+    gap: var(--kk-conn-grid-gap);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: start;
+    align-items: start;
+    width: 100%;
+  }
+
+  .kk-conn-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .kk-conn-card {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    padding: var(--kk-conn-edge);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--kk-conn-avatar-gap);
+    border-radius: 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  /* 右上角类型标签：覆盖显示，不占布局行 */
+  .kk-conn-card__badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+    max-width: calc(100% - 12px);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* OneBot：标准清绿色 */
+  .kk-conn-card__badge--onebot {
+    color: #166534;
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+  }
+
+  /* 官方 QQ：标准浅蓝色 */
+  .kk-conn-card__badge--official {
+    color: #1e40af;
+    background: #dbeafe;
+    border: 1px solid #bfdbfe;
+  }
+
+  /* 微信：灰色 */
+  .kk-conn-card__badge--weixin {
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--muted) / 0.9);
+    border: 1px solid hsl(var(--border) / 0.8);
+  }
+
+  /* KOOK：紫色 */
+  .kk-conn-card__badge--kook {
+    color: #6b21a8;
+    background: #f3e8ff;
+    border: 1px solid #e9d5ff;
+  }
+
+  /* —— 连接状态角标：绿在线 / 黄连接中·等待 / 红异常 / 灰未启用 ——
+     与卡片描边 connBorderClass 同一套语义色，扫一眼就能对上 */
+  .kk-conn-card__badge--ok {
+    color: #166534;
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+  }
+
+  .kk-conn-card__badge--warn {
+    color: #92400e;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+  }
+
+  .kk-conn-card__badge--bad {
+    color: #991b1b;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+  }
+
+  .kk-conn-card__badge--off {
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--muted) / 0.9);
+    border: 1px solid hsl(var(--border) / 0.8);
+  }
+
+  /* 头像舞台：吃掉文字以外的全部高度 */
+  .kk-conn-card__stage {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kk-conn-card__avatar {
+    box-sizing: border-box;
+    /* min(舞台宽, 舞台高)：以舞台高度为边长，宽度不超过舞台 */
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1 / 1;
+    flex: 0 0 auto;
+    border-radius: 9999px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kk-conn-card__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 贴内容区底部 */
+  .kk-conn-card__meta {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .kk-conn-card__name,
+  .kk-conn-card__mode {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.25;
+  }
+
+  /* 手机：与底部 Tab 同为 10px */
+  .kk-conn-card__name {
+    font-size: 10px;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+  }
+
+  .kk-conn-card__mode {
+    font-size: 10px;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+  }
+
+  @media (min-width: 768px) {
+    .kk-conn-grid {
+      --kk-conn-pref-avatar: 88px;
+      --kk-conn-meta-h: 2.6rem;
+      --kk-conn-avatar-gap: 10px;
+      --kk-conn-card-size: calc(
+        2 * var(--kk-conn-edge)
+        + var(--kk-conn-pref-avatar)
+        + var(--kk-conn-avatar-gap)
+        + var(--kk-conn-meta-h)
+      );
+      --kk-conn-grid-gap: 12px;
+      grid-template-columns: repeat(auto-fill, var(--kk-conn-card-size));
+    }
+
+    .kk-conn-card {
+      width: var(--kk-conn-card-size);
+      max-width: var(--kk-conn-card-size);
+      height: var(--kk-conn-card-size);
+      border-radius: 1rem;
+    }
+
+    .kk-conn-card__name {
+      font-size: 14px;
+    }
+
+    .kk-conn-card__mode {
+      font-size: 12px;
+    }
+
+    .kk-conn-card__badge {
+      top: 8px;
+      right: 8px;
+      padding: 2px 6px;
+      font-size: 10px;
+      border-radius: 5px;
+    }
+  }
+
+  .kk-page-title {
+    @apply text-2xl font-bold tracking-tight text-foreground md:text-[1.75rem];
+    letter-spacing: -0.02em;
+  }
+
+  .kk-page-desc {
+    @apply mt-0.5 text-sm text-muted-foreground;
+  }
+
+  .kk-btn-press {
+    @apply transition-transform duration-100 active:scale-95;
+  }
+
+  /*
+   * 主按钮渐变面。
+   * 「组件及按钮」选了渐变色时 --kk-comp-gradient 是**用户那条完整渐变**
+   * （多色标、原始方向），这里直接整条铺上——旧版只取两端色标重建成一条
+   * 135° 双色渐变，中间色标全被丢掉，多色标渐变在按钮上根本看不出来。
+   * 未启用渐变时回落到 --primary-from/to 的单色派生渐变。
+   */
+  .kk-gradient-primary {
+    background-image: var(
+      --kk-comp-gradient,
+      linear-gradient(135deg, hsl(var(--primary-from)) 0%, hsl(var(--primary-to)) 100%)
+    );
+    /* 调用方常给主按钮补一圈 border；渐变必须按边框盒定位，
+       否则透明描边里会重复出渐变、圆角处露出方角 */
+    background-origin: border-box;
+  }
+
+  /*
+   * 主按钮的抬升投影：彩色光晕 + 顶部内高光。
+   *
+   * 原来直接写死 shadow-[0_6px_18px_rgba(20,140,130,0.28),inset_0_1px_0_rgba(255,255,255,0.35)]，
+   * 光晕颜色与浓度都是常量，换配色 / 拉「阴影透明度」都不动。
+   * 现在颜色取组件色通道、浓度挂到 --kk-shadow-alpha 上（×2 后出厂值正好还原成原来的 0.28）。
+   *
+   * 写在 components 层（而非未分层）：调用方传 shadow-lg 之类的工具类仍能正常覆盖。
+   */
+  .kk-btn-elevate {
+    box-shadow:
+      0 6px 18px rgb(var(--kk-comp-soft-rgb) / calc(var(--kk-shadow-alpha) * 2));
+  }
+
+  /* 单条顶部内高光（outline 按钮）：浓度同阴影透明度（0.5 / 0.14 = ×3.57） */
+  .kk-top-sheen {
+    box-shadow: inset 0 1px 0 rgb(var(--kk-glass-base) / calc(var(--kk-shadow-alpha) * 3.57));
+  }
+
+  /* 输入类控件的轻内凹投影（原来是写死的 inset 0 1px 2px rgba(15,40,60,.04)） */
+  .kk-inset-soft {
+    box-shadow: inset 0 1px 2px rgb(15 40 60 / calc(var(--kk-shadow-alpha) * 0.3));
+  }
+
+  /*
+   * 卡片上下边缘微光（登录卡 / 设密卡那两条 1px 白色内高光）。
+   * 原来在 JSX 里写死 shadow-[inset_0_1px_0_rgba(255,255,255,0.65),inset_0_-1px_0_rgba(255,255,255,0.12)]，
+   * 「阴影透明度」拉到底这两条线照样亮着。既然它以 shadow- 形式声明，就一并交给变量管：
+   * 倍率按出厂 0.14 反推（0.65 → ×4.64、0.12 → ×0.86），默认观感不变。
+   */
+  .kk-edge-sheen {
+    box-shadow:
+      inset 0 1px 0 rgb(var(--kk-glass-base) / calc(var(--kk-shadow-alpha) * 4.64)),
+      inset 0 -1px 0 rgb(var(--kk-glass-base) / calc(var(--kk-shadow-alpha) * 0.86));
+  }
+
+  /* 侧栏 / 底栏导航项：玻璃药丸，不要实心渐变 */
+  .kk-nav-item {
+    @apply relative flex items-center gap-2.5 rounded-[0.95rem] px-3 py-2.5 text-sm font-medium;
+    /* 长按拖动时不要选中文字（按钮上的文案本来也没有选中的需求） */
+    user-select: none;
+    -webkit-user-select: none;
+    transition:
+      color calc(0.35s * var(--kk-motion)) ease,
+      transform calc(0.3s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1),
+      border-color calc(0.3s * var(--kk-motion)) ease;
+  }
+
+  .kk-nav-item-active {
+    color: hsl(var(--kk-comp-h) min(100%, calc(var(--kk-comp-s) * 0.96)) min(96%, calc(26% * var(--kk-comp-lmul))));
+    background: transparent;
+    border: 1px solid transparent;
+  }
+
+  .kk-nav-item-idle {
+    color: hsl(var(--muted-foreground));
+    border: 1px solid transparent;
+  }
+
+  .kk-nav-item-idle:hover {
+    background: rgb(var(--kk-glass-base) / 0.38);
+    border-color: rgb(var(--kk-hi-base) / 0.45);
+    color: hsl(var(--foreground));
+    transform: scale(1.02);
+    box-shadow: inset 0 1px 0 rgb(var(--kk-glass-base) / calc(var(--kk-shadow-alpha) * 4.64));
+  }
+
+  .kk-nav-item-idle:active,
+  .kk-nav-item-active:active {
+    transform: scale(0.98);
+  }
+
+  /* 侧栏液态指示条：在激活项之间滑动 */
+  .kk-nav-liquid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+    /* 裁掉条内的流动纹理，免得溢出圆角 */
+    overflow: hidden;
+    border-radius: 0.95rem;
+    opacity: 0;
+    will-change: transform, width, height;
+    background: rgb(var(--kk-comp-rgb) / 0.18);
+    border: 1px solid rgb(var(--kk-comp-rgb) / 0.42);
+    -webkit-backdrop-filter: blur(10px) saturate(1.4);
+    backdrop-filter: blur(10px) saturate(1.4);
+    box-shadow:
+      0 8px 22px rgb(var(--kk-comp-rgb) / calc(var(--kk-shadow-alpha) * 1)),
+      inset 0 1px 0 rgb(var(--kk-hi-base) / calc(var(--kk-shadow-alpha) * 6.07)),
+      inset 0 -1px 0 rgb(var(--kk-comp-rgb) / calc(var(--kk-shadow-alpha) * 0.57));
+    transition:
+      transform calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      width calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      height calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      opacity calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-nav-liquid-ready {
+    opacity: 1;
+  }
+
+  .kk-nav-liquid::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgb(var(--kk-glass-base) / 0.22) 0%,
+      transparent 38%,
+      transparent 100%
+    );
+    pointer-events: none;
+  }
+
+  /*
+   * ——— 长按拖动：液态被「拎起来」 ———
+   * 位置 / 挤压量由 use-liquid-nav-drag 在 rAF 里直接写内联 style，
+   * 这里只管材质、拖尾、水花与落点提示。
+   */
+  /* 侧栏导航常驻禁止选中：移动端长按拖拽会在起始项上留下选中高亮，关掉 user-select /
+     touch-callout / tap-highlight 后长按不再选中文字，也就不会残留选中痕迹 */
+  .kk-nav {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .kk-nav--dragging {
+    cursor: grabbing;
+    /* 拖动时把子项的过渡关掉，免得 hover/active 的 transform 跟液体打架 */
+    -webkit-touch-callout: none;
+  }
+
+  .kk-nav--dragging .kk-nav-item {
+    transition: background calc(0.15s * var(--kk-motion)) ease, color calc(0.15s * var(--kk-motion)) ease;
+  }
+
+  .kk-nav--dragging .kk-nav-item:active {
+    transform: none;
+  }
+
+  .kk-nav-liquid--drag {
+    opacity: 1;
+    /* 拖动态不加大、不加浓：尺寸与阴影跟平常一致，只把描边微微提亮。
+       液态感交给 squash 形变 / 水滴 / 引力，不做「浮起变大」 */
+    border-color: rgb(var(--kk-comp-rgb) / 0.5);
+  }
+
+  /* 拖尾水影：跟得比液体慢半拍，拖起来才有「一坨水」的观感 */
+  .kk-nav-liquid-tail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    width: 66%;
+    height: 2.75rem;
+    border-radius: 999px;
+    pointer-events: none;
+    opacity: 0;
+    filter: blur(7px);
+    will-change: transform, opacity;
+    background: radial-gradient(
+      closest-side,
+      rgb(var(--kk-comp-rgb) / 0.5),
+      rgb(var(--kk-comp-soft-rgb) / 0.16) 62%,
+      transparent 78%
+    );
+  }
+
+  .kk-nav-liquid-tail--on {
+    opacity: 0.32;
+  }
+
+  /* 条内折射高光：拆成两块独立的柔光斑（玻璃反光 + 组件色微光），
+     各自沿不同轨迹、以互质周期漂移，叠加后不会「同步左右来回摆」，
+     读起来更像水里随机的涌动。位移形变只揉这两块柔光，条本身保持干净轮廓。 */
+  .kk-nav-liquid-flow {
+    position: absolute;
+    inset: -14% -8%;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity calc(0.22s * var(--kk-motion)) ease;
+  }
+
+  .kk-nav-liquid-flow::before,
+  .kk-nav-liquid-flow::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  /* 主光斑：大而慢，走不对称的闭合路径 */
+  .kk-nav-liquid-flow::before {
+    width: 68%;
+    height: 168%;
+    left: 2%;
+    top: -34%;
+    background: radial-gradient(
+      closest-side,
+      rgb(var(--kk-hi-base) / 0.46),
+      rgb(var(--kk-hi-base) / 0.1) 58%,
+      transparent 78%
+    );
+  }
+
+  /* 次光斑：小而快、方向与主光斑反相，用来打断它的规律性 */
+  .kk-nav-liquid-flow::after {
+    width: 54%;
+    height: 134%;
+    right: -2%;
+    bottom: -28%;
+    background: radial-gradient(
+      closest-side,
+      rgb(var(--kk-comp-rgb) / 0.34),
+      rgb(var(--kk-comp-rgb) / 0.08) 62%,
+      transparent 80%
+    );
+  }
+
+  .kk-nav-liquid--drag .kk-nav-liquid-flow {
+    opacity: 1;
+  }
+
+  /* 跨项时溅出的小水花 */
+  .kk-nav-ripple {
+    position: absolute;
+    left: 50%;
+    z-index: 0;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin: -0.35rem 0 0 -0.35rem;
+    border-radius: 999px;
+    pointer-events: none;
+    background: radial-gradient(circle, rgb(var(--kk-comp-rgb) / 0.42), transparent 70%);
+    animation: kk-nav-ripple calc(0.62s * var(--kk-motion)) ease-out forwards;
+  }
+
+  /* 湿痕：被拖过的那一项留下一道印子，慢慢「干」掉（下沉 + 变淡） */
+  .kk-nav-wet {
+    position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
+    z-index: 0;
+    height: 2.75rem;
+    margin-top: -1.375rem;
+    border-radius: 0.95rem;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgb(var(--kk-comp-rgb) / 0.26),
+      rgb(var(--kk-comp-soft-rgb) / 0.08)
+    );
+    filter: blur(3px);
+    animation: kk-nav-wet calc(0.95s * var(--kk-motion)) ease-out forwards;
+  }
+
+  /* 指针正悬停的那一项：给个轻微「浮起」的回应 */
+  .kk-nav-item--drop {
+    background: rgb(var(--kk-comp-rgb) / 0.14);
+    color: hsl(var(--foreground));
+    transform: scale(1.03);
+  }
+
+  /*
+   * ——— 液态玻璃：玻璃层 + 文本层 ———
+   * 液态条保持 glassmorphism（半透明 + backdrop 模糊 + 高光），再叠加一层
+   * turbulence 位移滤镜，让玻璃边缘与内部光斑像水一样持续起伏、折射，
+   * 而不是被压成扁平实心的卡通果冻。文本层单独拎出，不被滤镜扭曲。
+   */
+  .kk-nav-water {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    /* 进编辑模式时整层淡出（而不是卸载），退出时原位淡入 */
+    transition: opacity calc(0.26s * var(--kk-motion)) ease;
+  }
+
+  .kk-nav-water--away {
+    opacity: 0;
+  }
+
+  .kk-nav-items {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  /*
+   * ——— 编辑模式进出场（完整特效档） ———
+   * 点铅笔不该是「换一批 DOM」：每一枚药丸依次松开落位，右侧的叉号 / 小锁随后滑入，
+   * 之前被隐藏的项从压扁状态里长出来；退出时反过来，先把工具收走、再从后往前淡出，
+   * 最后让普通列表轻轻落位。延迟全部按行内变量 --kk-i / --kk-n 折算，不写死 nth-child。
+   * 低配档（html.kk-lowtier）下面这些规则整段不生效，表现仍是即时切换。
+   */
+  .kk-nav-edit-hint {
+    overflow: hidden;
+  }
+
+  .kk-nav-tools {
+    transform-origin: right center;
+  }
+
+  html:not(.kk-lowtier) .kk-nav--edit-in .kk-nav-item {
+    animation: kk-nav-edit-in calc(0.36s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: calc(var(--kk-i, 0) * 18ms);
+  }
+
+  /* 被隐藏的项：占位从 0 长到实际高度，读起来像从列表缝里挤出来 */
+  html:not(.kk-lowtier) .kk-nav--edit-in .kk-nav-item--unfold {
+    overflow: hidden;
+    animation: kk-nav-edit-unfold calc(0.42s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: calc(var(--kk-i, 0) * 18ms);
+  }
+
+  html:not(.kk-lowtier) .kk-nav--edit-in .kk-nav-tools {
+    animation: kk-nav-edit-tools-in calc(0.32s * var(--kk-motion)) cubic-bezier(0.34, 1.4, 0.5, 1) backwards;
+    animation-delay: calc(90ms + var(--kk-i, 0) * 18ms);
+  }
+
+  html:not(.kk-lowtier) .kk-nav--edit-in .kk-nav-edit-hint {
+    animation: kk-nav-edit-hint-in calc(0.3s * var(--kk-motion)) ease-out backwards;
+  }
+
+  /* 退出：从后往前收，工具先走 */
+  html:not(.kk-lowtier) .kk-nav--edit-out .kk-nav-item {
+    animation: kk-nav-edit-out calc(0.2s * var(--kk-motion)) ease forwards;
+    animation-delay: calc((var(--kk-n, 10) - var(--kk-i, 0)) * 10ms);
+  }
+
+  html:not(.kk-lowtier) .kk-nav--edit-out .kk-nav-tools {
+    animation: kk-nav-edit-tools-out calc(0.16s * var(--kk-motion)) ease-in forwards;
+  }
+
+  html:not(.kk-lowtier) .kk-nav--edit-out .kk-nav-edit-hint {
+    animation: kk-nav-edit-hint-out calc(0.18s * var(--kk-motion)) ease-in forwards;
+  }
+
+  /* 普通列表归位：轻微的下方浮入，盖掉「隐藏项刚被摘掉」那一下的跳动 */
+  html:not(.kk-lowtier) .kk-nav--settle .kk-nav-item {
+    animation: kk-nav-settle-in calc(0.28s * var(--kk-motion)) cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: calc(var(--kk-i, 0) * 18ms);
+  }
+
+  @keyframes kk-nav-edit-in {
+    0% { opacity: 0; transform: translateY(-7px) scale(0.965); }
+    70% { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes kk-nav-edit-unfold {
+    0% { opacity: 0; max-height: 0; margin-top: -0.25rem; transform: scale(0.94); }
+    55% { opacity: 1; }
+    100% { opacity: 1; max-height: 4.5rem; margin-top: 0; transform: scale(1); }
+  }
+
+  @keyframes kk-nav-edit-tools-in {
+    0% { opacity: 0; transform: translateX(9px) scale(0.55); }
+    100% { opacity: 1; transform: translateX(0) scale(1); }
+  }
+
+  @keyframes kk-nav-edit-hint-in {
+    0% { opacity: 0; max-height: 0; transform: translateY(-4px); }
+    100% { opacity: 1; max-height: 3rem; transform: translateY(0); }
+  }
+
+  @keyframes kk-nav-edit-out {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-5px) scale(0.965); }
+  }
+
+  @keyframes kk-nav-edit-tools-out {
+    0% { opacity: 1; transform: translateX(0) scale(1); }
+    100% { opacity: 0; transform: translateX(7px) scale(0.6); }
+  }
+
+  @keyframes kk-nav-edit-hint-out {
+    0% { opacity: 1; max-height: 3rem; transform: translateY(0); }
+    100% { opacity: 0; max-height: 0; transform: translateY(-3px); }
+  }
+
+  @keyframes kk-nav-settle-in {
+    0% { opacity: 0; transform: translateY(5px) scale(0.985); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* 铅笔 ↔ 对勾：换图标时转一下，别硬替换 */
+  html:not(.kk-lowtier) .kk-nav-edit-icon {
+    animation: kk-nav-edit-icon-in calc(0.32s * var(--kk-motion)) cubic-bezier(0.34, 1.4, 0.5, 1);
+  }
+
+  @keyframes kk-nav-edit-icon-in {
+    0% { opacity: 0; transform: rotate(-70deg) scale(0.5); }
+    100% { opacity: 1; transform: rotate(0) scale(1); }
+  }
+
+  /* 完整特效下只给「条内柔光层」套形变滤镜，液态条本体不加：
+     滤镜位移会把 1px 描边、inset 高光一起撕碎，在电脑端看就是
+     「几根线条一高一低、接不起来」。轮廓留干净，水感交给内部光斑。 */
+  html:not(.kk-lowtier) .kk-nav-liquid-flow {
+    filter: url(#kk-nav-glass);
+    -webkit-filter: url(#kk-nav-glass);
+  }
+
+  /* 重力水滴：玻璃质感的小水珠（半透明 + 上缘高光 + 轻微 backdrop 模糊），
+     挂在液态条底部，受重力下坠、被弹簧拽回。位置/尺寸由 use-liquid-nav-drag 直写。 */
+  .kk-nav-drip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    width: 0;
+    height: 0;
+    border-radius: 999px;
+    pointer-events: none;
+    opacity: 0;
+    will-change: transform, width, height, opacity;
+    background: radial-gradient(
+      circle at 30% 26%,
+      rgb(var(--kk-hi-base) / 0.85),
+      rgb(var(--kk-comp-rgb) / 0.32) 58%,
+      transparent 100%
+    );
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  /*
+   * 条内折射高光：完整特效下常驻漂移。两块柔光斑用**互质周期**（11.4s / 7.3s）
+   * 各走各的轨迹，合成运动几乎不重复，也就不会出现「整条一起左右来回摆」的机械感。
+   * 动画挂在伪元素上，span 本体的 transform 留给拖动手势按速度滚动。
+   */
+  html:not(.kk-lowtier) .kk-nav-liquid-flow {
+    opacity: 0.5;
+  }
+
+  html:not(.kk-lowtier) .kk-nav-liquid-flow::before {
+    animation: kk-nav-flow-a calc(11.4s * var(--kk-motion)) ease-in-out infinite;
+  }
+
+  html:not(.kk-lowtier) .kk-nav-liquid-flow::after {
+    animation: kk-nav-flow-b calc(7.3s * var(--kk-motion)) ease-in-out infinite;
+  }
+
+  nav.kk-nav--dragging .kk-nav-liquid-flow {
+    opacity: 0.9;
+  }
+
+  /* 拖动时停掉内部漂移，只让手势按速度滚动它，避免两套运动打架 */
+  nav.kk-nav--dragging .kk-nav-liquid-flow::before,
+  nav.kk-nav--dragging .kk-nav-liquid-flow::after {
+    animation: none;
+  }
+
+  /* 主光斑：六个采样点，X / Y / 缩放各自错相位，路径不对称，像被水推着随机漂 */
+  @keyframes kk-nav-flow-a {
+    0% { transform: translate3d(-5%, 3%, 0) scale(1); }
+    17% { transform: translate3d(8%, -8%, 0) scale(1.12); }
+    36% { transform: translate3d(2%, 9%, 0) scale(0.93); }
+    55% { transform: translate3d(-10%, -2%, 0) scale(1.06); }
+    74% { transform: translate3d(5%, 11%, 0) scale(1); }
+    89% { transform: translate3d(-2%, -6%, 0) scale(1.04); }
+    100% { transform: translate3d(-5%, 3%, 0) scale(1); }
+  }
+
+  /* 次光斑：与主光斑反相且更快，两者叠加后位移不再「一高一低」成条纹 */
+  @keyframes kk-nav-flow-b {
+    0% { transform: translate3d(6%, -5%, 0) scale(1.02); }
+    21% { transform: translate3d(-8%, 6%, 0) scale(0.9); }
+    43% { transform: translate3d(3%, 12%, 0) scale(1.14); }
+    66% { transform: translate3d(-6%, -10%, 0) scale(1.05); }
+    85% { transform: translate3d(9%, 2%, 0) scale(0.95); }
+    100% { transform: translate3d(6%, -5%, 0) scale(1.02); }
+  }
+
+  /* 液态条表面高光缓缓呼吸，替代静止的高光贴片 */
+  html:not(.kk-lowtier) .kk-nav-liquid::after {
+    animation: kk-nav-liquid-sheen calc(4.2s * var(--kk-motion)) ease-in-out infinite alternate;
+  }
+
+  @keyframes kk-nav-liquid-sheen {
+    from { opacity: 0.5; }
+    to { opacity: 0.95; }
+  }
+
+  /* 低配档 / 系统减动效：撤掉液态玻璃的形变与装饰，回落到静止玻璃块 */
+  html.kk-lowtier .kk-nav-drip {
+    display: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kk-nav-liquid-flow {
+      filter: none !important;
+      -webkit-filter: none !important;
+    }
+    .kk-nav-liquid-flow::before,
+    .kk-nav-liquid-flow::after,
+    .kk-nav-liquid::after {
+      animation: none;
+    }
+    .kk-nav-drip {
+      display: none;
+    }
+  }
+
+  .kk-sidebar-logout {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    border: 1px solid rgb(var(--kk-hi-base) / 0.35);
+    background: rgb(var(--kk-glass-base) / 0.18);
+    color: hsl(var(--muted-foreground));
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: inset 0 1px 0 rgb(var(--kk-glass-base) / calc(var(--kk-shadow-alpha) * 3.57));
+  }
+
+  .kk-sidebar-logout:hover {
+    background: rgb(var(--kk-glass-base) / 0.32);
+    color: hsl(var(--foreground));
+  }
+
+  /*
+   * 图标被收掉（极窄栏）时把文字居中，别空出图标那一格。
+   * 必须写在 .kk-sidebar-logout 之后：两条都是单类选择器、特异性相同，靠顺序取胜。
+   * 手机与电脑各按自己的阈值判定，所以电脑断点要把手机档的居中撤回去
+   * （--center 在 md 下改回 flex-start），再看电脑档要不要居中（--center-md 写在后面）。
+   */
+  .kk-sidebar-logout--center {
+    justify-content: center;
+  }
+
+  @media (min-width: 768px) {
+    .kk-sidebar-logout--center {
+      justify-content: flex-start;
+    }
+
+    .kk-sidebar-logout--center-md {
+      justify-content: center;
+    }
+  }
+
+  /* 手机底部浮动玻璃 Tab */
+  .kk-mobile-tabbar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(0.75rem + var(--safe-bottom));
+    z-index: 40;
+    display: flex;
+    width: calc(100% - 1.5rem);
+    max-width: 28rem;
+    transform: translateX(-50%);
+    border-radius: 1.35rem;
+    padding: 0.35rem;
+    gap: 0.15rem;
+  }
+
+  .kk-mobile-tab {
+    @apply flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-2 text-[10px] font-medium;
+    transition: color calc(0.35s * var(--kk-motion)) ease, transform calc(0.3s * var(--kk-motion)) ease;
+  }
+
+  .kk-mobile-tab-active {
+    color: hsl(var(--kk-comp-h) min(100%, calc(var(--kk-comp-s) * 0.96)) min(96%, calc(26% * var(--kk-comp-lmul))));
+    background: transparent;
+    border: 1px solid transparent;
+  }
+
+  .kk-mobile-tab-idle {
+    color: hsl(var(--muted-foreground));
+    border: 1px solid transparent;
+  }
+
+  .kk-mobile-tab-idle:hover {
+    color: hsl(var(--foreground));
+  }
+
+  .kk-mobile-liquid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 1.05rem;
+    opacity: 0;
+    will-change: transform, width, height;
+    background: rgb(var(--kk-comp-rgb) / 0.2);
+    border: 1px solid rgb(var(--kk-comp-rgb) / 0.35);
+    box-shadow:
+      0 4px 14px rgb(var(--kk-comp-rgb) / calc(var(--kk-shadow-alpha) * 0.86)),
+      inset 0 1px 0 rgb(var(--kk-hi-base) / calc(var(--kk-shadow-alpha) * 6.07));
+    transition:
+      transform calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      width calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      height calc(0.48s * var(--kk-motion)) cubic-bezier(0.32, 0.72, 0, 1),
+      opacity calc(0.2s * var(--kk-motion)) ease;
+  }
+
+  .kk-mobile-liquid-ready {
+    opacity: 1;
+  }
+
+  .kk-mobile-liquid::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      160deg,
+      rgb(var(--kk-glass-base) / 0.4) 0%,
+      transparent 45%
+    );
+    pointer-events: none;
+  }
+}

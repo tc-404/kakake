@@ -1,0 +1,8 @@
+{
+  "name": "kakake-plugin-hello-cjs",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "index.js",
+  "plugin": "你好示例（CJS）",
+  "description": "CommonJS 写法：你好 / 帮助 / ping / 禁言"
+}

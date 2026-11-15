@@ -1,0 +1,8 @@
+{
+  "name": "TG-plugin-hello",
+  "displayName": "Telegram 你好示例",
+  "author": "教程",
+  "version": "0.1.0",
+  "entry": "index.mjs",
+  "description": "Telegram Bot 插件示例：/start /help /ping、回声、内联键盘与回调"
+}
