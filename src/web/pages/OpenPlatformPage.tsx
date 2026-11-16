@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { BotInteractiveConfig } from '@/components/bot-interactive-config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SecretInputField } from '@/components/secret-input-field';
 import { Label } from '@/components/ui/label';
 import { errText, resText } from '@/lib/server-error';
 import {
@@ -781,11 +782,9 @@ export default function OpenPlatformPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="op-add-secret">{t('open-platform.secretLabel')}</Label>
-              <Input
-                id="op-add-secret"
-                type="password"
+              <SecretInputField
                 value={addSecret}
-                onChange={(e) => setAddSecret(e.target.value)}
+                onChange={setAddSecret}
                 placeholder={t('open-platform.secretPlaceholder')}
               />
             </div>

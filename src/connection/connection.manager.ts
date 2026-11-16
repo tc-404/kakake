@@ -111,6 +111,7 @@ function qqOfficialLogContext(
  */
 export class ConnectionManager {
   private endpoints = new Map<string, ManagedEndpoint>();
+  private readonly reconnectAttempts = new Map<string, number>();
 
   /**
    * ActionCaller 记忆化：消息热路径上每条消息 × 每个插件实例都会取一次 caller，
@@ -542,6 +543,10 @@ export class ConnectionManager {
         onReconnectAbandoned: () => this.emitStatus(),
         onReconnectStatusChange: () => this.emitStatus(),
       });
+      const priorAttempts = this.reconnectAttempts.get(connection.id);
+      if (priorAttempts !== undefined && priorAttempts > 0) {
+        client.setReconnectAttempts(priorAttempts);
+      }
       client.start();
       endpoint = client;
     } else if (mode === 'http') {
@@ -598,6 +603,14 @@ export class ConnectionManager {
   stop(id: string): void {
     const endpoint = this.endpoints.get(id);
     if (endpoint) {
+      if (endpoint instanceof ForwardWsClient) {
+        const state = endpoint.getReconnectStatus();
+        if (!state.abandoned && state.attempts > 0) {
+          this.reconnectAttempts.set(id, state.attempts);
+        } else {
+          this.reconnectAttempts.delete(id);
+        }
+      }
       endpoint.stop();
       this.endpoints.delete(id);
     }
@@ -914,7 +927,8 @@ export class ConnectionManager {
     createdAt?: number;
     logLayout: 'legacy' | 'account';
   }> {
-    const list = configService.getConnections().connections.map((c) => {
+    const connectionList = configService.getConnections().connections;
+    const list = connectionList.map((c) => {
       const endpoint = this.endpoints.get(c.id);
       const type = c.type ?? 'onebot';
       const avatarMeta = getConnectionAvatarMeta(c.id);
@@ -1108,6 +1122,16 @@ export class ConnectionManager {
         reconnectAbandoned: rs?.abandoned ?? false,
       };
     });
+
+    for (let i = 0; i < list.length; i += 1) {
+      const c = connectionList[i];
+      const item = list[i] as Record<string, unknown>;
+      item.accessTokenLength = String(c.accessToken ?? '').length;
+      item.appSecretLength = String(c.appSecret ?? '').length;
+      item.kookTokenLength = String(c.kookToken ?? '').length;
+      item.telegramTokenLength = String(c.telegramToken ?? '').length;
+      item.telegramWebhookSecretLength = String(c.telegramWebhookSecret ?? '').length;
+    }
 
     // 在线 > 连接中 > 异常 > 关闭；同级按首次添加时间升序
     const rank = (item: (typeof list)[number]): number => {

@@ -15,6 +15,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { copyToClipboard } from '@/lib/clipboard';
 import type { MediaParseResult, MediaPlatform, MediaStats } from '@/lib/types';
 import { ToolTextField } from '@/pages/tools/ToolTextField';
 import { cn } from '@/lib/utils';
@@ -253,12 +254,9 @@ export default function MediaParseTool() {
       toast.message(t('tools.nothingToCopy'));
       return;
     }
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(t('tools.copied'));
-    } catch {
-      toast.error(t('tools.copyFailed'));
-    }
+    const ok = await copyToClipboard(text);
+    if (ok) toast.success(t('tools.copied'));
+    else toast.error(t('tools.copyFailed'));
   }
 
   /** 复制地址：防盗链平台复制服务端代理地址（原始 CDN 链接浏览器直开必 403），其余复制原地址 */

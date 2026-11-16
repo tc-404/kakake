@@ -131,15 +131,16 @@ export function writeLogToFile(entry: LogEntry): void {
     const time = entry.time;
 
     if ((entry.category === 'event' || entry.category === 'gf_event' || entry.category === 'tg_event') && entry.raw) {
-      w.write(`[${time}] [${CATEGORY_TAG[entry.category]}]\t${entry.raw}\n`);
+      w.write(`[${time}] [${CATEGORY_TAG[entry.category]}:${String(entry.level || 'info').toUpperCase()}]\t${entry.raw}\n`);
       return;
     }
 
     const tag = CATEGORY_TAG[entry.category] ?? 'LOG';
+    const levelTag = `${tag}:${String(entry.level || 'info').toUpperCase()}`;
     const prefix = entry.prefix ? `${entry.prefix} ` : '';
     const line = entry.message ? `${prefix}${entry.message}` : prefix.trim();
     const detail = entry.detail?.trim();
-    w.write(detail ? `[${time}] [${tag}] ${line} | ${detail}\n` : `[${time}] [${tag}] ${line}\n`);
+    w.write(detail ? `[${time}] [${levelTag}] ${line} | ${detail}\n` : `[${time}] [${levelTag}] ${line}\n`);
   } catch {
     return;
   }

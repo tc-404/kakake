@@ -16,6 +16,21 @@ const TAG_TO_CATEGORY: Record<string, LogCategory> = {
   SIM_ACTION: 'sim_action',
 };
 
+function fromTagLevel(tag: string): 'debug' | 'info' | 'warn' | 'error' | undefined {
+  if (tag === 'DEBUG' || tag === 'INFO' || tag === 'WARN' || tag === 'ERROR') {
+    return tag.toLowerCase() as 'debug' | 'info' | 'warn' | 'error';
+  }
+  return undefined;
+}
+
+function inferLevel(body: string): 'debug' | 'info' | 'warn' | 'error' {
+  const text = body.trim();
+  if (/^(错误|失败|异常)[，。:：\s]|\[(ERROR|ERR|FATAL)\]|错误[:：]|失败[:：]|异常[:：]|(Error|Exception|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|EACCES)/i.test(text)) return 'error';
+  if (/^(警告|注意)[，。:：\s]|\[WARN(ING)?\]|警告[:：]|未配置|被拒绝|不可用|超时重试/i.test(text)) return 'warn';
+  if (/^\[DEBUG\]|调试[:：]/i.test(text)) return 'debug';
+  return 'info';
+}
+
 export interface FileLogEntry {
   time: string;
   level: 'debug' | 'info' | 'warn' | 'error';
@@ -46,7 +61,10 @@ export function parseLogFile(text: string): FileLogEntry[] {
     if (!head) continue;
 
     const time = head[1].trim();
-    const tag = head[2].trim().toUpperCase();
+    const rawTag = head[2].trim().toUpperCase();
+    const colon = rawTag.indexOf(':');
+    const tag = colon > 0 ? rawTag.slice(0, colon) : rawTag;
+    const tagLevel = colon > 0 ? rawTag.slice(colon + 1) : '';
     const category = TAG_TO_CATEGORY[tag] ?? 'system';
     // 接回 TAG 后的原始首字符（tab 才能被识别出来）
     let body = head[3] + head[4];
@@ -55,7 +73,7 @@ export function parseLogFile(text: string): FileLogEntry[] {
     if (body.startsWith('\t')) {
       const json = body.slice(1).trim();
       const { message, source, level } = summarizeEventReport(json, tag);
-      out.push({ time, level, category, prefix: source, message, detail: json });
+      out.push({ time, level: fromTagLevel(tagLevel) ?? level, category, prefix: source, message, detail: json });
       continue;
     }
 
@@ -73,7 +91,7 @@ export function parseLogFile(text: string): FileLogEntry[] {
     const detail = sep >= 0 ? body.slice(sep + 3).trim() : undefined;
     if (!message && !detail) continue;
 
-    out.push({ time, level: 'info', category, prefix, message, detail });
+    out.push({ time, level: fromTagLevel(tagLevel) ?? inferLevel(body), category, prefix, message, detail });
   }
   return out;
 }

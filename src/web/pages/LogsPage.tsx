@@ -820,7 +820,7 @@ export default function LogsPage() {
                 <ChevronDown className="shrink-0 opacity-50" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="max-h-96 min-w-[12rem] overflow-y-auto">
+            <DropdownMenuContent align="end" className="kk-scroll max-h-96 min-w-[12rem] overflow-y-auto">
               <DropdownMenuItem onSelect={() => void pickLogFile(LIVE_LOG)}>
                 {t('logs.live')}
               </DropdownMenuItem>

@@ -939,6 +939,7 @@ function AppearanceSection() {
   const changeTitle = (raw: string) => {
     setTitleText(raw);
     const title = normalizeCustomTitle(raw);
+    document.title = title || '咔咔珂';
     setAppearance((prev) => {
       const nextState = { ...prev, customTitle: title };
       cacheAppearance(nextState);

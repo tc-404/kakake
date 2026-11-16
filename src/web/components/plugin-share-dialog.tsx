@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useLang, useT } from '@/lib/i18n';
 import { api } from '@/lib/api';
+import { copyToClipboard } from '@/lib/clipboard';
 import type { PluginItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -119,12 +120,9 @@ export function PluginShareDialog({
 
   const copyLink = async () => {
     if (!result?.url) return;
-    try {
-      await navigator.clipboard.writeText(result.url);
-      toast.success(t('plugins.shareCopied'));
-    } catch {
-      toast.error(t('plugins.shareCopyFailed'));
-    }
+    const ok = await copyToClipboard(result.url);
+    if (ok) toast.success(t('plugins.shareCopied'));
+    else toast.error(t('plugins.shareCopyFailed'));
   };
 
   const backToProvider = () => {

@@ -47,6 +47,11 @@ export interface ConnectionStatus {
   onebotImpl?: 'auto' | 'napcat' | 'snowluma';
   /** 是否已配置 Access Token（不回传明文） */
   hasAccessToken?: boolean;
+  accessTokenLength?: number;
+  appSecretLength?: number;
+  kookTokenLength?: number;
+  telegramTokenLength?: number;
+  telegramWebhookSecretLength?: number;
   /** QQ 官方 HTTPS：公网回调基址 */
   webhookBaseUrl?: string;
   enable: boolean;

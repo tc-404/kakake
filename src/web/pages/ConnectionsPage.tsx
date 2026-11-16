@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Plus, RefreshCw, CloudDownload, CloudUpload, Bot,
+  Plus, RefreshCw, CloudDownload, CloudUpload, Bot, Dice5,
   Server, Radio, Globe, MessageCircle, Mic, Share2, FileInput, Loader2, Send, ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { useEventSource } from '@/lib/sse';
 import { sortConnectionsForList } from '@/lib/conn-status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SecretInputField } from '@/components/secret-input-field';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -33,6 +34,12 @@ import {
 import { usePageHeader } from '@/components/header-actions';
 import { t, useT } from '@/lib/i18n';
 import { errText, resText } from '@/lib/server-error';
+
+function randomAccessToken(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 /** 导入只认 .json，文件名或 MIME 任一像 JSON 都收（部分系统拖进来的 MIME 不准） */
 function isJsonFile(file: File): boolean {
@@ -985,11 +992,9 @@ export default function ConnectionsPage() {
               </div>
               <div data-tour="conn-form-appsecret" className="space-y-2">
                 <Label>AppSecret</Label>
-                <Input
-                  type="password"
+                <SecretInputField
                   value={appSecret}
-                  onChange={(e) => setAppSecret(e.target.value)}
-                  autoComplete="new-password"
+                  onChange={setAppSecret}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -1040,11 +1045,9 @@ export default function ConnectionsPage() {
               </div>
               <div className="space-y-2">
                 <Label>{t('connections.botToken')}</Label>
-                <Input
-                  type="password"
+                <SecretInputField
                   value={kookToken}
-                  onChange={(e) => setKookToken(e.target.value)}
-                  autoComplete="new-password"
+                  onChange={setKookToken}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -1129,11 +1132,25 @@ export default function ConnectionsPage() {
               )}
               <div data-tour="conn-form-token" className="space-y-2">
                 <Label>{t('connections.accessTokenOptional')}</Label>
-                <Input
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
-                  autoComplete="off"
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    className="min-w-0 flex-1"
+                    value={accessToken}
+                    onChange={(e) => setAccessToken(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    title={t('connections.generateToken')}
+                    aria-label={t('connections.generateToken')}
+                    onClick={() => setAccessToken(randomAccessToken())}
+                  >
+                    <Dice5 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}

@@ -818,6 +818,8 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }),
+    getSecret: (id: string) =>
+      request<{ ok: boolean; message?: string; accessToken?: string; appSecret?: string; kookToken?: string; telegramToken?: string; telegramWebhookSecret?: string }>(`/api/connections/${id}/secret`),
     toggle: (id: string) =>
       request<{ ok: boolean; message?: string; enable?: boolean }>(`/api/connections/${id}/toggle`, {
         method: 'POST',

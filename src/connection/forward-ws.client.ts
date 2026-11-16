@@ -59,8 +59,10 @@ function resolveReconnectIntervalMs(conn: ConnectionConfig): number {
 }
 
 function resolveReconnectMaxAttempts(conn: ConnectionConfig): number {
-  const n = conn.reconnectMaxAttempts;
-  if (typeof n === 'number' && n >= 0) return Math.floor(n);
+  const raw = conn.reconnectMaxAttempts;
+  if (raw === undefined || raw === null || raw === '') return 15;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 0) return Math.floor(n);
   return 15;
 }
 
@@ -121,11 +123,13 @@ export class ForwardWsClient implements OneBotEndpoint {
   start(): void {
     this.closed = false;
     this.abandoned = false;
-    this.reconnectAttempts = 0;
     this.connect();
   }
 
-  /** 手动重连：重置计数并立即尝试连接 */
+  setReconnectAttempts(n: number): void {
+    this.reconnectAttempts = Math.max(0, Math.floor(Number(n) || 0));
+  }
+
   resetAndReconnect(): void {
     if (this.closed) return;
     this.abandoned = false;

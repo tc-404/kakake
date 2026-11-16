@@ -34,7 +34,7 @@ const SHARE_DOWNLOAD_MAX_BYTES = 300 * 1024 * 1024;
 const UPLOAD_TIMEOUT_MS = 30 * 60_000;
 const UA = 'kakake-plugin-share/1.0';
 
-export type ShareProviderId = 'litterbox' | 'uguu' | 'tmpfiles';
+export type ShareProviderId = 'tmpfilelink' | 'uguu' | 'tmpfiles';
 
 export interface ShareProvider {
   id: ShareProviderId;
@@ -60,16 +60,12 @@ export interface ShareProvider {
  */
 export const SHARE_PROVIDERS: ShareProvider[] = [
   {
-    id: 'litterbox',
-    name: 'Litterbox',
-    host: 'litterbox.catbox.moe',
-    maxBytesLabel: '1 GB',
-    retention: { zh: '72 小时', en: '72 hours' },
-    maxBytes: 1024 * 1024 * 1024,
-    note: {
-      zh: '境内直连实测可用；个别代理出口 IP 可能被对端拒绝',
-      en: 'Verified working on mainland direct connections; some proxy exit IPs may be rejected',
-    },
+    id: 'tmpfilelink',
+    name: 'tmpfile.link',
+    host: 'tmpfile.link',
+    maxBytesLabel: '100 MB',
+    retention: { zh: '7 天', en: '7 days' },
+    maxBytes: 100 * 1024 * 1024,
   },
   {
     id: 'uguu',
@@ -315,7 +311,10 @@ export async function buildAndUploadSharePackage(opts: {
     return { ok: true, url, provider: provider.id, size, message: 'ok' };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    rootLogger.warn(`[插件分享] 上传失败（${provider.name}）: ${msg}`);
+    const cause = e instanceof Error && e.cause
+      ? ` cause=${JSON.stringify({ code: (e.cause as { code?: string }).code, message: (e.cause as { message?: string }).message })}`
+      : '';
+    rootLogger.warn(`[插件分享] 上传失败（${provider.name}）: ${msg}${cause}`);
     return { ok: false, provider: provider.id, message: `上传失败：${msg}` };
   } finally {
     for (const p of [workDir, outZipPath]) {
@@ -334,12 +333,14 @@ async function uploadToProvider(provider: ShareProvider, filePath: string, fileN
   const blob = new Blob([buf], { type: mime });
   const signal = AbortSignal.timeout(UPLOAD_TIMEOUT_MS);
 
-  const fd = new FormData();
+  const makeFd = (field: string): FormData => {
+    const fd = new FormData();
+    fd.append(field, blob, fileName);
+    return fd;
+  };
   switch (provider.id) {
     case 'uguu':
-      // 注意字段名是 files[]（带方括号），响应为 { success, files: [{ url }] }
-      fd.append('files[]', blob, fileName);
-      return await postJsonLink('https://uguu.se/upload?output=json', fd, signal, (j) => {
+      return await postJsonLink('https://uguu.se/upload?output=json', () => makeFd('files[]'), signal, (j) => {
         if (!j.success) throw new Error('uguu 拒绝了上传');
         const files = (Array.isArray(j.files) ? j.files : []) as Array<Record<string, unknown>>;
         const u = String(files[0]?.url || '');
@@ -347,8 +348,7 @@ async function uploadToProvider(provider: ShareProvider, filePath: string, fileN
         return u;
       });
     case 'tmpfiles': {
-      fd.append('file', blob, fileName);
-      const viewer = await postJsonLink('https://tmpfiles.org/api/v1/upload', fd, signal, (j) => {
+      const viewer = await postJsonLink('https://tmpfiles.org/api/v1/upload', () => makeFd('file'), signal, (j) => {
         const data = (j.data && typeof j.data === 'object' ? j.data : {}) as Record<string, unknown>;
         const u = String(data.url || '');
         if (!u) throw new Error('tmpfiles.org 响应里没有链接');
@@ -356,11 +356,12 @@ async function uploadToProvider(provider: ShareProvider, filePath: string, fileN
       });
       return await resolveTmpfilesDirectLink(viewer, signal);
     }
-    case 'litterbox':
-      fd.append('reqtype', 'fileupload');
-      fd.append('time', '72h');
-      fd.append('fileToUpload', blob, fileName);
-      return await postTextLink('https://litterbox.catbox.moe/resources/internals/api.php', fd, signal);
+    case 'tmpfilelink':
+      return await postJsonLink('https://tmpfile.link/api/upload', () => makeFd('file'), signal, (j) => {
+        const u = String(j.downloadLink ?? j.downloadLinkEncoded ?? '');
+        if (!u) throw new Error('tmpfile.link 响应里没有链接');
+        return u;
+      });
     default:
       throw new Error('未知的上传源');
   }
@@ -368,30 +369,32 @@ async function uploadToProvider(provider: ShareProvider, filePath: string, fileN
 
 async function postJsonLink(
   url: string,
-  fd: FormData,
+  makeFd: () => FormData,
   signal: AbortSignal,
   pick: (j: Record<string, unknown>) => string,
 ): Promise<string> {
-  const res = await fetch(url, { method: 'POST', body: fd, headers: { 'User-Agent': UA }, signal });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-  let j: Record<string, unknown>;
-  try {
-    j = JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    throw new Error(`响应不是 JSON：${text.slice(0, 120)}`);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let res: Response;
+    try {
+      res = await fetch(url, { method: 'POST', body: makeFd(), headers: { 'User-Agent': UA }, signal });
+    } catch (e) {
+      if (attempt === 3) throw e;
+      await new Promise((r) => setTimeout(r, 400 * attempt));
+      continue;
+    }
+    const text = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+    let j: Record<string, unknown>;
+    try {
+      j = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      throw new Error(`响应不是 JSON：${text.slice(0, 120)}`);
+    }
+    const link = pick(j);
+    if (!link || !/^https:\/\//.test(link)) throw new Error('响应里没有有效的下载链接');
+    return link;
   }
-  const link = pick(j);
-  if (!link || !/^https:\/\//.test(link)) throw new Error('响应里没有有效的下载链接');
-  return link;
-}
-
-async function postTextLink(url: string, fd: FormData, signal: AbortSignal): Promise<string> {
-  const res = await fetch(url, { method: 'POST', body: fd, headers: { 'User-Agent': UA }, signal });
-  const text = (await res.text()).trim();
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-  if (!/^https:\/\//.test(text)) throw new Error(`响应不是链接：${text.slice(0, 120)}`);
-  return text.split(/\s+/)[0]!;
+  throw new Error('上传重试耗尽');
 }
 
 const UA_BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';

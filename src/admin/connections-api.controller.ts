@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res,
+  Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, Header,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
@@ -79,6 +79,21 @@ export class ConnectionsApiController {
   @Get('connections')
   listConnections() {
     return { connections: kakakeApp.connectionManager.getStatusList() };
+  }
+
+  @Get('connections/:id/secret')
+  @Header('Cache-Control', 'no-store')
+  getConnectionSecret(@Param('id') id: string) {
+    const conn = configService.getConnection(id);
+    if (!conn) return { ok: false, message: 'not found' };
+    return {
+      ok: true,
+      accessToken: String(conn.accessToken ?? ''),
+      appSecret: String(conn.appSecret ?? ''),
+      kookToken: String(conn.kookToken ?? ''),
+      telegramToken: String(conn.telegramToken ?? ''),
+      telegramWebhookSecret: String(conn.telegramWebhookSecret ?? ''),
+    };
   }
 
   @Get('connections/:id/avatar')

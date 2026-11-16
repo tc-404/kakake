@@ -10,6 +10,7 @@ import { cn, hasUnsafeHeaderChars } from '@/lib/utils';
 import { TRANSPARENT_AVATAR } from '@/components/connection-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SecretInputField } from '@/components/secret-input-field';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -132,6 +133,13 @@ export function ConnectionManageDialog({
   const [busy, setBusy] = useState(false);
   const [refreshingProfile, setRefreshingProfile] = useState(false);
   const [logLayout, setLogLayout] = useState<'legacy' | 'account'>('legacy');
+
+  const readSecret = async (field: 'accessToken' | 'appSecret' | 'kookToken'): Promise<string> => {
+    if (!conn?.id) return '';
+    const r = await api.connections.getSecret(conn.id);
+    if (r.ok === false) throw new Error(r.message || t('connections.secretLoadFailed'));
+    return String(r[field] ?? '');
+  };
 
   const isQq = conn?.type === 'qq_official';
   const isWx = conn?.type === 'weixin_bot';
@@ -539,12 +547,13 @@ export function ConnectionManageDialog({
               </div>
               <div className="space-y-2">
                 <Label>AppSecret</Label>
-                <Input
-                  type="password"
+                <SecretInputField
                   value={appSecret}
-                  onChange={(e) => setAppSecret(e.target.value)}
                   placeholder={t('connections.appSecretPlaceholder')}
-                  autoComplete="new-password"
+                  hasSaved={!!conn?.appId}
+                  secretLength={conn?.appSecretLength}
+                  readSecret={() => readSecret('appSecret')}
+                  onChange={setAppSecret}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -631,14 +640,15 @@ export function ConnectionManageDialog({
               </div>
               <div className="space-y-2">
                 <Label>{t('connections.botToken')}</Label>
-                <Input
-                  type="password"
+                <SecretInputField
                   value={kookToken}
                   placeholder={conn?.kookReady ? t('connections.tokenSetPlaceholder') : t('connections.tokenUnsetPlaceholder')}
-                  autoComplete="new-password"
-                  onChange={(e) => {
+                  hasSaved={!!conn?.kookReady}
+                  secretLength={conn?.kookTokenLength}
+                  readSecret={() => readSecret('kookToken')}
+                  onChange={(v) => {
                     setKookTokenTouched(true);
-                    setKookToken(e.target.value);
+                    setKookToken(v);
                   }}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -701,14 +711,15 @@ export function ConnectionManageDialog({
               )}
               <div className="space-y-2">
                 <Label>{t('connections.accessTokenOptional')}</Label>
-                <Input
-                  type="password"
+                <SecretInputField
                   value={accessToken}
                   placeholder={conn?.hasAccessToken ? t('connections.tokenSetPlaceholder') : t('connections.tokenUnsetPlaceholder')}
-                  autoComplete="new-password"
-                  onChange={(e) => {
+                  hasSaved={!!conn?.hasAccessToken}
+                  secretLength={conn?.accessTokenLength}
+                  readSecret={() => readSecret('accessToken')}
+                  onChange={(v) => {
                     setTokenTouched(true);
-                    setAccessToken(e.target.value);
+                    setAccessToken(v);
                   }}
                 />
                 {conn?.hasAccessToken && !tokenTouched && (

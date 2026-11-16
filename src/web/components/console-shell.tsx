@@ -558,6 +558,13 @@ function useBrandTitle(): string {
   return appearance.customTitle?.trim() || t('brand.kakake');
 }
 
+function useDocumentTitle(): void {
+  const customTitle = useSyncExternalStore(subscribeAppearance, getAppearanceSnapshot, getAppearanceSnapshot).customTitle;
+  useEffect(() => {
+    document.title = customTitle?.trim() || '咔咔珂';
+  }, [customTitle]);
+}
+
 function Brand({ version, title }: { version: string; title: string }) {
   // 侧栏按四字宽度收窄了，品牌字相应降一档；版本徽标放不下时换行，不硬挤
   return (
@@ -671,6 +678,7 @@ function ConsoleShellInner({ children }: { children: ReactNode }) {
   useSessionActivity(true);
   const version = useFrameworkVersion();
   const brandTitle = useBrandTitle();
+  useDocumentTitle();
   const t = useT();
   // 侧栏窄栏形态（两字短名 / 收掉图标）：底部这一行的按钮与导航项共用同一套判定
   const {

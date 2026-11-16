@@ -7,6 +7,7 @@ import { useT } from '@/lib/i18n';
 import { errText, resText } from '@/lib/server-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SecretInputField } from '@/components/secret-input-field';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -177,18 +178,34 @@ export function TelegramFields({
   onChange,
   disabled,
   onVerified,
+  connectionId,
+  hasToken,
+  tokenLength,
+  hasWebhookSecret,
+  webhookSecretLength,
 }: {
   values: TelegramConfigValues;
   onChange: (patch: Partial<TelegramConfigValues>) => void;
   disabled?: boolean;
-  /** 验证（测试连接）成功后的回调，由父组件决定是否自动启用连接 */
   onVerified?: (profile: { username: string; first_name?: string }) => void | Promise<void>;
+  connectionId?: string;
+  hasToken?: boolean;
+  tokenLength?: number;
+  hasWebhookSecret?: boolean;
+  webhookSecretLength?: number;
 }) {
   const t = useT();
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<{ username: string; first_name?: string } | null>(null);
 
   const patch = (p: Partial<TelegramConfigValues>) => onChange(p);
+
+  const readSecret = async (field: 'telegramToken' | 'telegramWebhookSecret'): Promise<string> => {
+    if (!connectionId) return '';
+    const r = await api.connections.getSecret(connectionId);
+    if (r.ok === false) throw new Error(r.message || t('connections.secretLoadFailed'));
+    return String(r[field] ?? '');
+  };
 
   const onVerify = async () => {
     const token = values.telegramToken.trim();
@@ -224,13 +241,16 @@ export function TelegramFields({
       {/* Bot Token + 验证 */}
       <Field label={t('connections.tg.token')} hint={t('connections.tg.tokenPlaceholder')}>
         <div className="flex gap-2">
-          <Input
-            type="password"
-            value={values.telegramToken}
-            disabled={disabled}
-            onChange={(e) => patch({ telegramToken: e.target.value })}
-            autoComplete="new-password"
-          />
+          <div className="min-w-0 flex-1">
+            <SecretInputField
+              value={values.telegramToken}
+              disabled={disabled}
+              hasSaved={hasToken}
+              secretLength={tokenLength}
+              readSecret={connectionId ? () => readSecret('telegramToken') : undefined}
+              onChange={(v) => patch({ telegramToken: v })}
+            />
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -293,13 +313,14 @@ export function TelegramFields({
             />
           </Field>
           <Field label={t('connections.tg.secret')} hint={t('connections.tg.secretHint')}>
-            <Input
-              type="password"
+            <SecretInputField
               value={values.telegramWebhookSecret}
               disabled={disabled}
-              onChange={(e) => patch({ telegramWebhookSecret: e.target.value })}
+              hasSaved={hasWebhookSecret}
+              secretLength={webhookSecretLength}
+              readSecret={connectionId ? () => readSecret('telegramWebhookSecret') : undefined}
+              onChange={(v) => patch({ telegramWebhookSecret: v })}
               placeholder={t('connections.tg.secretPlaceholder')}
-              autoComplete="new-password"
             />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -626,6 +647,11 @@ export function TelegramEditDialog({
               onChange={(p) => setValues((prev) => ({ ...prev, ...p }))}
               disabled={saving}
               onVerified={onVerified}
+              connectionId={conn?.id}
+              hasToken={conn?.telegramReady}
+              tokenLength={conn?.telegramTokenLength}
+              hasWebhookSecret={conn?.telegramWebhookSecretConfigured}
+              webhookSecretLength={conn?.telegramWebhookSecretLength}
             />
 
             {error && <p className="text-xs text-destructive">{error}</p>}
