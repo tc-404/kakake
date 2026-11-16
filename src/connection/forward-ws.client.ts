@@ -60,7 +60,7 @@ function resolveReconnectIntervalMs(conn: ConnectionConfig): number {
 
 function resolveReconnectMaxAttempts(conn: ConnectionConfig): number {
   const raw = conn.reconnectMaxAttempts;
-  if (raw === undefined || raw === null || raw === '') return 15;
+  if (raw === undefined || raw === null || String(raw).trim() === '') return 15;
   const n = Number(raw);
   if (Number.isFinite(n) && n >= 0) return Math.floor(n);
   return 15;

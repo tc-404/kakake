@@ -28,6 +28,7 @@ import { StorePagination } from '@/components/store-pagination';
 import { QuietExternal } from '@/components/quiet-link';
 import { usePageHeader } from '@/components/header-actions';
 import { errText, resText, svcText } from '@/lib/server-error';
+import { isEditableElement, isTourActive } from '@/lib/tour-state';
 import {
   Dialog,
   DialogClose,
@@ -581,6 +582,29 @@ export default function PluginStorePage() {
     () => visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [visible, page],
   );
+
+  useEffect(() => {
+    if (totalPages <= 1) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (isTourActive() || isEditableElement(document.activeElement)) return;
+      const overlay = document.querySelector(
+        '[role="dialog"][data-state="open"],[role="menu"][data-state="open"],[role="listbox"][data-state="open"]',
+      );
+      if (overlay) return;
+      let next = page;
+      if (e.key === 'ArrowLeft') next = Math.max(1, page - 1);
+      else if (e.key === 'ArrowRight') next = Math.min(totalPages, page + 1);
+      else if (e.key === 'ArrowUp') next = 1;
+      else if (e.key === 'ArrowDown') next = totalPages;
+      else return;
+      if (next === page) return;
+      e.preventDefault();
+      setPage(next);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [page, totalPages]);
 
   // 来源切换后，若当前排序在新来源下不可用（如 GitHub 无「浏览」、无 Token 时无「下载次数」），回退到默认
   useEffect(() => {
