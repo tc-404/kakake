@@ -72,6 +72,54 @@ test('多文件插件：只改 CJS 子文件，clearCache + 重载后必须吃�
   assert.equal(m2.tags.cjs, 'CJS-B', 'CJS 子文件的新代码必须在重载后生效（vendor CJS 是旧实现重载不掉的重灾区）');
 });
 
+test('多文件插件：跨兄弟目录 import 不裂成双实例（顶层 const 不触发 TDZ）', async () => {
+  const root = tmpRoot();
+  const plugins = path.join(root, 'plugins');
+  const dir = path.join(plugins, 'kakake-plugin-crossdir');
+  fs.mkdirSync(path.join(dir, 'lib', 'core'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'lib', 'game'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'lib', 'ui'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'kakake-plugin-crossdir', main: 'index.mjs', type: 'module' }));
+  fs.writeFileSync(path.join(dir, 'plugin.json'), JSON.stringify({ name: 'kakake-plugin-crossdir', entry: 'index.mjs' }));
+  const probe = '__kk_crossdir_probe__';
+  (globalThis as unknown as Record<string, number>)[probe] = 0;
+  fs.writeFileSync(path.join(dir, 'lib', 'core', 'base.mjs'), `globalThis['${probe}'] = (globalThis['${probe}'] || 0) + 1;\nexport const 表 = { x: 1 };\n`);
+  fs.writeFileSync(path.join(dir, 'lib', 'game', 'dungeon.mjs'), "import { 表 } from '../core/base.mjs';\nexport const 首项 = 表.x;\n");
+  fs.writeFileSync(path.join(dir, 'lib', 'ui', 'card.mjs'), "import { 首项 } from '../game/dungeon.mjs';\nexport const 展示 = 首项;\n");
+  fs.writeFileSync(path.join(dir, 'lib', 'game', 'equip.mjs'), "import { 展示 } from '../ui/card.mjs';\nexport const 说明 = 展示;\n");
+  fs.writeFileSync(path.join(dir, 'index.mjs'), `export * from './lib/core/base.mjs';\nexport * from './lib/game/equip.mjs';\nexport * from './lib/game/dungeon.mjs';\nexport function plugin_init() {}\n`);
+
+  const loader = new PluginLoader(plugins, path.join(root, 'plugins.json'), { warn() {}, error() {}, info() {} } as never);
+  const entry = path.join(dir, 'index.mjs');
+  const mod = await loader.importModule(entry, dir) as unknown as { 说明: number; 首项: number };
+  assert.equal(mod.说明, 1);
+  assert.equal(mod.首项, 1);
+  assert.equal((globalThis as unknown as Record<string, number>)[probe], 1, '同一模块经入口直达与跨兄弟目录两条路径引用，只允许求值一次（不能裂成带 kkg / 不带 kkg 两份实例）');
+});
+
+test('多文件插件：跨兄弟目录子文件改动，clearCache + 重载后必须吃到新代码', async () => {
+  const root = tmpRoot();
+  const plugins = path.join(root, 'plugins');
+  const dir = path.join(plugins, 'kakake-plugin-crossdir-reload');
+  fs.mkdirSync(path.join(dir, 'lib', 'core'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'lib', 'game'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'kakake-plugin-crossdir-reload', main: 'index.mjs', type: 'module' }));
+  fs.writeFileSync(path.join(dir, 'plugin.json'), JSON.stringify({ name: 'kakake-plugin-crossdir-reload', entry: 'index.mjs' }));
+  fs.writeFileSync(path.join(dir, 'lib', 'core', 'base.mjs'), "export const tag = 'A';\n");
+  fs.writeFileSync(path.join(dir, 'lib', 'game', 'farm.mjs'), "import { tag } from '../core/base.mjs';\nexport const got = tag;\n");
+  fs.writeFileSync(path.join(dir, 'index.mjs'), "export * from './lib/game/farm.mjs';\nexport function plugin_init() {}\n");
+
+  const loader = new PluginLoader(plugins, path.join(root, 'plugins.json'), { warn() {}, error() {}, info() {} } as never);
+  const entry = path.join(dir, 'index.mjs');
+  const m1 = await loader.importModule(entry, dir) as unknown as { got: string };
+  assert.equal(m1.got, 'A');
+
+  fs.writeFileSync(path.join(dir, 'lib', 'core', 'base.mjs'), "export const tag = 'B';\n");
+  loader.clearCache(dir);
+  const m2 = await loader.importModule(entry, dir) as unknown as { got: string };
+  assert.equal(m2.got, 'B', '跨兄弟目录的子模块必须随代次失效并重新求值');
+});
+
 test('多文件插件：代次不变时同 URL 复用（不堆积模块图）', async () => {
   const root = tmpRoot();
   const plugins = path.join(root, 'plugins');

@@ -249,9 +249,13 @@ export class PluginLoader {
         "import path from 'node:path';",
         '',
         '// 咔咔珂插件 ESM 代次传播钩子（由 plugin.loader.ts 运行期生成，勿手改）：',
-        '// 把父模块 URL 上的 kkg=<代次> 传播给同一插件子树内的相对 import，',
+        '// 把父模块 URL 上的 kkg=<代次> 传播给同一插件包内的相对 import，',
         '// 让整棵模块图随代次失效——没有它，重载插件时只有入口是新的，',
         '// 入口 import 进来的子模块永远命中按 URL 的 ESM 缓存（多文件插件重载失效的根因）。',
+        '// 包根由入口 URL 上的 kkr=<路径> 提供，逐层透传给整棵图：',
+        '// 判定用"目标与父模块同属一个包根"，不能只看父目录子树——',
+        '// 跨兄弟目录的 import 若不传播，同一文件会裂成带 kkg / 不带 kkg 两份实例，',
+        '// 各自执行顶层代码并错乱求值顺序，触发 TDZ。',
         'export async function resolve(specifier, context, next) {',
         '  const r = await next(specifier, context);',
         '  try {',
@@ -260,12 +264,23 @@ export class PluginLoader {
         "    const m = /[?&]kkg=(\\d+)/.exec(parent);",
         "    if (!m) return r;",
         "    if (/[?&]kkg=/.test(r.url)) return r;",
-        "    const parentPath = fileURLToPath(parent.replace(/[?&]kkg=\\d+/g, ''));",
+        "    const parentPath = fileURLToPath(parent.replace(/[?&]kkg=\\d+/g, '').replace(/[?&]kkr=[^&]*/g, ''));",
         '    const targetPath = fileURLToPath(r.url);',
-        '    const parentDir = path.dirname(parentPath);',
-        "    if (targetPath.startsWith(parentDir + path.sep)) {",
+        "    const kr = /[?&]kkr=([^&]*)/.exec(parent);",
+        '    let inScope = false;',
+        '    if (kr && kr[1]) {',
+        '      try {',
+        "        const root = decodeURIComponent(kr[1]);",
+        '        inScope = root.length > 0 && (targetPath === root || targetPath.startsWith(root + path.sep));',
+        '      } catch { inScope = false; }',
+        '    } else {',
+        "      const parentDir = path.dirname(parentPath);",
+        '      inScope = targetPath === parentDir || targetPath.startsWith(parentDir + path.sep);',
+        '    }',
+        '    if (inScope) {',
         "      const sep = r.url.includes('?') ? '&' : '?';",
-        "      return { ...r, url: `${r.url}${sep}kkg=${m[1]}`, shortCircuit: true };",
+        "      const rootPart = kr && kr[1] ? `${sep}kkr=${kr[1]}` : '';",
+        "      return { ...r, url: `${r.url}${sep}kkg=${m[1]}${rootPart}`, shortCircuit: true };",
         '    }',
         '  } catch { /* 任何异常都按原结果放行 */ }',
         '  return r;',
@@ -557,7 +572,7 @@ export class PluginLoader {
     // 相对 import 的代次传播由 ESM 钩子完成——这样整棵模块图（含 CJS 子树）
     // 都会随代次失效，而不是只有入口模块自己是新的（旧版重载不彻底的根因）。
     const scopeRoot = path.resolve(scopeDir || path.dirname(abs));
-    const href = `${pathToFileURL(abs).href}?kkg=${this.generationOf(scopeRoot)}`;
+    const href = `${pathToFileURL(abs).href}?kkg=${this.generationOf(scopeRoot)}&kkr=${encodeURIComponent(scopeRoot)}`;
     try {
       const mod = await import(href) as PluginModule;
       return this.normalizeModuleShape(mod) as PluginModule;
