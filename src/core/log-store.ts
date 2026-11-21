@@ -11,8 +11,17 @@ export type LogCategory =
   | 'gf_event'
   | 'gf_action'
   | 'gf_plugin'
+  | 'sssx_plugin'
   | 'tg_event'
   | 'tg_action'
+  | 'tg_plugin'
+  | 'kook_event'
+  | 'kook_action'
+  | 'kook_plugin'
+  | 'wx_event'
+  | 'wx_action'
+  | 'wx_plugin'
+  | 'extension'
   | 'sim_event'
   | 'sim_action';
 
@@ -95,8 +104,10 @@ export function appendLog(entry: Omit<LogEntry, 'time'> & { time?: string }): vo
     raw: entry.raw,
     accountKey,
   };
-  if (full.category === 'event' || full.category === 'gf_event' || full.category === 'tg_event') counters.received += 1;
-  else if (full.category === 'action' || full.category === 'gf_action' || full.category === 'tg_action') counters.sent += 1;
+  const RECEIVED_CATEGORIES = new Set<LogCategory>(['event', 'gf_event', 'tg_event', 'kook_event', 'wx_event']);
+  const SENT_CATEGORIES = new Set<LogCategory>(['action', 'gf_action', 'tg_action', 'kook_action', 'wx_action']);
+  if (RECEIVED_CATEGORIES.has(full.category)) counters.received += 1;
+  else if (SENT_CATEGORIES.has(full.category)) counters.sent += 1;
   // 级别过滤：计数保持，低级别条目不落盘/不进内存/不推送
   if (minLevel && LEVEL_ORDER[full.level] < LEVEL_ORDER[minLevel]) return;
   const forMemory: LogEntry = {
@@ -200,6 +211,58 @@ export function logTelegramAction(
   appendLog({ level, category: 'tg_action', prefix, message, detail });
 }
 
+/** KOOK 网关上报（收到的消息 / 事件） */
+export function logKookEvent(
+  prefix: string,
+  message: string,
+  opts?: { detail?: string; raw?: string; level?: LogLevel },
+): void {
+  appendLog({
+    level: opts?.level ?? 'info',
+    category: 'kook_event',
+    prefix,
+    message,
+    detail: opts?.detail,
+    raw: opts?.raw,
+  });
+}
+
+/** KOOK API 输出（发消息等） */
+export function logKookAction(
+  prefix: string,
+  message: string,
+  detail?: string,
+  level: LogLevel = 'info',
+): void {
+  appendLog({ level, category: 'kook_action', prefix, message, detail });
+}
+
+/** 微信机器人上报（收到的消息 / 事件） */
+export function logWxEvent(
+  prefix: string,
+  message: string,
+  opts?: { detail?: string; raw?: string; level?: LogLevel },
+): void {
+  appendLog({
+    level: opts?.level ?? 'info',
+    category: 'wx_event',
+    prefix,
+    message,
+    detail: opts?.detail,
+    raw: opts?.raw,
+  });
+}
+
+/** 微信机器人 API 输出（发消息等） */
+export function logWxAction(
+  prefix: string,
+  message: string,
+  detail?: string,
+  level: LogLevel = 'info',
+): void {
+  appendLog({ level, category: 'wx_action', prefix, message, detail });
+}
+
 export function getLogs(limit = 500, level?: LogLevel, category?: LogCategory): LogEntry[] {
   let result = logs;
   if (level) result = result.filter(l => l.level === level);
@@ -241,13 +304,22 @@ export const LOG_CATEGORY_LABEL: Record<LogCategory, string> = {
   gf_event: '官方上报',
   gf_action: '官方输出',
   gf_plugin: '官方插件',
+  sssx_plugin: '双生插件',
   tg_event: 'TG上报',
   tg_action: 'TG输出',
+  tg_plugin: 'TG插件',
+  kook_event: 'KOOK上报',
+  kook_action: 'KOOK输出',
+  kook_plugin: 'KOOK插件',
+  wx_event: '微信上报',
+  wx_action: '微信输出',
+  wx_plugin: '微信插件',
+  extension: '扩展插件',
   sim_event: '模拟上报',
   sim_action: '模拟输出',
 };
 
-/** 日志页分类下拉顺序（官方三项挨在一起，TG 两项挨在一起，模拟两项挨在一起） */
+/** 日志页分类下拉顺序（同协议三项挨在一起） */
 export const LOG_CATEGORY_ORDER: LogCategory[] = [
   'system',
   'event',
@@ -256,8 +328,17 @@ export const LOG_CATEGORY_ORDER: LogCategory[] = [
   'gf_event',
   'gf_action',
   'gf_plugin',
+  'sssx_plugin',
   'tg_event',
   'tg_action',
+  'tg_plugin',
+  'kook_event',
+  'kook_action',
+  'kook_plugin',
+  'wx_event',
+  'wx_action',
+  'wx_plugin',
+  'extension',
   'sim_event',
   'sim_action',
 ];

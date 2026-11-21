@@ -34,6 +34,7 @@ export class WxPluginManager extends AccountPluginManagerBase {
       enrichFlagKey: 'weixin_bot',
       ob11Mode: 'weixin-ilink',
       protocol: 'weixin_bot',
+      loggerCategory: 'wx_plugin',
       accountNotReadyError: '微信账号未配置，请先扫码登录',
       dirFilter: isWxPluginDir,
       resolveId: resolveWxPluginId,

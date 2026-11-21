@@ -26,6 +26,8 @@ export interface PageHeaderPatch {
   leading?: ReactNode | null;
   /** 顶栏右侧的操作按钮 / 菜单 */
   actions?: ReactNode | null;
+  /** 手机端把全局更新入口让渡给页面折叠菜单（顶栏隐藏它） */
+  hideGlobalUpdate?: boolean;
 }
 
 /** 稳定 setter，避免 actions 更新导致订阅方 effect 死循环 */
@@ -70,6 +72,14 @@ export function usePageHeader(
 export function usePageHeaderTitle(): string | undefined {
   return useContext(HeaderContext).title;
 }
+
+/** 顶栏读取当前界面是否要求隐藏全局更新入口 */
+export function usePageHeaderHideGlobalUpdate(): boolean {
+  return useContext(HeaderContext).hideGlobalUpdate === true;
+}
+
+/** 供页面折叠菜单触发顶栏更新入口：用一个稳定事件名解耦，不强引用组件实例 */
+export const OPEN_GLOBAL_UPDATE_EVENT = 'kk:open-global-update';
 
 /** 顶栏右侧操作区；没有内容时不占位 */
 export function PageHeaderActionsSlot() {

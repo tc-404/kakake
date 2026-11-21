@@ -144,7 +144,7 @@ export class SssxPluginManager extends AccountPluginManagerBase {
           : connectionManager.createActionCaller(adapterName, connId);
         return caller as ActionCaller;
       },
-      loggerCategory: 'plugin',
+      loggerCategory: 'sssx_plugin',
       conversationKey: twinConversationKey,
       messageEventFilter: isMessageEvent,
       resolveOb11Mode: (connectionId) => {

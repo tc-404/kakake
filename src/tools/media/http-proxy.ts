@@ -10,6 +10,7 @@ import http from 'node:http';
 import https from 'node:https';
 import tls from 'node:tls';
 import net from 'node:net';
+import { execFileSync } from 'node:child_process';
 import { Readable } from 'node:stream';
 
 const DEFAULT_PROXY_URL = 'http://127.0.0.1:7897';
@@ -32,11 +33,59 @@ function envAnyCase(name: string): string | undefined {
   );
 }
 
+let cachedSystemProxy: string | null | undefined;
+
+function readWindowsSystemProxy(): string | null {
+  if (cachedSystemProxy !== undefined) return cachedSystemProxy;
+  try {
+    if (process.platform !== 'win32') {
+      cachedSystemProxy = null;
+      return null;
+    }
+    const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings';
+    const query = (name: string): string => {
+      try {
+        return execFileSync('reg', ['query', key, '/v', name], {
+          encoding: 'utf8',
+          timeout: 3000,
+          windowsHide: true,
+          stdio: ['ignore', 'pipe', 'ignore'],
+        });
+      } catch {
+        return '';
+      }
+    };
+    const enableOut = query('ProxyEnable');
+    if (!/ProxyEnable[\s\S]*?0x1\b/i.test(enableOut)) {
+      cachedSystemProxy = null;
+      return null;
+    }
+    const serverOut = query('ProxyServer');
+    const match = /ProxyServer[\s\S]*?REG_SZ\s+(.+)/i.exec(serverOut);
+    const raw = (match?.[1] || '').trim();
+    if (!raw || /^(off|false|none|direct)$/i.test(raw)) {
+      cachedSystemProxy = null;
+      return null;
+    }
+    const picked = raw.includes(';')
+      ? (/(?:^|;)\s*https=([^;]+)/i.exec(raw)?.[1] || /(?:^|;)\s*http=([^;]+)/i.exec(raw)?.[1] || '').trim()
+      : raw;
+    cachedSystemProxy = picked && !/^(off|false|none|direct)$/i.test(picked)
+      ? (/^[a-z]+:\/\//i.test(picked) ? picked : `http://${picked}`)
+      : null;
+  } catch {
+    cachedSystemProxy = null;
+  }
+  return cachedSystemProxy ?? null;
+}
+
 export function getProxyUrl(): string | null {
   const raw = (
     envAnyCase('X_PROXY_URL')
     || envAnyCase('HTTPS_PROXY')
     || envAnyCase('HTTP_PROXY')
+    || envAnyCase('ALL_PROXY')
+    || readWindowsSystemProxy()
     || DEFAULT_PROXY_URL
   ).trim();
   if (!raw || /^(off|false|none|direct)$/i.test(raw)) return null;

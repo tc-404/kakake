@@ -229,6 +229,7 @@ export class KzPluginManager implements IPluginManager {
 
     const configPath = path.join(dataPath, 'config.json');
     const pluginLogger = createPluginLogger(`${entry.id}@extension`, {
+      category: 'extension',
       silentStdout: entry.pluginJson?.logSilentStdout === true,
     });
 

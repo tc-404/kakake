@@ -53,6 +53,7 @@ const commonMessages = {
   'btn.remove': { zh: '移除', en: 'Remove' },
   'btn.edit': { zh: '编辑', en: 'Edit' },
   'btn.refresh': { zh: '刷新', en: 'Refresh' },
+  'btn.update': { zh: '更新', en: 'Update' },
   'btn.close': { zh: '关闭', en: 'Close' },
   'btn.copy': { zh: '复制', en: 'Copy' },
   'btn.add': { zh: '添加', en: 'Add' },

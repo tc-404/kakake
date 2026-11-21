@@ -34,6 +34,7 @@ export class TgPluginManager extends AccountPluginManagerBase {
       enrichFlagKey: 'telegram',
       ob11Mode: 'telegram-bot-api',
       protocol: 'telegram',
+      loggerCategory: 'tg_plugin',
       accountNotReadyError: 'Telegram Bot 账号未就绪：请先启用连接，调用 getMe 获取机器人身份后再启用插件',
       dirFilter: isTgPluginDir,
       resolveId: resolveTgPluginId,

@@ -9,6 +9,7 @@ import { VersionDriftBanner } from '@/components/version-drift-banner';
 import { cn } from '@/lib/utils';
 import { WatermarkLayer } from '@/components/watermark-layer';
 import { useAppearanceSync } from '@/hooks/use-appearance';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useSessionActivity } from '@/lib/session-activity';
 import { getDeviceTier } from '@/lib/device-tier';
 import { useT } from '@/lib/i18n';
@@ -165,6 +166,9 @@ function PluginHostLayout() {
 export function App() {
   // 登录页、设置密码页、控制台共用同一套外观：在路由根部同步一次即可
   useAppearanceSync();
+  // 标签标题同样挂在路由根部：插件后台 / 登录页 / 公告页都绕过 ConsoleShell，
+  // 挂在外壳里会让这些页面（尤其是新标签页打开的插件后台）退回硬编码的「咔咔珂」
+  useDocumentTitle();
   // 空闲时预取各页面模块（性能模式跳过），切界面直接同步渲染
   usePrefetchPages();
 

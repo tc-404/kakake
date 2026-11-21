@@ -34,6 +34,7 @@ export class SsPluginManager extends AccountPluginManagerBase {
       enrichFlagKey: 'kook',
       ob11Mode: 'kook-gateway',
       protocol: 'kook',
+      loggerCategory: 'kook_plugin',
       accountNotReadyError: 'KOOK 账号未就绪：请先启用连接，连上网关获取机器人身份后再启用插件',
       dirFilter: isSsPluginDir,
       resolveId: resolveSsPluginId,

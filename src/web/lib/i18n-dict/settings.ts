@@ -58,10 +58,17 @@ registerMessages({
   'settings.backgroundPresetDesc': { zh: '没设置自定义背景时，用它替换整片氛围底；波浪只在完整特效下绘制', en: 'When no custom background is set, use this to replace the ambient backdrop; the wave is only drawn at the full-effects tier' },
 
   'settings.resourceWebsite': { zh: '资源官网', en: 'Resource Website' },
+  'settings.resourceWebsiteOfficial': { zh: '咔咔资源官网', en: 'Kakake Official Site' },
+  'settings.resourceWebsiteGithub': { zh: 'GitHub 插件市场仓库', en: 'GitHub Plugin Store Repo' },
   'settings.storeOrigin': { zh: '资源来源', en: 'Resource Source' },
 
   'settings.originKakake': { zh: '咔咔珂源', en: 'Kakake Source' },
   'settings.originGithub': { zh: 'GitHub 源', en: 'GitHub Source' },
+  'settings.originCustom': { zh: '自定义', en: 'Custom' },
+  'settings.customUrlPlaceholder': { zh: 'https://example.com/index.json', en: 'https://example.com/index.json' },
+  'settings.customUrlHint': { zh: '需精确到 .json 文件，格式与 GitHub 源的 index.json 一致', en: 'Must point to a .json file, same format as the GitHub source index.json' },
+  'settings.customUrlInvalid': { zh: '地址必须是精确到 .json 的 http(s) 链接', en: 'Must be an http(s) link ending in .json' },
+  'settings.customUrlRequired': { zh: '请填写以 .json 结尾的地址，保存后即启用自定义源', en: 'Enter a URL ending in .json to enable the custom source' },
 
   'settings.githubTokenPlaceholder': { zh: 'ghp_… 或 github_pat_…（留空 = 匿名）', en: 'ghp_… or github_pat_… (leave blank = anonymous)' },
   'settings.hideToken': { zh: '隐藏 Token', en: 'Hide Token' },

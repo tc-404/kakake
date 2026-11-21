@@ -1150,19 +1150,42 @@ export const api = {
 
   pluginStore: {
     origin: () =>
-      request<{ ok: boolean; origin?: 'kakake' | 'github'; message?: string }>(
+      request<{ ok: boolean; origin?: 'kakake' | 'github' | 'custom'; customIndexUrl?: string; message?: string }>(
         '/api/plugin-store/origin',
       ),
-    setOrigin: (origin: 'kakake' | 'github') =>
-      request<{ ok: boolean; origin?: 'kakake' | 'github'; message?: string }>(
+    setOrigin: (origin: 'kakake' | 'github' | 'custom', customIndexUrl?: string) =>
+      request<{ ok: boolean; origin?: 'kakake' | 'github' | 'custom'; message?: string }>(
         '/api/plugin-store/origin',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ origin }),
+          body: JSON.stringify({ origin, customIndexUrl }),
         },
       ),
-    list: (refresh = false, origin?: 'kakake' | 'github') => {
+    getCustomUrl: () =>
+      request<{ ok: boolean; customIndexUrl?: string; message?: string }>(
+        '/api/plugin-store/custom-url',
+      ),
+    setCustomUrl: (customIndexUrl: string) =>
+      request<{ ok: boolean; customIndexUrl?: string; message?: string }>(
+        '/api/plugin-store/custom-url',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customIndexUrl }),
+        },
+      ),
+    validateCustom: (customIndexUrl: string) =>
+      request<{ ok: boolean; valid?: boolean; code?: string; message?: string }>(
+        '/api/plugin-store/validate-custom',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customIndexUrl }),
+          signal: AbortSignal.timeout(getApiTimeoutMs() + 5000),
+        },
+      ),
+    list: (refresh = false, origin?: 'kakake' | 'github' | 'custom') => {
       const q = new URLSearchParams();
       if (refresh) q.set('refresh', '1');
       if (origin) q.set('origin', origin);
@@ -1172,11 +1195,12 @@ export const api = {
       return request<{
         ok: boolean;
         message?: string;
-        origin?: 'kakake' | 'github';
+        origin?: 'kakake' | 'github' | 'custom';
         catName?: string;
         catId?: number;
         pinned?: StoreResource[];
         resources?: StoreResource[];
+        stale?: boolean;
         /** 数据能力：GitHub 源的下载次数依赖本机 GitHub Token */
         capabilities?: { downloadCounts?: boolean };
       }>(`/api/plugin-store/list${qs ? `?${qs}` : ''}`);

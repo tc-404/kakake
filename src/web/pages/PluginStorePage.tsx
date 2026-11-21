@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  AlertTriangle, ArrowUpDown, Check, Download, ExternalLink, Github, Loader2, Package, RefreshCw,
-  Search, ShieldAlert, Star, Tags, X,
+  AlertTriangle, ArrowLeft, ArrowUpDown, Check, Download, DownloadCloud, ExternalLink, Github, Loader2, MoreHorizontal, Package, RefreshCw,
+  Search, ShieldAlert, Star, Tags, Upload, X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import {
   PLUGIN_STORE_OFFICIAL_URL,
   PLUGIN_STORE_GITHUB_URL,
+  UPLOAD_GUIDE_VIDEO_URL,
   compareVersion,
   resolveInstallState,
 } from '@/lib/plugin-store-origin';
@@ -26,7 +27,7 @@ import { runWithDownloadProgressToast, isDownloadProgressActive } from '@/compon
 import { MarkdownContent } from '@/components/markdown-content';
 import { StorePagination } from '@/components/store-pagination';
 import { QuietExternal } from '@/components/quiet-link';
-import { usePageHeader } from '@/components/header-actions';
+import { OPEN_GLOBAL_UPDATE_EVENT, usePageHeader } from '@/components/header-actions';
 import { errText, resText, svcText } from '@/lib/server-error';
 import { isEditableElement, isTourActive } from '@/lib/tour-state';
 import {
@@ -42,8 +43,25 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+const MOBILE_QUERY = '(max-width: 767px)';
+
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches,
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return isMobile;
+}
 
 function hasRealSummary(text?: string): boolean {
   const t = (text || '').trim();
@@ -359,6 +377,7 @@ const btnBareReinstall =
 export default function PluginStorePage() {
   const t = useT();
   const [origin, setOrigin] = useState<StoreOrigin>('github');
+  const [customIndexUrl, setCustomIndexUrl] = useState('');
   const [resources, setResources] = useState<StoreResource[]>([]);
   const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
   const [installed, setInstalled] = useState<PluginItem[]>([]);
@@ -393,7 +412,9 @@ export default function PluginStorePage() {
    */
   const [caps, setCaps] = useState<{ downloadCounts: boolean }>({ downloadCounts: true });
 
-  const isGithub = origin === 'github';
+  const isJsonSource = origin === 'github' || origin === 'custom';
+  const isMobile = useIsMobile();
+  const [mobilePane, setMobilePane] = useState<'root' | 'category' | 'sort'>('root');
 
   const loadInstalled = useCallback(async () => {
     try {
@@ -407,7 +428,7 @@ export default function PluginStorePage() {
    * silent=true 时不显示加载态、失败也不打扰（后台校准用），保留已显示的数据。
    * 返回是否成功（供刷新按钮反馈用）。
    */
-  const load = useCallback(async (refresh = false, silent = false): Promise<boolean> => {
+  const load = useCallback(async (refresh = false, silent = false): Promise<{ ok: boolean; stale: boolean }> => {
     if (!silent) setLoading(true);
     try {
       const res = await api.pluginStore.list(refresh);
@@ -417,16 +438,16 @@ export default function PluginStorePage() {
           setResources([]);
           setPinnedIds(new Set());
         }
-        return false;
+        return { ok: false, stale: false };
       }
-      if (res.origin === 'github' || res.origin === 'kakake') setOrigin(res.origin);
+      if (res.origin === 'github' || res.origin === 'kakake' || res.origin === 'custom') setOrigin(res.origin);
       setResources(res.resources || []);
       setPinnedIds(new Set((res.pinned || []).map((p) => p.id)));
       setCaps({ downloadCounts: res.capabilities?.downloadCounts !== false });
-      return true;
+      return { ok: true, stale: res.stale === true };
     } catch (e) {
       if (!silent) toast.error(errText(e));
-      return false;
+      return { ok: false, stale: false };
     } finally {
       if (!silent) setLoading(false);
     }
@@ -438,17 +459,35 @@ export default function PluginStorePage() {
     setRefreshing(true);
     setPage(1);
     try {
-      const [ok] = await Promise.all([load(true), loadInstalled()]);
-      if (ok) toast.success(t('plugin-store.refreshed'));
+      const [result] = await Promise.all([load(true), loadInstalled()]);
+      if (result.ok) {
+        if (result.stale) toast.warning(t('plugin-store.refreshStale'));
+        else toast.success(t('plugin-store.refreshed'));
+      }
     } finally {
       setRefreshing(false);
     }
   }, [refreshing, load, loadInstalled]);
 
+  const handleDownloadGuide = useCallback(() => {
+    toast.message(t('plugin-store.uploadGuideDownloading'));
+    const a = document.createElement('a');
+    a.href = UPLOAD_GUIDE_VIDEO_URL;
+    a.download = 'kakake-PR.720p.60hz.mp4';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, [t]);
+
   useEffect(() => {
     // 先用本地兜底秒开，再后台强制拉一次最新静默替换（等同「不缓存」的观感，但不会冷启动干等超时）
     void load(false).then(() => load(true, true));
     void loadInstalled();
+    void api.pluginStore.getCustomUrl()
+      .then((r) => { if (r.ok && r.customIndexUrl) setCustomIndexUrl(r.customIndexUrl); })
+      .catch(() => { /* 自定义源地址只是增强信息 */ });
   }, [load, loadInstalled]);
 
   /** 重连共用等待：轮询到后端进度账清空（安装流程已结束）后取一次性暂存结果 */
@@ -617,6 +656,8 @@ export default function PluginStorePage() {
   /** 分类选中态：按钮里要放两个字，所以不能锁死 w-8 */
   const headerChipClass =
     'inline-flex h-8 shrink-0 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors hover:bg-white/60';
+  const headerTextBtnClass =
+    'inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-white/40 bg-white/25 px-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-white/45';
 
   const openDetail = async (item: StoreResource) => {
     setDetail(item);
@@ -745,93 +786,183 @@ export default function PluginStorePage() {
     && compareVersion(currentVersion, detail.min_kakake) < 0
   );
 
+  const categoryMenu = (
+    <>
+      {STORE_CATEGORIES.map((c) => (
+        <DropdownMenuItem
+          key={c.id}
+          // 再点一次已选中的分类 = 取消筛选（回到全部）
+          onSelect={() => setCategory((cur) => (cur === c.id ? null : c.id))}
+          data-tour="store-category-item"
+          data-tour-cat={c.id}
+          className={cn(category === c.id && 'bg-white/45 font-medium')}
+        >
+          <Check className={cn('h-4 w-4', category === c.id ? 'opacity-100' : 'opacity-0')} />
+          <span className={cn(category === c.id && c.textClass)}>{t(`plugin-store.cat-${c.id}`)}</span>
+        </DropdownMenuItem>
+      ))}
+    </>
+  );
+
+  const sortMenu = (
+    <>
+      {sortOptions.map((opt) => (
+        <DropdownMenuItem
+          key={opt.id}
+          onSelect={() => setSortMode(opt.id)}
+          data-tour="store-sort-item"
+          className={cn(sortMode === opt.id && 'bg-white/45 font-medium text-teal-800')}
+        >
+          <Check className={cn('h-4 w-4', sortMode === opt.id ? 'opacity-100' : 'opacity-0')} />
+          {t(`plugin-store.sort-${opt.id}`)}
+        </DropdownMenuItem>
+      ))}
+    </>
+  );
+
   // 界面标题由顶栏显示；排序 / 刷新 / 源站入口一并移到顶栏，页面里只留搜索框
   usePageHeader(
     () => ({
+      hideGlobalUpdate: isMobile,
       actions: (
         <>
-          <QuietExternal
-            href={isGithub ? PLUGIN_STORE_GITHUB_URL : PLUGIN_STORE_OFFICIAL_URL}
-            title={t('plugin-store.openSource')}
-            aria-label={t('plugin-store.openSource')}
-            data-tour="store-origin"
-            className={headerBtnClass}
-          >
-            <ExternalLink className="h-4 w-4" />
-          </QuietExternal>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                title={activeCategory ? `${t('plugin-store.category')}：${t(`plugin-store.cat-${activeCategory.id}`)}（${t('plugin-store.clickAgainToCancel')}）` : t('plugin-store.filterByCategory')}
-                aria-label={activeCategory ? `${t('plugin-store.category')}：${t(`plugin-store.cat-${activeCategory.id}`)}` : t('plugin-store.filterByCategory')}
-                data-tour="store-category"
-                // 当前选中的分类 id（未筛选为空串）：导览靠它判断/切换/取消筛选，
-                // 不读按钮文字——按钮上显示的是当前语言的分类名，英文模式下对不上
-                data-tour-cat={category ?? ''}
-                className={activeCategory ? cn(headerChipClass, activeCategory.chipClass) : headerBtnClass}
-              >
-                {/* 文字包 span：button 里的裸文本节点染不上全局字体渐变（同排序菜单） */}
-                {activeCategory ? <span>{t(`plugin-store.cat-${activeCategory.id}`)}</span> : <Tags className="h-4 w-4" />}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" data-tour="store-category-menu" className="min-w-[9rem]">
-              {STORE_CATEGORIES.map((c) => (
-                <DropdownMenuItem
-                  key={c.id}
-                  // 再点一次已选中的分类 = 取消筛选（回到全部）
-                  onSelect={() => setCategory((cur) => (cur === c.id ? null : c.id))}
-                  data-tour="store-category-item"
-                  data-tour-cat={c.id}
-                  className={cn(category === c.id && 'bg-white/45 font-medium')}
+          {!isMobile ? (
+            <button
+              type="button"
+              onClick={handleDownloadGuide}
+              title={t('plugin-store.wantUpload')}
+              aria-label={t('plugin-store.wantUpload')}
+              data-tour="store-upload-guide"
+              className={headerTextBtnClass}
+            >
+              <Upload className="h-4 w-4" />
+              <span>{t('plugin-store.wantUpload')}</span>
+            </button>
+          ) : null}
+          {!isMobile ? (
+            <QuietExternal
+              href={customIndexUrl || (isJsonSource ? PLUGIN_STORE_GITHUB_URL : PLUGIN_STORE_OFFICIAL_URL)}
+              title={t('plugin-store.openSource')}
+              aria-label={t('plugin-store.openSource')}
+              data-tour="store-origin"
+              className={headerBtnClass}
+            >
+              <ExternalLink className="h-4 w-4" />
+            </QuietExternal>
+          ) : null}
+          {isMobile ? (
+            <DropdownMenu onOpenChange={(open) => { if (!open) setMobilePane('root'); }}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  title={t('btn.more')}
+                  aria-label={t('btn.more')}
+                  data-tour="store-more"
+                  className={headerBtnClass}
                 >
-                  <Check className={cn('h-4 w-4', category === c.id ? 'opacity-100' : 'opacity-0')} />
-                  <span className={cn(category === c.id && c.textClass)}>{t(`plugin-store.cat-${c.id}`)}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" data-tour="store-more-menu" className="w-[13rem]">
+                {mobilePane === 'root' ? (
+                  <>
+                    <DropdownMenuItem onSelect={handleDownloadGuide} data-tour="store-upload-guide">
+                      <Upload className="h-4 w-4" />
+                      <span>{t('plugin-store.wantUpload')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setMobilePane('category'); }}>
+                      <Tags className="h-4 w-4" />
+                      <span>{t('plugin-store.category')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setMobilePane('sort'); }}>
+                      <ArrowUpDown className="h-4 w-4" />
+                      <span>{t('plugin-store.sort')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => window.open(customIndexUrl || (isJsonSource ? PLUGIN_STORE_GITHUB_URL : PLUGIN_STORE_OFFICIAL_URL), '_blank', 'noopener,noreferrer')}>
+                      <ExternalLink className="h-4 w-4" />
+                      <span>{t('plugin-store.source')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event(OPEN_GLOBAL_UPDATE_EVENT))}>
+                      <DownloadCloud className="h-4 w-4" />
+                      <span>{t('btn.update')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => { void handleRefresh(); }}
+                      disabled={loading || refreshing}
+                    >
+                      <RefreshCw className={cn('h-4 w-4', (loading || refreshing) && 'animate-spin')} />
+                      <span>{t('btn.refresh')}</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setMobilePane('root'); }}>
+                      <ArrowLeft className="h-4 w-4" />
+                      <span>{t('btn.back')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {mobilePane === 'category' ? categoryMenu : sortMenu}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    title={activeCategory ? `${t('plugin-store.category')}：${t(`plugin-store.cat-${activeCategory.id}`)}（${t('plugin-store.clickAgainToCancel')}）` : t('plugin-store.filterByCategory')}
+                    aria-label={activeCategory ? `${t('plugin-store.category')}：${t(`plugin-store.cat-${activeCategory.id}`)}` : t('plugin-store.filterByCategory')}
+                    data-tour="store-category"
+                    // 当前选中的分类 id（未筛选为空串）：导览靠它判断/切换/取消筛选，
+                    // 不读按钮文字——按钮上显示的是当前语言的分类名，英文模式下对不上
+                    data-tour-cat={category ?? ''}
+                    className={activeCategory ? cn(headerChipClass, activeCategory.chipClass) : headerBtnClass}
+                  >
+                    {/* 文字包 span：button 里的裸文本节点染不上全局字体渐变（同排序菜单） */}
+                    {activeCategory ? <span>{t(`plugin-store.cat-${activeCategory.id}`)}</span> : <Tags className="h-4 w-4" />}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" data-tour="store-category-menu" className="min-w-[9rem]">
+                  {categoryMenu}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    title={`${t('plugin-store.sort')}：${sortLabel}`}
+                    aria-label={`${t('plugin-store.sort')}：${sortLabel}`}
+                    data-tour="store-sort"
+                    className={headerBtnClass}
+                  >
+                    <ArrowUpDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" data-tour="store-sort-menu" className="min-w-[11rem]">
+                  {sortMenu}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <button
                 type="button"
-                title={`${t('plugin-store.sort')}：${sortLabel}`}
-                aria-label={`${t('plugin-store.sort')}：${sortLabel}`}
-                data-tour="store-sort"
+                disabled={loading || refreshing}
+                onClick={() => { void handleRefresh(); }}
+                title={t('btn.refresh')}
+                aria-label={t('btn.refresh')}
+                data-tour="store-refresh"
                 className={headerBtnClass}
               >
-                <ArrowUpDown className="h-4 w-4" />
+                {loading || refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" data-tour="store-sort-menu" className="min-w-[11rem]">
-              {sortOptions.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.id}
-                  onSelect={() => setSortMode(opt.id)}
-                  data-tour="store-sort-item"
-                  className={cn(sortMode === opt.id && 'bg-white/45 font-medium text-teal-800')}
-                >
-                  <Check className={cn('h-4 w-4', sortMode === opt.id ? 'opacity-100' : 'opacity-0')} />
-                  {t(`plugin-store.sort-${opt.id}`)}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            type="button"
-            disabled={loading || refreshing}
-            onClick={() => { void handleRefresh(); }}
-            title={t('btn.refresh')}
-            aria-label={t('btn.refresh')}
-            data-tour="store-refresh"
-            className={headerBtnClass}
-          >
-            {loading || refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          </button>
+            </>
+          )}
         </>
       ),
     }),
-    [isGithub, sortLabel, sortOptions, sortMode, handleRefresh, loading, refreshing,
+    [isJsonSource, customIndexUrl, isMobile, mobilePane, sortLabel, sortOptions, sortMode, handleRefresh, handleDownloadGuide, loading, refreshing,
       category, activeCategory],
   );
 

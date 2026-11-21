@@ -11,6 +11,7 @@ registerMessages({
   'plugin-store.loadingResources': { zh: '正在加载资源…', en: 'Loading resources…' },
   'plugin-store.refreshingResources': { zh: '正在刷新资源…', en: 'Refreshing resources…' },
   'plugin-store.refreshed': { zh: '资源已刷新', en: 'Resources refreshed' },
+  'plugin-store.refreshStale': { zh: '刷新失败，当前显示旧数据', en: 'Refresh failed, showing cached data' },
   'plugin-store.loadFailed': { zh: '加载资源失败', en: 'Failed to load resources' },
   'plugin-store.commentsLoadFailed': { zh: '评论加载失败', en: 'Failed to load comments' },
 
@@ -66,6 +67,9 @@ registerMessages({
   // ───────── 顶栏入口 ─────────
   'plugin-store.openSource': { zh: '打开当前资源来源', en: 'Open resource source' },
   'plugin-store.openRepo': { zh: '打开源码仓库', en: 'Open source repo' },
+  'plugin-store.source': { zh: '源站', en: 'Source' },
+  'plugin-store.wantUpload': { zh: '我要上传', en: 'Upload' },
+  'plugin-store.uploadGuideDownloading': { zh: '教程视频下载中', en: 'Downloading tutorial video…' },
 
   // ───────── 安装 / 更新按钮 ─────────
   'plugin-store.installed': { zh: '已安装', en: 'Installed' },

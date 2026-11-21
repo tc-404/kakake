@@ -18,7 +18,14 @@ import '@/lib/i18n-dict/register';
 
 ensureKakakeSharedLibs();
 // 首帧就套上上次的动效 / 透明度 / 模糊，避免接口回来前外观跳变
-applyAppearanceTokens(readCachedAppearance());
+const bootAppearance = readCachedAppearance();
+applyAppearanceTokens(bootAppearance);
+/*
+ * 标题同样先用缓存顶一帧：插件后台是 window.open 新开标签页加载的，
+ * 不先写一次的话，标签栏会先闪一下 index.html 里硬编码的「咔咔珂」，
+ * 等外观接口回来才换成自定义名。自定义名为空时保留 HTML 里的默认值。
+ */
+if (bootAppearance.customTitle?.trim()) document.title = bootAppearance.customTitle.trim();
 /*
  * 语言是实例级设置（data/language.json）：所有人共用一门语言。
  * 首帧先按中文渲染，这份取回来后再切过去——读的是免鉴权端点，登录页也能对齐。

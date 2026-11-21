@@ -8,6 +8,9 @@ export const PLUGIN_STORE_OFFICIAL_URL =
 export const PLUGIN_STORE_GITHUB_URL =
   'https://github.com/tc-404/kakake-plugin-main';
 
+export const UPLOAD_GUIDE_VIDEO_URL =
+  'https://github.com/tc-404/kakake-plugin-main/releases/download/444/kakake-PR.720p.60hz.mp4';
+
 /**
  * 来源标签的 i18n key：切英文时按钮文案要跟着变，
  * 所以这里只存 key，真正取文案走 storeOriginLabel()（需要传入 t）。
@@ -15,6 +18,7 @@ export const PLUGIN_STORE_GITHUB_URL =
 export const STORE_ORIGIN_LABEL_KEY: Record<StoreOrigin, string> = {
   kakake: 'settings.originKakake',
   github: 'settings.originGithub',
+  custom: 'settings.originCustom',
 };
 
 /** 取来源标签（跟随当前语言）。t 由调用方从 useT() 拿，保证切换语言时会重渲染。 */
@@ -23,6 +27,16 @@ export function storeOriginLabel(
   t: (key: string, params?: Record<string, string | number | undefined>) => string,
 ): string {
   return t(STORE_ORIGIN_LABEL_KEY[origin]);
+}
+
+/** 自定义源地址必须是精确到 .json 的 http(s) 链接（与后端同规则） */
+export function isCustomIndexUrl(raw: string): boolean {
+  const s = (raw || '').trim();
+  if (s.length < 8 || s.length > 2000) return false;
+  let u: URL;
+  try { u = new URL(s); } catch { return false; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  return /\.json$/i.test(u.pathname);
 }
 
 /**

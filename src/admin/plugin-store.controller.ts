@@ -10,6 +10,7 @@ import {
   Sha256MismatchError,
   StoreFetchError,
   StoreInstallCancelledError,
+  isCustomIndexUrl,
   withInstallSlot,
   type StoreOrigin,
 } from '../plugin/plugin-store.service.js';
@@ -28,7 +29,7 @@ function storeErrorPayload(e: unknown, fallback: string): { ok: false; code?: st
 }
 
 function parseOrigin(raw?: string): StoreOrigin | undefined {
-  if (raw === 'github' || raw === 'kakake') return raw;
+  if (raw === 'github' || raw === 'kakake' || raw === 'custom') return raw;
   return undefined;
 }
 
@@ -53,17 +54,47 @@ function resolveMirrorPrefix(req: Request, mirrorRaw?: string): string {
 export class PluginStoreController {
   @Get('origin')
   origin() {
-    return { ok: true, origin: pluginStoreService.getOrigin() };
+    return {
+      ok: true,
+      origin: pluginStoreService.getOrigin(),
+      customIndexUrl: pluginStoreService.getCustomIndexUrl(),
+    };
   }
 
   @Post('origin')
-  setOrigin(@Body() body: { origin?: string }) {
+  setOrigin(@Body() body: { origin?: string; customIndexUrl?: string }) {
     const next = parseOrigin(body?.origin);
     if (!next) {
-      return { ok: false, message: '无效的来源（仅 kakake / github）' };
+      return { ok: false, message: '无效的来源（仅 kakake / github / custom）' };
+    }
+    if (next === 'custom') {
+      if (!isCustomIndexUrl(body?.customIndexUrl)) {
+        return { ok: false, message: '自定义源地址必须是精确到 .json 的 http(s) 链接' };
+      }
+      pluginStoreService.setCustomIndexUrl(body.customIndexUrl);
     }
     const saved = pluginStoreService.setOrigin(next);
     return { ok: true, origin: saved };
+  }
+
+  @Get('custom-url')
+  getCustomUrl() {
+    return { ok: true, customIndexUrl: pluginStoreService.getCustomIndexUrl() };
+  }
+
+  @Post('custom-url')
+  setCustomUrl(@Body() body: { customIndexUrl?: string }) {
+    if (!isCustomIndexUrl(body?.customIndexUrl)) {
+      return { ok: false, message: '自定义源地址必须是精确到 .json 的 http(s) 链接' };
+    }
+    const url = pluginStoreService.setCustomIndexUrl(body.customIndexUrl);
+    return { ok: true, customIndexUrl: url };
+  }
+
+  @Post('validate-custom')
+  async validateCustom(@Body() body: { customIndexUrl?: string }) {
+    const result = await pluginStoreService.validateCustomIndex(body?.customIndexUrl);
+    return { ok: true, ...result };
   }
 
   @Get('list')
@@ -86,6 +117,7 @@ export class PluginStoreController {
         categories: data.categories,
         pinned: data.pinned,
         resources: data.resources,
+        stale: data.stale === true,
         /** 数据能力：GitHub 源的「下载次数」依赖本机配置的 Token，没配就没有 */
         capabilities: {
           downloadCounts: pluginStoreService.downloadCountsAvailable(data.origin),

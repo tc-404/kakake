@@ -7,6 +7,7 @@ import { configService } from '../core/config.service.js';
 import { apiTimeoutMs } from '../core/api-timeout.js';
 import { rootLogger } from '../core/logger.js';
 import { pluginAccountService } from './plugin-account.service.js';
+import { isKzPluginDir } from './kz-plugin-id.js';
 import { extractArchive } from './archive.js';
 import {
   pluginStoreService,
@@ -114,6 +115,16 @@ export function listShareAccounts(pluginId: string): {
   const id = String(pluginId || '').trim();
   const seen = new Map<string, string>();
   if (id) {
+    // 扩展插件没有账号层：data/<插件Id> 存在即视为有数据，用插件 ID 占位账号键
+    if (isExtensionPlugin(id)) {
+      const dir = path.resolve(PATHS.data, id);
+      const exists = dir.startsWith(path.resolve(PATHS.data) + path.sep)
+        && fs.existsSync(dir)
+        && fs.statSync(dir).isDirectory();
+      return exists
+        ? { accounts: [{ key: id, label: '扩展插件数据（无账号）' }], single: true, hasAny: true }
+        : { accounts: [], single: false, hasAny: false };
+    }
     for (const conn of configService.getConnections().connections) {
       const key = pluginAccountService.resolveAccountKey(conn);
       if (!key || seen.has(key)) continue;
@@ -138,6 +149,22 @@ function hasDataDir(accountKey: string, pluginId: string): boolean {
   return fs.existsSync(dir) && fs.statSync(dir).isDirectory();
 }
 
+/**
+ * 扩展插件（kz-plugin-*）不绑任何连接，数据直接落在 data/<插件Id>，没有账号层。
+ * 分享/还原全程仍沿用「账号 Key」这一栏，用**插件 ID 本身**占位：
+ * 数据包顶层目录就是插件 ID，还原时按顶层目录名对拷，正好落回 data/<插件Id>。
+ */
+function isExtensionPlugin(pluginId: string): boolean {
+  return isKzPluginDir(pluginId);
+}
+
+/** 分享用的数据目录：扩展插件无账号层，普通插件为 data/<账号>/<插件Id> */
+function shareDataDir(pluginId: string, accountKey: string): string {
+  return isExtensionPlugin(pluginId)
+    ? path.resolve(PATHS.data, pluginId)
+    : path.resolve(PATHS.data, accountKey, pluginId);
+}
+
 /** data/ 下真实存在的顶层账号目录名（上传端白名单的依据，与还原端同一口径） */
 function listDataAccountKeys(): Set<string> {
   try {
@@ -159,6 +186,14 @@ function listDataAccountKeys(): Set<string> {
 function sanitizeUploadAccounts(accounts: unknown, pluginId: string): string[] {
   const known = listDataAccountKeys();
   const out: string[] = [];
+  // 扩展插件：只认插件 ID 这一个占位键，且 data/<插件Id> 必须真实存在
+  if (isExtensionPlugin(pluginId)) {
+    const selected = (Array.isArray(accounts) ? accounts : []).map((a) => String(a ?? '').trim());
+    if (!selected.includes(pluginId)) return [];
+    const dir = shareDataDir(pluginId, pluginId);
+    if (!dir.startsWith(path.resolve(PATHS.data) + path.sep)) return [];
+    return fs.existsSync(dir) && fs.statSync(dir).isDirectory() ? [pluginId] : [];
+  }
   for (const raw of Array.isArray(accounts) ? accounts : []) {
     const key = String(raw ?? '').trim();
     if (!key) continue;
@@ -243,7 +278,7 @@ export async function buildAndUploadSharePackage(opts: {
     if (hasData) {
       let dataBytes = 0;
       for (const key of wantedAccounts) {
-        dataBytes += dirSizeSafe(path.join(PATHS.data, key, opts.meta.pluginId)).bytes;
+        dataBytes += dirSizeSafe(shareDataDir(opts.meta.pluginId, key)).bytes;
       }
       if (dataBytes > SHARE_DATA_DIR_MAX_BYTES) {
         return {
@@ -252,13 +287,15 @@ export async function buildAndUploadSharePackage(opts: {
         };
       }
       const dataZip = new AdmZip();
+      const extension = isExtensionPlugin(opts.meta.pluginId);
       for (const key of wantedAccounts) {
         // 包内必须保留 <账号>/<插件Id>/ 两级结构：
         // 源数据在 data/<账号>/<插件Id>/，还原时按顶层账号目录对拷回 data/，
-        // 丢了插件层文件就会落到 data/<账号>/ 根下，插件自己找不到
+        // 丢了插件层文件就会落到 data/<账号>/ 根下，插件自己找不到。
+        // 扩展插件没有账号层（data/<插件Id>），包内就只剩插件 ID 这一级。
         dataZip.addLocalFolder(
-          path.join(PATHS.data, key, opts.meta.pluginId),
-          `${key}/${opts.meta.pluginId}`,
+          shareDataDir(opts.meta.pluginId, key),
+          extension ? opts.meta.pluginId : `${key}/${opts.meta.pluginId}`,
         );
       }
       dataZip.writeZip(dataZipPath);
@@ -587,8 +624,17 @@ function firstSubDir(dir: string): string | null {
 const STAGING_ROOT = path.join(PATHS.tmp, 'share-import');
 const STAGING_TTL_MS = 2 * 60 * 60 * 1000;
 
-/** 把分享包里的 data.zip 暂存起来，返回 token；导入端确认后再真正落盘 */
-export function stageDataZip(extractedDir: string, dataZipRelDir: string): string {
+/**
+ * 把分享包里的 data.zip 暂存起来，返回 token；导入端确认后再真正落盘。
+ *
+ * meta 由**导入方**（刚解包完成的真实结果）写入，不取分享包里的自述：
+ * 还原端靠它判断「这次导入的到底是不是扩展插件、插件 ID 是什么」。
+ */
+export function stageDataZip(
+  extractedDir: string,
+  dataZipRelDir: string,
+  meta?: { kind?: string; pluginId?: string },
+): string {
   ensureStagingSweeper();
   const src = path.join(extractedDir, dataZipRelDir, 'data.zip');
   if (!fs.existsSync(src)) throw new Error('分享包里没有 data.zip');
@@ -599,8 +645,26 @@ export function stageDataZip(extractedDir: string, dataZipRelDir: string): strin
   const dir = path.join(STAGING_ROOT, token);
   fs.mkdirSync(dir, { recursive: true });
   fs.copyFileSync(src, path.join(dir, 'data.zip'));
+  if (meta?.pluginId) {
+    fs.writeFileSync(
+      path.join(dir, 'meta.json'),
+      JSON.stringify({ kind: meta.kind ?? '', pluginId: meta.pluginId }, null, 2),
+      'utf8',
+    );
+  }
   pruneStaging();
   return token;
+}
+
+/** 读暂存时写入的受信元信息（旧暂存没有这个文件，按普通插件处理） */
+function readStagingMeta(token: string): { kind: string; pluginId: string } | null {
+  try {
+    const raw = fs.readFileSync(path.join(STAGING_ROOT, token, 'meta.json'), 'utf8');
+    const j = JSON.parse(raw) as { kind?: unknown; pluginId?: unknown };
+    return { kind: String(j?.kind ?? ''), pluginId: String(j?.pluginId ?? '') };
+  } catch {
+    return null;
+  }
 }
 
 /** 确认后落盘：data.zip 的顶层目录是账号 Key，逐个还原到 data/<账号>/ 下 */
@@ -616,6 +680,15 @@ export async function restoreStagedData(token: string): Promise<{ restored: stri
   for (const conn of configService.getConnections().connections) {
     const key = pluginAccountService.resolveAccountKey(conn);
     if (key) allowed.add(key);
+  }
+  // 扩展插件：包内顶层就是插件 ID，数据要落回 data/<插件Id>。
+  // 只认「本次导入真实识别出的那个插件」（meta 由导入方写入，不取分享包自述），
+  // 且必须确实装在 plugins/ 下——否则等于允许数据包往 data 根目录乱写。
+  const meta = readStagingMeta(safe);
+  if (meta?.kind === 'kz'
+    && isKzPluginDir(meta.pluginId)
+    && fs.existsSync(path.join(PATHS.plugins, meta.pluginId))) {
+    allowed.add(meta.pluginId);
   }
 
   const workDir = path.join(PATHS.tmp, `share-restore-${Date.now().toString(36)}`);

@@ -40,6 +40,7 @@ import {
   PageHeaderProvider,
   PageHeaderActionsSlot,
   PageHeaderLeadingSlot,
+  usePageHeaderHideGlobalUpdate,
   usePageHeaderTitle,
 } from '@/components/header-actions';
 // 1676 行的导览组件按需加载：不阻塞控制台首屏渲染，挂载后异步补齐
@@ -558,13 +559,6 @@ function useBrandTitle(): string {
   return appearance.customTitle?.trim() || t('brand.kakake');
 }
 
-function useDocumentTitle(): void {
-  const customTitle = useSyncExternalStore(subscribeAppearance, getAppearanceSnapshot, getAppearanceSnapshot).customTitle;
-  useEffect(() => {
-    document.title = customTitle?.trim() || '咔咔珂';
-  }, [customTitle]);
-}
-
 function Brand({ version, title }: { version: string; title: string }) {
   // 侧栏按四字宽度收窄了，品牌字相应降一档；版本徽标放不下时换行，不硬挤
   return (
@@ -678,7 +672,6 @@ function ConsoleShellInner({ children }: { children: ReactNode }) {
   useSessionActivity(true);
   const version = useFrameworkVersion();
   const brandTitle = useBrandTitle();
-  useDocumentTitle();
   const t = useT();
   // 侧栏窄栏形态（两字短名 / 收掉图标）：底部这一行的按钮与导航项共用同一套判定
   const {
@@ -698,6 +691,7 @@ function ConsoleShellInner({ children }: { children: ReactNode }) {
    */
   const [sidebarOpen, setSidebarOpen] = useState(initialSidebarOpen);
   const pageTitle = usePageHeaderTitle() || titleFromPath(pathname, t);
+  const hideGlobalUpdate = usePageHeaderHideGlobalUpdate();
   const isDesktop = useIsDesktopViewport();
   /**
    * 顶栏是否显示品牌字：电脑端侧栏展开时品牌字已在侧栏左上角，顶栏再放就是同屏两个品牌，
@@ -1055,7 +1049,12 @@ function ConsoleShellInner({ children }: { children: ReactNode }) {
              * 侧栏展开后这里自动让位，同屏只留一个可见入口。
              */}
             {!sidebarOpen && version ? (
-              <UpdateCenter version={version} large={isDesktop} icon={!isDesktop} />
+              <UpdateCenter
+                version={version}
+                large={isDesktop}
+                icon={!isDesktop}
+                hidden={!isDesktop && hideGlobalUpdate}
+              />
             ) : null}
             <PageHeaderActionsSlot />
             <GitHubRepoLink className="h-8 w-8 shrink-0" />

@@ -7,8 +7,17 @@ export type LogCategory =
   | 'gf_event'
   | 'gf_action'
   | 'gf_plugin'
+  | 'sssx_plugin'
   | 'tg_event'
   | 'tg_action'
+  | 'tg_plugin'
+  | 'kook_event'
+  | 'kook_action'
+  | 'kook_plugin'
+  | 'wx_event'
+  | 'wx_action'
+  | 'wx_plugin'
+  | 'extension'
   | 'sim_event'
   | 'sim_action';
 
@@ -238,13 +247,22 @@ export const CATEGORY_LABEL_KEY: Record<LogCategory, string> = {
   gf_event: 'logs.cat.gf_event',
   gf_action: 'logs.cat.gf_action',
   gf_plugin: 'logs.cat.gf_plugin',
+  sssx_plugin: 'logs.cat.sssx_plugin',
   tg_event: 'logs.cat.tg_event',
   tg_action: 'logs.cat.tg_action',
+  tg_plugin: 'logs.cat.tg_plugin',
+  kook_event: 'logs.cat.kook_event',
+  kook_action: 'logs.cat.kook_action',
+  kook_plugin: 'logs.cat.kook_plugin',
+  wx_event: 'logs.cat.wx_event',
+  wx_action: 'logs.cat.wx_action',
+  wx_plugin: 'logs.cat.wx_plugin',
+  extension: 'logs.cat.extension',
   sim_event: 'logs.cat.sim_event',
   sim_action: 'logs.cat.sim_action',
 };
 
-/** 与后端 LOG_CATEGORY_ORDER 一致：官方三项挨在一起，TG 两项挨在一起，模拟两项挨在一起 */
+/** 与后端 LOG_CATEGORY_ORDER 一致：同协议三项挨在一起 */
 export const CATEGORY_ORDER: LogCategory[] = [
   'system',
   'event',
@@ -253,8 +271,17 @@ export const CATEGORY_ORDER: LogCategory[] = [
   'gf_event',
   'gf_action',
   'gf_plugin',
+  'sssx_plugin',
   'tg_event',
   'tg_action',
+  'tg_plugin',
+  'kook_event',
+  'kook_action',
+  'kook_plugin',
+  'wx_event',
+  'wx_action',
+  'wx_plugin',
+  'extension',
   'sim_event',
   'sim_action',
 ];
@@ -267,7 +294,7 @@ export const STATUS_MAP: Record<string, { textKey: string; variant: 'success' | 
 };
 
 /** 资源商店来源 */
-export type StoreOrigin = 'kakake' | 'github';
+export type StoreOrigin = 'kakake' | 'github' | 'custom';
 
 /** 插件商城资源（咔咔插件分区） */
 export interface StoreResource {

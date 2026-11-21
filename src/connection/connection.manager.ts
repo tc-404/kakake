@@ -53,7 +53,7 @@ import {
   connectionHttpListenUrl,
   resolveApiBaseUrl,
 } from './onebot-http.shared.js';
-import { logAction, logQqOfficialAction, logQqOfficialEvent } from '../core/log-store.js';
+import { logAction, logKookAction, logQqOfficialAction, logQqOfficialEvent, logTelegramAction, logWxAction } from '../core/log-store.js';
 import {
   formatOb11Action,
   formatOb11ActionResult,
@@ -274,9 +274,9 @@ export class ConnectionManager {
       }
       return undefined;
     },
-    logRequest: (prefix, _client, action, params) => logAction(prefix, action, JSON.stringify(params ?? {})),
-    logSuccess: (prefix, _client, action, result) => logAction(prefix, `${action} ✓`, JSON.stringify(result), 'debug'),
-    logFailure: (prefix, _client, action, msg) => logAction(prefix, `${action} ✗ ${msg}`, undefined, 'error'),
+    logRequest: (prefix, _client, action, params) => logWxAction(prefix, action, JSON.stringify(params ?? {})),
+    logSuccess: (prefix, _client, action, result) => logWxAction(prefix, `${action} ✓`, JSON.stringify(result), 'debug'),
+    logFailure: (prefix, _client, action, msg) => logWxAction(prefix, `${action} ✗ ${msg}`, undefined, 'error'),
   };
 
   /** KOOK caller 差异参数 */
@@ -291,9 +291,9 @@ export class ConnectionManager {
       }
       return undefined;
     },
-    logRequest: (prefix, _client, action, params) => logAction(prefix, action, JSON.stringify(params ?? {})),
-    logSuccess: (prefix, _client, action, result) => logAction(prefix, `${action} ✓`, JSON.stringify(result), 'debug'),
-    logFailure: (prefix, _client, action, msg) => logAction(prefix, `${action} ✗ ${msg}`, undefined, 'error'),
+    logRequest: (prefix, _client, action, params) => logKookAction(prefix, action, JSON.stringify(params ?? {})),
+    logSuccess: (prefix, _client, action, result) => logKookAction(prefix, `${action} ✓`, JSON.stringify(result), 'debug'),
+    logFailure: (prefix, _client, action, msg) => logKookAction(prefix, `${action} ✗ ${msg}`, undefined, 'error'),
   };
 
   /** Telegram Bot caller 差异参数（动作名透传 Bot API，日志与回执统一走骨架） */
@@ -308,9 +308,9 @@ export class ConnectionManager {
       }
       return undefined;
     },
-    logRequest: (prefix, _client, action, params) => logAction(prefix, action, JSON.stringify(params ?? {})),
-    logSuccess: (prefix, _client, action, result) => logAction(prefix, `${action} ✓`, JSON.stringify(result), 'debug'),
-    logFailure: (prefix, _client, action, msg) => logAction(prefix, `${action} ✗ ${msg}`, undefined, 'error'),
+    logRequest: (prefix, _client, action, params) => logTelegramAction(prefix, action, JSON.stringify(params ?? {})),
+    logSuccess: (prefix, _client, action, result) => logTelegramAction(prefix, `${action} ✓`, JSON.stringify(result), 'debug'),
+    logFailure: (prefix, _client, action, msg) => logTelegramAction(prefix, `${action} ✗ ${msg}`, undefined, 'error'),
   };
 
   createActionCaller(adapterName = 'plugin_manager', connectionId?: string): ActionCaller {

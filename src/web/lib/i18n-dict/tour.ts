@@ -23,7 +23,7 @@ registerMessages({
   'tour.updateCenterBody1': { zh: '侧边栏顶部这个**版本号徽标**（或侧栏收起时顶栏右侧的云朵图标）就是「更新中心」入口，有新版本时右上角会有红色 NEW 气泡。', en: 'This **version badge** at the top of the sidebar (or the cloud icon at the right of the header when the sidebar is collapsed) is the "Update center" entry; a red NEW bubble appears top-right when a new version exists.' },
   'tour.updateCenterBody2': { zh: '下一步我直接帮你点开它，把里面的每一块都讲清楚。', en: 'Next I will open it for you and explain each block.' },
   'tour.settingsStoreOriginTitle': { zh: '设置 · 资源来源', en: 'Settings · resource source' },
-  'tour.settingsStoreOriginBody1': { zh: '这里切换「资源」页从哪拉插件：**咔咔珂官方源** 或 **GitHub 社区源**。', en: 'Here switch where the "Resources" page pulls plugins from: **Kakake official source** or **GitHub community source**.' },
+  'tour.settingsStoreOriginBody1': { zh: '这里切换「资源」页从哪拉插件：**咔咔珂官方源**、**GitHub 社区源** 或 **自定义**（填精确到 .json 的地址）。', en: 'Here switch where the "Resources" page pulls plugins from: **Kakake official source**, **GitHub community source**, or **Custom** (an address ending in .json).' },
   'tour.settingsStoreOriginBody2': { zh: '点一下即时切换（带滑动动画）并自动保存，回到资源页就是新来源的列表。', en: 'Click to switch instantly (with slide animation) and auto-save; back on Resources it is the new source’s list.' },
   'tour.settingsStoreOriginCallout': { zh: 'GitHub 社区源是第三方投稿，安装前请自行甄别风险；官方源相对更稳妥。', en: 'The GitHub community source is third-party submissions; vet risk before installing; the official source is relatively safer.' },
   'tour.perfModeToggleTitle': { zh: '性能模式 · 三档开关', en: 'Performance mode · three-way switch' },

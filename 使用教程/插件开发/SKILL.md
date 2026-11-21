@@ -214,8 +214,8 @@ async function sendText(ctx, params) {
 ```json
 {
   "id": "ROBOT1.0_xxx", "content": "你好",
-  "group_openid": "B2C3...",
-  "author": { "member_openid": "A1B2...", "user_openid": "...", "username": "小明", "member_role": "member", "bot": false },
+  "group_openid": "B2C3...", "union_group_openid": "C3D4...",
+  "author": { "member_openid": "A1B2...", "user_openid": "...", "username": "小明", "member_nickname": "群昵称", "avatar": "https://...", "member_role": "member", "bot": false },
   "message_type": 0,
   "message_scene": { "ext": ["msg_idx=REFIDX_xxx==", "auth_token=..."] },
   "attachments": [],
@@ -230,6 +230,9 @@ async function sendText(ctx, params) {
 | `message_type`                  | 收侧类型：`0` 文本 / `3` 卡片（看 `ark_data`）/ `103` 引用（看 `msg_elements[].content`）                                                                                               |
 | `attachments[]`                 | 附件；`content_type` 是 `image/jpeg`/`video/mp4`/`voice`/`file`，**判断用 `startsWith('image')` 不是 `=== 'image'`**；语音带 `voice_wav_url` 与 ASR 文本 `asr_refer_text`；`url` 有时效尽快下载 |
 | `author.member_openid`          | 群内用户标识（**只在群聊有效**）；单聊用 `author.user_openid`；`member_role`：`owner`/`admin`/`member`                                                                                     |
+| `author.member_nickname` / `author.avatar` | 群内昵称 / 头像 URL（2026-11-16 新增）；展示名取 `member_nickname \|\| username`                                                                                                     |
+| `union_group_openid`            | 跨应用群标识（2026-11-16 新增，绑定三方应用时有效）；**发消息仍用 `group_openid`**                                                                                                              |
+| `mentions[]`                    | @ 的其他人（不含机器人自己）；`scope === 'all'` 表示 **@全体成员**，`is_you` 表示 @ 的是本机器人                                                                                                      |
 | `message_scene.ext` 的 `msg_idx` | 本条消息引用索引，**官方会重复推送，必须用它（或 `id`）去重**；引用回复用它当 `message_reference.message_id`                                                                                             |
 | openid 特性                       | 与 AppID 绑定、拿不到真实 QQ 号；A 机器人的 openid 给 B 用会报错                                                                                                                           |
 
@@ -252,19 +255,29 @@ await ctx.actions.call(`/interactions/${event.id}`, { __method: 'PUT', code: 0 }
 
 // 撤回（官方支持撤回；>2 分钟不可撤；普通成员只能撤自己的）
 await ctx.actions.call(`/v2/groups/${g}/messages/${sentId}`, { __method: 'DELETE' });
-// 官方【没有】禁言/踢人/改群名片——别硬写
+
+// 群管理（2026 年陆续开放，不再是「官方没有」）
+await ctx.actions.call(`/v2/groups/${g}/restrict_chat_setting`, { members: [{ op: 'add', member_openid, mute_expire_at }] }); // 禁言，≤30 天
+await ctx.actions.call(`/v2/groups/${g}/batch_remove_members`, { member_openids: [member_openid] }); // 踢人，≤20 个，需开放平台+群内两处权限
+// 仍然没有：改群名片 / 改群名 / 全员禁言 / 设管理员
+
+// 查用户资料（2026-11-16 新增；必须好友，否则 40184001）
+await ctx.actions.call(`/v2/users/${openid}/info`, { __method: 'GET' }); // { username, avatar, allow_proactive_msg }
+
+// 流式发送（单聊专属）：首片响应 id 即 stream_msg_id，后续分片带上、index 递增，input_state=10 收尾
+await ctx.actions.call(`/v2/users/${openid}/stream_messages`, { input_mode: 'append', input_state: 1, index: 0, content_type: 'markdown', content_raw: '…', msg_id: event.id, msg_seq: n });
 ```
 
 
-发送侧 `msg_type`：`0` 文本 / `2` Markdown / `6` 输入中（**仅单聊**）/ `7` 富媒体；上传 `file_type`：`1` 图 / `2` 视频 / `3` 语音(silk) / `4` 文件。
+发送侧 `msg_type`：`0` 文本 / `2` Markdown / `6` 输入中（**仅单聊**）/ `7` 富媒体 / `8` 图文卡片（`card.type='tuwen'`）；流式另走 `/v2/users/{openid}/stream_messages`（仅单聊）。上传 `file_type`：`1` 图 / `2` 视频 / `3` 语音(silk) / `4` 文件。
 
 ### 6.4 被动/主动消息与高频错误码
 
-- **被动窗口**：群聊 `msg_id` 5 分钟内最多回 **5** 次；单聊 60 分钟最多 **4** 次。超限 → `40034005`/`40034128`。
+- **被动窗口**（2026-11-17 起）：群聊 `msg_id` **60 分钟**内最多回 **5** 次（机器人开发者是该群群主/管理员时 **50** 次）；单聊 60 分钟最多 **4** 次。群消息的 `msg_id` 也能拿去发**单聊**（需好友关系，与群内回复**共用**次数）。超限 → `40034005`/`40034128`。
 - **`msg_seq` 必须递增**（不填默认 1，连发两条不带 seq 第二条必失败）→ 去重报 `40054005`。封装 `nextSeq(msgId)` 计数（带 Map 上限裁剪）。
 - 凭证互斥：`msg_id`（消息事件）与 `event_id`（仅 `INTERACTION_CREATE`/`GROUP_ADD_ROBOT`/`GROUP_MSG_RECEIVE`/`C2C_MSG_RECEIVE`/`FRIEND_ADD` 等事件的顶层 `id`）二选一。
 - 主动消息受严格频控（未认证单聊 5 qps & 30 qpm、群 30 qpm；单关系 20 qpm）；无权限 → `40034105`。
-- 其它高频码：`40034100` 超频控 / `40034006` 内容违规 / `40054013` 用户拒收 / `40054007·40054018` 消息过长 / `304080` file_info 无效 / `850019` 格式不支持 / `40064004` 超撤回时限 / Gateway `4014` = intents 无权限。
+- 其它高频码：`40034100` 超频控 / `40034006` 内容违规 / `40054013` 用户拒收 / `40054007·40054018` 消息过长 / `304080` file_info 无效 / `850019` 格式不支持 / `40064004` 超撤回时限 / `40103011·40103012` 移除成员权限未开 / `40184001` 无好友关系 / `50003` 非群管理员 / `40007` 流式前缀被改 / Gateway `4014` = intents 无权限。
 
 ---
 

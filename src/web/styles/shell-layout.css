@@ -318,6 +318,18 @@
   box-shadow: var(--glass-shadow-hover);
 }
 
+.kk-audit-checking {
+  border-color: #eab308 !important;
+}
+
+.kk-audit-valid {
+  border-color: #22c55e !important;
+}
+
+.kk-audit-invalid {
+  border-color: #ef4444 !important;
+}
+
 /*
  * 模拟消息底部输入栏：.kk-field 的描边按全局策略是透明的（去掉白框），
  * 但输入栏聚焦时还是得有个可见的边界提示，这里补一条跟随组件色的描边。

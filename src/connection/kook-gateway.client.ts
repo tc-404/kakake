@@ -6,7 +6,7 @@ import type { ConnectionConfig } from '../core/types.js';
 import type { Logger } from '../core/logger.js';
 import { eventBus } from '../event/event-bus.js';
 import { rootLogger } from '../core/logger.js';
-import { logAction } from '../core/log-store.js';
+import { logKookAction } from '../core/log-store.js';
 import { KOOK_SIGNAL, KOOK_MSG_TYPE, type KookBotUser, type KookEvent } from './kook.types.js';
 import {
   downloadKookRemoteMediaToTemp,
@@ -534,6 +534,6 @@ export class KookGatewayClient implements KookGatewayEndpoint {
 
   private logOut(action: string, detail: Record<string, unknown>): void {
     const prefix = `[KOOK输出:${this.name}] `;
-    logAction(prefix, `${action} → ${JSON.stringify(detail).slice(0, 500)}`);
+    logKookAction(prefix, `${action} → ${JSON.stringify(detail).slice(0, 500)}`);
   }
 }

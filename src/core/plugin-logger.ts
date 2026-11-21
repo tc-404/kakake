@@ -5,8 +5,8 @@ import { formatLocalClock } from './log-time.js';
 import type { PluginLogger } from '../plugin/plugin.types.js';
 
 export type PluginLoggerOptions = {
-  /** 默认 plugin；官方机器人插件用 gf_plugin */
-  category?: Extract<LogCategory, 'plugin' | 'gf_plugin' | 'system'>;
+  /** 默认 plugin；各协议插件用对应的 *_plugin 分类 */
+  category?: Extract<LogCategory, 'plugin' | 'gf_plugin' | 'sssx_plugin' | 'tg_plugin' | 'kook_plugin' | 'wx_plugin' | 'extension' | 'system'>;
   /**
    * 为 true 时不写入 Node 进程 stdout（SSH/终端），
    * 仍写入后台「运行日志」与 log/ 文件。

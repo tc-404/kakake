@@ -6,9 +6,56 @@ import { githubAuthHeaders, getGithubToken } from '../core/github-token.js';
 import { readJsonSafe, writeJsonAtomic } from '../storage/atomic-file.js';
 import { verifyUpdateSignature } from '../update/verify-keys.js';
 import { apiTimeoutMs } from '../core/api-timeout.js';
+import { proxyConfigured, proxyFetch } from '../tools/media/http-proxy.js';
+
+const GITHUB_OFFICIAL_HOSTS = new Set([
+  'raw.githubusercontent.com',
+  'api.github.com',
+  'github.com',
+  'codeload.github.com',
+  'objects.githubusercontent.com',
+]);
+
+export function isGithubOfficialUrl(url: string): boolean {
+  try {
+    return GITHUB_OFFICIAL_HOSTS.has(new URL(url).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function shouldUseProxyForFetch(url: string): boolean {
+  return proxyConfigured() && isGithubOfficialUrl(url);
+}
+
+async function fetchTextWithProxy(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs: number,
+): Promise<Response> {
+  if (shouldUseProxyForFetch(url)) {
+    try {
+      return await proxyFetch(url, { headers, timeoutMs });
+    } catch {
+      // 代理不通（软件关闭 / 端口变动 / TUN 直连可用）时回退裸 fetch
+    }
+  }
+  return fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs), redirect: 'follow' });
+}
 
 /** 资源商店来源 */
-export type StoreOrigin = 'kakake' | 'github';
+export type StoreOrigin = 'kakake' | 'github' | 'custom';
+
+/** 自定义源地址：必须是精确到 .json 的 http(s) 链接 */
+export function isCustomIndexUrl(raw: unknown): raw is string {
+  if (typeof raw !== 'string') return false;
+  const s = raw.trim();
+  if (s.length < 8 || s.length > 2000) return false;
+  let u: URL;
+  try { u = new URL(s); } catch { return false; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  return /\.json$/i.test(u.pathname);
+}
 
 /** 咔咔珂源：资源商城公开 API（Node 版：/zhiyuan） */
 export const PLUGIN_STORE_BASE =
@@ -344,18 +391,55 @@ function parseRepo(homepage?: string): { owner: string; repo: string } | null {
   return { owner, repo };
 }
 
+function parseJsonTolerant<T>(text: string): T {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    let out = '';
+    for (let i = 0; i < text.length; i += 1) {
+      if (text[i] !== '\\') {
+        out += text[i];
+        continue;
+      }
+      const next = text[i + 1];
+      if (next && /[a-zA-Z]/.test(next)) {
+        let end = i + 2;
+        while (end < text.length && /[a-zA-Z]/.test(text[end])) end += 1;
+        if (end - (i + 1) >= 2) {
+          out += `\\\\${text.slice(i + 1, end)}`;
+          i = end - 1;
+          continue;
+        }
+      }
+      if (next === 'u' && /^[0-9a-fA-F]{4}$/.test(text.slice(i + 2, i + 6))) {
+        out += text.slice(i, i + 6);
+        i += 5;
+        continue;
+      }
+      if (next && /["\\/bfnrt]/.test(next)) {
+        out += text.slice(i, i + 2);
+        i += 1;
+        continue;
+      }
+      out += '\\\\';
+    }
+    return JSON.parse(out) as T;
+  }
+}
+
+export function parseStoreJson<T>(text: string): T {
+  return parseJsonTolerant<T>(text);
+}
+
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'User-Agent': 'Kakake-PluginStore/0.1',
+    ...(init?.headers as Record<string, string> | undefined),
+  };
   let res: Response;
   try {
-    res = await fetch(url, {
-      ...init,
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'Kakake-PluginStore/0.1',
-        ...(init?.headers as Record<string, string> | undefined),
-      },
-      signal: AbortSignal.timeout(apiTimeoutMs()),
-    });
+    res = await fetchTextWithProxy(url, headers, apiTimeoutMs());
   } catch (e) {
     // 超时 / DNS / 连接被拒：归一成带错误码的中文错误，控制台才能双语展示
     throw classifyFetchError(e);
@@ -363,7 +447,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     throw new Error(`商城接口 HTTP ${res.status}`);
   }
-  return (await res.json()) as T;
+  return parseJsonTolerant<T>(await res.text());
 }
 
 /**
@@ -379,6 +463,11 @@ function applyMirror(url: string, prefix?: string): string {
   return url;
 }
 
+function withIndexCacheBuster(url: string): string {
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}t=${Date.now()}`;
+}
+
 /** 条目数兜底：受信数据源也可能撑大内存，超限丢最老的键（Map 迭代序即插入序） */
 function capMap<T>(m: Map<string, T>, limit: number): void {
   if (m.size <= limit) return;
@@ -391,10 +480,10 @@ function capMap<T>(m: Map<string, T>, limit: number): void {
 }
 
 class PluginStoreService {
-  /** 双源内存缓存（可为过期陈旧数据，用于秒开 + 兜底） */
-  private listCache: Record<StoreOrigin, ListCache | null> = { kakake: null, github: null };
+  /** 多源内存缓存（可为过期陈旧数据，用于秒开 + 兜底） */
+  private listCache: Record<StoreOrigin, ListCache | null> = { kakake: null, github: null, custom: null };
   /** 同源刷新去重：并发请求共享同一个在途 Promise */
-  private inflight: Record<StoreOrigin, Promise<ListCache> | null> = { kakake: null, github: null };
+  private inflight: Record<StoreOrigin, Promise<ListCache> | null> = { kakake: null, github: null, custom: null };
   /** 是否已尝试从磁盘载入过缓存 */
   private diskLoaded = false;
   private catIdCache: { at: number; id: number } | null = null;
@@ -492,15 +581,15 @@ class PluginStoreService {
 
   /* ================= 来源开关与下载配置 ================= */
 
-  private readStateFile(): { origin?: string; download?: Partial<StoreDownloadConfig> } {
-    return readJsonSafe<{ origin?: string; download?: Partial<StoreDownloadConfig> } | null>(
+  private readStateFile(): { origin?: string; customIndexUrl?: string; download?: Partial<StoreDownloadConfig> } {
+    return readJsonSafe<{ origin?: string; customIndexUrl?: string; download?: Partial<StoreDownloadConfig> } | null>(
       PATHS.pluginStoreState,
       null,
       { label: 'plugin-store.json' },
     ) || {};
   }
 
-  private writeStateFile(patch: { origin?: StoreOrigin; download?: StoreDownloadConfig }): void {
+  private writeStateFile(patch: { origin?: StoreOrigin; customIndexUrl?: string; download?: StoreDownloadConfig }): void {
     try {
       writeJsonAtomic(PATHS.pluginStoreState, { ...this.readStateFile(), ...patch });
     } catch { /* ignore */ }
@@ -509,7 +598,7 @@ class PluginStoreService {
   getOrigin(): StoreOrigin {
     if (this.originCache) return this.originCache;
     const raw = this.readStateFile();
-    if (raw.origin === 'github' || raw.origin === 'kakake') {
+    if (raw.origin === 'github' || raw.origin === 'kakake' || raw.origin === 'custom') {
       this.originCache = raw.origin;
       return raw.origin;
     }
@@ -518,10 +607,53 @@ class PluginStoreService {
   }
 
   setOrigin(origin: StoreOrigin): StoreOrigin {
-    const next: StoreOrigin = origin === 'github' ? 'github' : 'kakake';
+    const next: StoreOrigin = origin === 'github' ? 'github' : origin === 'custom' ? 'custom' : 'kakake';
     this.originCache = next;
     this.writeStateFile({ origin: next });
     return next;
+  }
+
+  getCustomIndexUrl(): string {
+    const raw = this.readStateFile().customIndexUrl;
+    return isCustomIndexUrl(raw) ? raw.trim() : '';
+  }
+
+  setCustomIndexUrl(raw: unknown): string {
+    if (!isCustomIndexUrl(raw)) {
+      throw new Error('自定义源地址必须是精确到 .json 的 http(s) 链接');
+    }
+    const url = raw.trim();
+    this.writeStateFile({ customIndexUrl: url });
+    this.invalidateCustom();
+    return url;
+  }
+
+  /** 自定义源地址变更后清掉其缓存，下次拉取即走新地址 */
+  invalidateCustom(): void {
+    this.listCache.custom = null;
+    this.inflight.custom = null;
+    this.saveDiskCache();
+  }
+
+  async validateCustomIndex(raw: unknown): Promise<{ valid: boolean; code?: string; message?: string }> {
+    if (!isCustomIndexUrl(raw)) {
+      return { valid: false, code: 'format', message: '地址必须是精确到 .json 的 http(s) 链接' };
+    }
+    const url = raw.trim();
+    try {
+      const data = await fetchJson<{ format?: string; plugins?: unknown }>(url, {
+        headers: githubAuthHeaders(url),
+      });
+      if (data.format !== 'kakake-plugins-v1' || !Array.isArray(data.plugins)) {
+        return { valid: false, code: 'format', message: '资源索引格式无效（需要 kakake-plugins-v1）' };
+      }
+      return { valid: true };
+    } catch (e) {
+      if (e instanceof StoreFetchError) {
+        return { valid: false, code: e.code, message: e.message };
+      }
+      return { valid: false, code: 'http', message: e instanceof Error ? e.message : '校验失败' };
+    }
   }
 
   getDownloadConfig(): StoreDownloadConfig {
@@ -563,7 +695,7 @@ class PluginStoreService {
       { label: 'plugin-store-cache.json' },
     );
     if (!raw) return;
-    for (const src of ['kakake', 'github'] as StoreOrigin[]) {
+    for (const src of ['kakake', 'github', 'custom'] as StoreOrigin[]) {
       const entry = raw[src];
       if (entry && Array.isArray(entry.resources) && !this.listCache[src]) {
         this.listCache[src] = entry;
@@ -575,7 +707,11 @@ class PluginStoreService {
     try {
       writeJsonAtomic(
         PATHS.pluginStoreCache,
-        { kakake: this.listCache.kakake, github: this.listCache.github },
+        {
+          kakake: this.listCache.kakake,
+          github: this.listCache.github,
+          custom: this.listCache.custom,
+        },
         { indent: null },
       );
     } catch { /* ignore */ }
@@ -585,9 +721,16 @@ class PluginStoreService {
   private async refresh(src: StoreOrigin, mirrorPrefix?: string): Promise<ListCache> {
     if (this.inflight[src]) return this.inflight[src]!;
     const task = (async () => {
-      const built = src === 'github'
-        ? await this.buildGithubList(mirrorPrefix)
-        : await this.buildKakakeList();
+      let built: ListCache;
+      if (src === 'kakake') {
+        built = await this.buildKakakeList();
+      } else if (src === 'custom') {
+        const indexUrl = this.getCustomIndexUrl();
+        if (!indexUrl) throw new Error('尚未配置自定义源地址');
+        built = await this.buildGithubList(mirrorPrefix, indexUrl);
+      } else {
+        built = await this.buildGithubList(mirrorPrefix);
+      }
       this.listCache[src] = built;
       this.saveDiskCache();
       return built;
@@ -606,6 +749,7 @@ class PluginStoreService {
     categories: StoreCategory[];
     pinned: StoreResource[];
     resources: StoreResource[];
+    stale?: boolean;
   }> {
     const src = origin || this.getOrigin();
     this.loadDiskCache();
@@ -623,7 +767,7 @@ class PluginStoreService {
         try {
           return { origin: src, ...this.pick(await this.refresh(src, mirrorPrefix)) };
         } catch {
-          return { origin: src, ...this.pick(cached) };
+          return { origin: src, ...this.pick(cached), stale: true };
         }
       }
       void this.refresh(src, mirrorPrefix).catch(() => { /* 后台刷新失败保留旧缓存 */ });
@@ -736,18 +880,18 @@ class PluginStoreService {
     };
   }
 
-  private async buildGithubList(mirrorPrefix?: string): Promise<ListCache> {
+  private async buildGithubList(mirrorPrefix?: string, customIndexUrl?: string): Promise<ListCache> {
     const now = Date.now();
-    // 注意：不加时间戳缓存穿透参数，让 raw CDN 命中缓存以加快冷启动
+    const sourceUrl = customIndexUrl || GITHUB_INDEX_URL;
     // Token（若已配置）只在直连官方域名时附带；走镜像前缀时主机是代理域名，自动不带
-    const indexUrl = applyMirror(GITHUB_INDEX_URL, mirrorPrefix);
+    const indexUrl = withIndexCacheBuster(applyMirror(sourceUrl, mirrorPrefix));
     const data = await fetchJson<{
       format?: string;
       plugins?: GithubPlugin[];
     }>(indexUrl, { headers: githubAuthHeaders(indexUrl) });
 
     if (data.format !== 'kakake-plugins-v1' || !Array.isArray(data.plugins)) {
-      throw new Error('GitHub 源 index.json 格式无效');
+      throw new Error('资源索引 index.json 格式无效');
     }
 
     const all = data.plugins
@@ -762,7 +906,6 @@ class PluginStoreService {
 
     // 先返回列表（星数/更新时间即使拿不到也不阻塞）；
     // 元数据后台补齐后回填到同一批对象并落盘，下次打开即带上。
-    this.listCache.github = built;
     void this.enrichGithubMeta(resources, mirrorPrefix)
       .then(() => this.saveDiskCache())
       .catch(() => { /* 限流/网络失败：保持无星数 */ });
@@ -862,7 +1005,7 @@ class PluginStoreService {
    */
   downloadCountsAvailable(origin?: StoreOrigin): boolean {
     const src = origin || this.getOrigin();
-    return src !== 'github' || !!getGithubToken();
+    return src !== 'github' && src !== 'custom' || !!getGithubToken();
   }
 
   /** Token 变更后调用：丢掉 GitHub 列表与下载次数缓存，下次拉取即带新数据 */
@@ -890,11 +1033,11 @@ class PluginStoreService {
     for (const url of candidates) {
       try {
         const readmeUrl = applyMirror(url, mirrorPrefix);
-        const res = await fetch(readmeUrl, {
-          headers: { 'User-Agent': 'Kakake-PluginStore/0.1', ...githubAuthHeaders(readmeUrl) },
-          signal: AbortSignal.timeout(apiTimeoutMs()),
-          redirect: 'follow',
-        });
+        const res = await fetchTextWithProxy(
+          readmeUrl,
+          { 'User-Agent': 'Kakake-PluginStore/0.1', ...githubAuthHeaders(readmeUrl) },
+          apiTimeoutMs(),
+        );
         if (!res.ok) continue;
         const text = await res.text();
         if (text && text.trim()) {
@@ -921,8 +1064,9 @@ class PluginStoreService {
     total: number;
     comments: StoreComment[];
   }> {
-    // GitHub 源无评论
-    if (this.getOrigin() === 'github') {
+    // GitHub 源与自定义源无评论
+    const src = this.getOrigin();
+    if (src === 'github' || src === 'custom') {
       return { resource_id: id, total: 0, comments: [] };
     }
     const lim = Math.min(100, Math.max(1, limit));

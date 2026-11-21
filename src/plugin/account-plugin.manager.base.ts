@@ -101,8 +101,8 @@ export interface AccountPluginManagerOptions {
   ensureAccount: (connectionId: string) => boolean;
   /** 构造出站动作调用器 */
   createActionCaller: (adapterName: string, connId?: string) => ActionCaller;
-  /** 插件日志分类（可选，如 gf 的 'gf_plugin'）；缺省不传 category */
-  loggerCategory?: 'system' | 'plugin' | 'gf_plugin';
+  /** 插件日志分类（可选，如 gf 的 'gf_plugin'、tg 的 'tg_plugin'）；缺省不传 category */
+  loggerCategory?: 'system' | 'plugin' | 'gf_plugin' | 'sssx_plugin' | 'tg_plugin' | 'kook_plugin' | 'wx_plugin' | 'extension';
   /**
    * 会话键提取（可选）：返回同会话事件的串行化键（如 `group:xxx`），
    * 同键事件按到达顺序串行派发、不同键并发；不传则全部并发。

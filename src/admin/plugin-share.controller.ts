@@ -157,7 +157,11 @@ export class PluginShareController {
         const info = downloaded.shareInfo!;
         try {
           const rel = relativeShareDir(downloaded.extractedDir);
-          token = stageDataZip(downloaded.extractedDir, rel);
+          // 带上本次导入的真实结果：还原端据此放行扩展插件的 data/<插件Id> 目标
+          token = stageDataZip(downloaded.extractedDir, rel, {
+            kind: result.kind,
+            pluginId: result.pluginId,
+          });
           accounts = info.accounts;
         } catch (e: unknown) {
           logAction('【插件分享】', `数据暂存失败：${e instanceof Error ? e.message : String(e)}`, undefined, 'warn');

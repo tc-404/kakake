@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { ExternalLink, Loader2, Compass, Eye, EyeOff, Wrench, Copy, CheckCircle2, AlertTriangle, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExternalLink, Github, Loader2, Compass, Eye, EyeOff, Wrench, Copy, CheckCircle2, AlertTriangle, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, setApiTimeoutMs, type SharpEnvState } from '@/lib/api';
 import { useT } from '@/lib/i18n';
@@ -30,6 +30,8 @@ import {
 import { getDeviceTier, subscribeDeviceTier } from '@/lib/device-tier';
 import {
   PLUGIN_STORE_OFFICIAL_URL,
+  PLUGIN_STORE_GITHUB_URL,
+  isCustomIndexUrl,
   storeOriginLabel,
 } from '@/lib/plugin-store-origin';
 import type { StoreOrigin } from '@/lib/types';
@@ -939,7 +941,7 @@ function AppearanceSection() {
   const changeTitle = (raw: string) => {
     setTitleText(raw);
     const title = normalizeCustomTitle(raw);
-    document.title = title || '咔咔珂';
+    document.title = title || t('brand.kakake');
     setAppearance((prev) => {
       const nextState = { ...prev, customTitle: title };
       cacheAppearance(nextState);
@@ -1140,35 +1142,51 @@ function AppearanceSection() {
 
 /* ══════════════════════ 分区三：资源与商店 ══════════════════════ */
 
-/** 资源商店来源切换卡：滑动高亮的两段选择条，点了即存 */
+/** 资源商店来源切换卡：滑动高亮的三段选择条，点了即存；自定义源额外给地址输入框 */
 function StoreOriginCard() {
   const t = useT();
+  const ORIGINS: StoreOrigin[] = ['kakake', 'github', 'custom'];
   const [storeOrigin, setStoreOrigin] = useState<StoreOrigin>('kakake');
   const [storeOriginSaving, setStoreOriginSaving] = useState(false);
+  const [customUrl, setCustomUrl] = useState('');
+  const [auditStatus, setAuditStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const auditTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const auditSeqRef = useRef(0);
+  const lastAuditedRef = useRef('');
 
   useEffect(() => {
     api.pluginStore
       .origin()
       .then((r) => {
-        if (r.ok && (r.origin === 'kakake' || r.origin === 'github')) {
+        if (!r.ok) return;
+        if (r.origin === 'kakake' || r.origin === 'github' || r.origin === 'custom') {
           setStoreOrigin(r.origin);
+        }
+        if (r.customIndexUrl) {
+          const url = r.customIndexUrl.trim();
+          setCustomUrl(url);
+          lastAuditedRef.current = url;
         }
       })
       .catch(() => { /* 保持默认 */ });
   }, []);
 
-  const changeStoreOrigin = (next: StoreOrigin) => {
-    if (next === storeOrigin || storeOriginSaving) return;
+  useEffect(() => () => {
+    if (auditTimerRef.current) clearTimeout(auditTimerRef.current);
+  }, []);
+
+  const persistOrigin = (next: StoreOrigin, url?: string) => {
     const prev = storeOrigin;
     setStoreOrigin(next);
     setStoreOriginSaving(true);
     api.pluginStore
-      .setOrigin(next)
+      .setOrigin(next, url)
       .then((r) => {
         if (!r.ok) {
           setStoreOrigin(prev);
           toast.error(resText(r) || t('settings.switchSourceFailed'));
         } else {
+          if (url) setCustomUrl(url);
           toast.success(t('settings.switchedTo', { name: storeOriginLabel(next, t) }));
         }
       })
@@ -1179,45 +1197,145 @@ function StoreOriginCard() {
       .finally(() => setStoreOriginSaving(false));
   };
 
+  const saveCustomUrl = (url: string): boolean => {
+    if (!isCustomIndexUrl(url)) {
+      toast.error(t('settings.customUrlInvalid'));
+      return false;
+    }
+    const value = url.trim();
+    setCustomUrl(value);
+    persistOrigin('custom', value);
+    return true;
+  };
+
+  const cancelAudit = () => {
+    if (auditTimerRef.current) {
+      clearTimeout(auditTimerRef.current);
+      auditTimerRef.current = null;
+    }
+    auditSeqRef.current += 1;
+  };
+
+  const runAudit = (value: string, seq: number) => {
+    setAuditStatus('checking');
+    api.pluginStore
+      .validateCustom(value)
+      .then((r) => {
+        if (seq !== auditSeqRef.current) return;
+        lastAuditedRef.current = value;
+        setAuditStatus(r.ok && r.valid ? 'valid' : 'invalid');
+      })
+      .catch(() => {
+        if (seq !== auditSeqRef.current) return;
+        lastAuditedRef.current = value;
+        setAuditStatus('invalid');
+      });
+  };
+
+  const handleUrlChange = (value: string) => {
+    setCustomUrl(value);
+    cancelAudit();
+    setAuditStatus('idle');
+  };
+
+  const handleUrlFocus = () => {
+    cancelAudit();
+    setAuditStatus('idle');
+  };
+
+  const handleUrlBlur = (value: string) => {
+    if (storeOrigin !== 'custom') return;
+    saveCustomUrl(value);
+    const trimmed = value.trim();
+    if (trimmed === lastAuditedRef.current) return;
+    cancelAudit();
+    const seq = auditSeqRef.current;
+    setAuditStatus('checking');
+    auditTimerRef.current = setTimeout(() => {
+      auditTimerRef.current = null;
+      if (seq !== auditSeqRef.current) return;
+      runAudit(trimmed, seq);
+    }, 3000);
+  };
+
+  const changeStoreOrigin = (next: StoreOrigin) => {
+    if (next === storeOrigin || storeOriginSaving) return;
+    cancelAudit();
+    setAuditStatus('idle');
+    if (next === 'custom' && !isCustomIndexUrl(customUrl)) {
+      setStoreOrigin('custom');
+      toast.message(t('settings.customUrlRequired'));
+      return;
+    }
+    persistOrigin(next, next === 'custom' ? customUrl.trim() : undefined);
+  };
+
+  const originIndex = Math.max(0, ORIGINS.indexOf(storeOrigin));
+
   return (
     <SettingsCard
       className="kk-stagger-item kk-stagger-slow-6"
       title={t('settings.storeOrigin')}
       tourId="settings-store-origin"
     >
-      <div
-        role="tablist"
-        aria-label={t('settings.storeOrigin')}
-        className="relative flex w-full items-center rounded-2xl border border-white/40 bg-white/20 p-1 backdrop-blur-sm"
-      >
-        {/* 滑动高亮指示器：在两个选项之间平滑滑动，而非瞬间切换 */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-xl bg-teal-500/90 shadow-md kk-glow transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-          style={{ transform: storeOrigin === 'github' ? 'translateX(100%)' : 'translateX(0)' }}
-        />
-        {(['kakake', 'github'] as StoreOrigin[]).map((key) => {
-          const active = storeOrigin === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              disabled={storeOriginSaving}
-              onClick={() => changeStoreOrigin(key)}
-              className={cn(
-                'relative z-10 flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-medium transition-colors duration-200 disabled:opacity-60',
-                active ? 'text-white' : 'text-slate-600 hover:text-slate-800',
-              )}
-            >
-              {storeOriginSaving && active ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : null}
-              {storeOriginLabel(key, t)}
-            </button>
-          );
-        })}
+      <div className="space-y-3">
+        <div
+          role="tablist"
+          aria-label={t('settings.storeOrigin')}
+          className="relative flex w-full items-center rounded-2xl border border-white/40 bg-white/20 p-1 backdrop-blur-sm"
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-1 left-1 w-[calc(33.333%-0.167rem)] rounded-xl bg-teal-500/90 shadow-md kk-glow transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+            style={{ transform: `translateX(${originIndex * 100}%)` }}
+          />
+          {ORIGINS.map((key) => {
+            const active = storeOrigin === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                disabled={storeOriginSaving}
+                onClick={() => changeStoreOrigin(key)}
+                className={cn(
+                  'relative z-10 flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-medium transition-colors duration-200 disabled:opacity-60',
+                  active ? 'text-white' : 'text-slate-600 hover:text-slate-800',
+                )}
+              >
+                {storeOriginSaving && active ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : null}
+                {storeOriginLabel(key, t)}
+              </button>
+            );
+          })}
+        </div>
+        <div className="space-y-1.5">
+          <Input
+            id="custom-index-url"
+            type="url"
+            value={customUrl}
+            onChange={(e) => handleUrlChange(e.target.value)}
+            onFocus={handleUrlFocus}
+            onBlur={(e) => handleUrlBlur(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); saveCustomUrl(customUrl); }
+            }}
+            placeholder={t('settings.customUrlPlaceholder')}
+            disabled={storeOrigin !== 'custom' || storeOriginSaving}
+            spellCheck={false}
+            className={cn(
+              'kk-field h-9 w-full font-mono text-xs',
+              storeOrigin !== 'custom' && 'opacity-60',
+              auditStatus === 'checking' && 'kk-audit-checking',
+              auditStatus === 'valid' && 'kk-audit-valid',
+              auditStatus === 'invalid' && 'kk-audit-invalid',
+            )}
+          />
+          <p className="text-xs leading-relaxed text-slate-400">{t('settings.customUrlHint')}</p>
+        </div>
       </div>
     </SettingsCard>
   );
@@ -1539,13 +1657,24 @@ function StoreSection() {
         title={t('settings.resourceWebsite')}
         tourId="settings-resource"
       >
-        <QuietExternal
-          href={PLUGIN_STORE_OFFICIAL_URL}
-          className="inline-flex w-full items-center gap-2 rounded-xl border border-white/40 bg-white/20 px-3.5 py-2.5 text-sm text-teal-700 backdrop-blur-sm transition-colors hover:bg-white/30 hover:text-teal-800"
-        >
-          <ExternalLink className="h-4 w-4 shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-left">{PLUGIN_STORE_OFFICIAL_URL}</span>
-        </QuietExternal>
+        <div className="flex flex-col gap-2">
+          <QuietExternal
+            href={PLUGIN_STORE_OFFICIAL_URL}
+            title={t('settings.resourceWebsiteOfficial')}
+            className="inline-flex w-full items-center gap-2 rounded-xl border border-white/40 bg-white/20 px-3.5 py-2.5 text-sm text-teal-700 backdrop-blur-sm transition-colors hover:bg-white/30 hover:text-teal-800"
+          >
+            <ExternalLink className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-left">{PLUGIN_STORE_OFFICIAL_URL}</span>
+          </QuietExternal>
+          <QuietExternal
+            href={PLUGIN_STORE_GITHUB_URL}
+            title={t('settings.resourceWebsiteGithub')}
+            className="inline-flex w-full items-center gap-2 rounded-xl border border-white/40 bg-white/20 px-3.5 py-2.5 text-sm text-teal-700 backdrop-blur-sm transition-colors hover:bg-white/30 hover:text-teal-800"
+          >
+            <Github className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-left">{PLUGIN_STORE_GITHUB_URL}</span>
+          </QuietExternal>
+        </div>
       </SettingsCard>
 
       <StoreOriginCard />

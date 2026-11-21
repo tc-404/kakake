@@ -53,8 +53,9 @@ export function getSortOptions(
   origin: StoreOrigin,
   caps?: SortCapabilities,
 ): { id: StoreSortMode; label: string }[] {
-  const downloadsOk = origin !== 'github' || caps?.downloadCounts !== false;
-  const ids: StoreSortMode[] = origin === 'github'
+  const jsonLike = origin === 'github' || origin === 'custom';
+  const downloadsOk = !jsonLike || caps?.downloadCounts !== false;
+  const ids: StoreSortMode[] = jsonLike
     ? (downloadsOk ? [...GITHUB_SORT_IDS, 'downloads_many', 'downloads_few'] : GITHUB_SORT_IDS)
     : (STORE_SORT_OPTIONS.map((o) => o.id).filter((id) => id !== 'stars_many' && id !== 'stars_few'));
   return STORE_SORT_OPTIONS.filter((o) => ids.includes(o.id));

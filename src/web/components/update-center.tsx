@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 import { getDeviceTier } from '@/lib/device-tier';
 import { svcText } from '@/lib/server-error';
+import { OPEN_GLOBAL_UPDATE_EVENT } from '@/components/header-actions';
 import {
   useInstallState,
   openInstallRisk,
@@ -1291,16 +1292,24 @@ export function UpdateCenter({
   version,
   large = false,
   icon = false,
+  hidden = false,
 }: {
   version: string;
   large?: boolean;
   icon?: boolean;
+  hidden?: boolean;
 }) {
   const t = useT();
   const state = useUpdateState();
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const popoverId = useId();
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_GLOBAL_UPDATE_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_GLOBAL_UPDATE_EVENT, onOpen);
+  }, []);
 
   const display = (state?.currentVersion || version || '').trim();
   const hasUpdate = !!state?.hasUpdate;
@@ -1326,7 +1335,10 @@ export function UpdateCenter({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls={open ? popoverId : undefined}
-          className="relative grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-600 transition-colors hover:bg-white/35 hover:text-slate-800 active:scale-95"
+          className={cn(
+            'relative grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-600 transition-colors hover:bg-white/35 hover:text-slate-800 active:scale-95',
+            hidden && 'pointer-events-none invisible absolute',
+          )}
         >
           <DownloadCloud className="h-4 w-4" />
           {hasUpdate ? (
