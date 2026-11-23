@@ -14,6 +14,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { usePageHeader } from '@/components/header-actions';
 import { PROTOCOL_BADGE_LABEL, type ProxyProtocol } from '../../proxy/proxy.types.js';
+import type { NativeCategory, NativeEndpoint, NativeText } from '../../proxy/catalog/native-endpoints.js';
 
 /**
  * 「接口代理」页（对齐资源商城的布局形态）。
@@ -80,6 +81,22 @@ type ProxyApiEntryView = {
   };
 };
 
+type NativeEntryView = NativeEndpoint & { native: true };
+type EntryView = (ProxyApiEntryView & { native?: false }) | NativeEntryView;
+
+function isNative(e: EntryView): e is NativeEntryView {
+  return e.native === true;
+}
+
+function textOf(v: NativeText | undefined, lang: string): string {
+  if (!v) return '';
+  return lang === 'en' ? v.en : v.zh;
+}
+
+const NATIVE_CATEGORIES: NativeCategory[] = ['framework', 'internal', 'external'];
+/** 三类直调目录排在协议分类前面：它们是「原本怎么调就怎么显示」的入口 */
+const CATEGORY_ORDER = [...NATIVE_CATEGORIES];
+
 /* ─────────────────────────── 小组件 ─────────────────────────── */
 
 function ProtocolBadges({ support }: { support: ProxyProtocol[] }) {
@@ -99,6 +116,18 @@ function ProtocolBadges({ support }: { support: ProxyProtocol[] }) {
           {PROTOCOL_BADGE_LABEL[p]}
         </Badge>
       ))}
+    </span>
+  );
+}
+
+/** 直调接口：真实方法与路径，不用协议徽章 */
+function MethodPathBadge({ method, path }: { method: string; path: string }) {
+  return (
+    <span className="flex min-w-0 max-w-[62%] shrink-0 flex-col items-end gap-0.5">
+      <Badge variant="outline" className="border-slate-300 px-1.5 py-0 text-[10px] font-medium text-slate-600">
+        {method}
+      </Badge>
+      <code className="max-w-full truncate font-mono text-[10px] text-slate-400">{path}</code>
     </span>
   );
 }
@@ -164,6 +193,33 @@ function ParamCard({ p, t }: { p: ProxyParamSpec; t: (k: string, params?: Record
   );
 }
 
+/** 直调接口参数卡：位置（path/query/body/header）是这类接口的关键信息 */
+function NativeParamCard({ p, lang, t }: { p: NativeEndpoint['params'][number]; lang: string; t: (k: string) => string }) {
+  return (
+    <div className="rounded-xl border border-white/30 bg-white/15 p-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <code className="font-mono text-xs font-medium text-slate-700">{p.key}</code>
+        {p.required ? (
+          <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-medium text-rose-600">
+            {t('proxyApi.colRequired')}
+          </span>
+        ) : null}
+        <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] text-slate-500">
+          {t('proxyApi.nativeParamIn')}: {p.in}
+        </span>
+        <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] text-slate-500">{p.type}</span>
+      </div>
+      <div className="mt-1 text-xs text-slate-600">{textOf(p.label, lang)}</div>
+      {p.sample ? (
+        <div className="mt-1.5 break-all font-mono text-[11px] text-slate-600">
+          <span className="text-slate-400">{t('proxyApi.colSample')}：</span>{p.sample}
+        </div>
+      ) : null}
+      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{textOf(p.desc, lang)}</p>
+    </div>
+  );
+}
+
 /** 协议实现对照卡：一个协议一块（取代表格） */
 function ImplCard({ p, impl, t }: { p: ProxyProtocol; impl?: ProxyImplView; t: (k: string, params?: Record<string, string | number | undefined>) => string }) {
   const entries = impl?.variants ? Object.entries(impl.variants) : [];
@@ -208,10 +264,11 @@ export default function ProxyApiPage() {
   /** 展示标题：en 走英文覆盖层（未覆盖回退注册表原文），zh 走注册表原文 */
   const titleOf = (e: { name: string; title: string }) =>
     lang === 'en' ? proxyTitleEn(e.name, e.title) : e.title;
-  const [items, setItems] = useState<ProxyApiEntryView[] | null>(null);
+  const [items, setItems] = useState<EntryView[] | null>(null);
   const [error, setError] = useState('');
   const [keyword, setKeyword] = useState('');
   const [protocols, setProtocols] = useState<Set<ProxyProtocol>>(new Set());
+  const [nativeCats, setNativeCats] = useState<Set<NativeCategory>>(new Set());
   const [selected, setSelected] = useState('');
   const [tab, setTab] = useState<DetailTab>('overview');
 
@@ -219,7 +276,14 @@ export default function ProxyApiPage() {
     setError('');
     setItems(null);
     api.proxyApis()
-      .then((r) => setItems(r.items as unknown as ProxyApiEntryView[]))
+      .then((r) => {
+        const proxied = r.items as unknown as ProxyApiEntryView[];
+        const direct = (r.endpoints ?? []) as unknown as NativeEndpoint[];
+        setItems([
+          ...proxied,
+          ...direct.map((e) => ({ ...e, native: true as const })),
+        ]);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
 
@@ -227,28 +291,50 @@ export default function ProxyApiPage() {
 
   const all = items ?? [];
 
-  // AND 语义：勾选了 N 个协议，就必须同时包含这 N 个才显示
+  /**
+   * 两套筛选互斥：协议筛选只作用于代理条目，目录筛选只作用于直调条目。
+   * 同时勾选时以目录为准，避免出现「勾了框架又勾 napcat，结果一条都不显示」的死局。
+   */
   const filtered = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
     return all.filter((e) => {
-      if (protocols.size > 0 && ![...protocols].every((p) => e.support.includes(p))) return false;
+      if (isNative(e)) {
+        if (nativeCats.size > 0 && !nativeCats.has(e.category)) return false;
+        if (protocols.size > 0) return false;
+      } else {
+        if (nativeCats.size > 0) return false;
+        // AND 语义：勾选了 N 个协议，就必须同时支持这 N 个
+        if (protocols.size > 0 && ![...protocols].every((p) => e.support.includes(p))) return false;
+      }
       if (!kw) return true;
+      if (isNative(e)) {
+        return e.name.includes(kw)
+          || e.method.toLowerCase().includes(kw)
+          || e.path.toLowerCase().includes(kw)
+          || textOf(e.title, lang).toLowerCase().includes(kw)
+          || textOf(e.summary, lang).toLowerCase().includes(kw)
+          || e.params.some((p) => p.key.includes(kw) || textOf(p.label, lang).toLowerCase().includes(kw));
+      }
       return e.name.includes(kw)
         || e.title.toLowerCase().includes(kw)
         || (lang === 'en' && proxyTitleEn(e.name, e.title).toLowerCase().includes(kw))
         || (e.alias ?? []).some((a) => a.toLowerCase().includes(kw));
     });
-  }, [all, keyword, protocols, lang]);
+  }, [all, keyword, protocols, nativeCats, lang]);
 
-  // 按分类分组展示；分类顺序沿用注册表注册顺序，被过滤空的分类自然不出现
+  // 直调目录固定排在最前，其后沿用注册表顺序；被过滤空的分类自然不出现
   const grouped = useMemo(() => {
-    const map = new Map<string, ProxyApiEntryView[]>();
+    const map = new Map<string, EntryView[]>();
     for (const e of filtered) {
       const arr = map.get(e.category);
       if (arr) arr.push(e);
       else map.set(e.category, [e]);
     }
-    return [...map.entries()];
+    const rank = (cat: string) => {
+      const i = CATEGORY_ORDER.indexOf(cat as NativeCategory);
+      return i < 0 ? CATEGORY_ORDER.length : i;
+    };
+    return [...map.entries()].sort((a, b) => rank(a[0]) - rank(b[0]));
   }, [filtered]);
 
   const current = useMemo(
@@ -263,9 +349,20 @@ export default function ProxyApiPage() {
       else next.add(p);
       return next;
     });
+    setNativeCats(new Set());
   };
 
-  // 顶栏注入：刷新 + 协议筛选（DropdownMenu 弹出，同商城分类菜单）
+  const toggleNativeCat = (c: NativeCategory) => {
+    setNativeCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
+      return next;
+    });
+    setProtocols(new Set());
+  };
+
+  // 顶栏注入：刷新 + 协议 / 目录筛选（DropdownMenu 弹出，同商城分类菜单）
   const headerBtnClass =
     'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-white/35 disabled:opacity-50';
   usePageHeader(() => ({
@@ -275,9 +372,12 @@ export default function ProxyApiPage() {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              title={t('proxyApi.protocolFilter')}
+              title={protocols.size > 0 || nativeCats.size > 0 ? t('proxyApi.filterOn') : t('proxyApi.protocolFilter')}
               aria-label={t('proxyApi.protocolFilter')}
-              className={cn(headerBtnClass, protocols.size > 0 && 'bg-teal-500/15 text-teal-700')}
+              className={cn(
+                headerBtnClass,
+                (protocols.size > 0 || nativeCats.size > 0) && 'bg-teal-500/15 text-teal-700',
+              )}
             >
               <SlidersHorizontal className="h-4 w-4" />
             </button>
@@ -285,11 +385,11 @@ export default function ProxyApiPage() {
           <DropdownMenuContent align="end" className="w-64">
             <div className="flex items-center justify-between gap-2 px-2 pb-1 pt-1.5">
               <span className="text-xs font-medium text-slate-600">{t('proxyApi.protocolFilter')}</span>
-              {protocols.size > 0 ? (
+              {protocols.size > 0 || nativeCats.size > 0 ? (
                 <button
                   type="button"
                   className="text-[11px] text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline"
-                  onClick={() => setProtocols(new Set())}
+                  onClick={() => { setProtocols(new Set()); setNativeCats(new Set()); }}
                 >
                   {t('proxyApi.filterReset')}
                 </button>
@@ -331,7 +431,45 @@ export default function ProxyApiPage() {
               );
             })}
             <DropdownMenuSeparator />
+            <div className="flex items-center justify-between gap-2 px-2 pb-1 pt-1.5">
+              <span className="text-xs font-medium text-slate-600">{t('proxyApi.nativeFilter')}</span>
+            </div>
+            {NATIVE_CATEGORIES.map((c) => {
+              const active = nativeCats.has(c);
+              return (
+                <div
+                  key={c}
+                  role="menuitemcheckbox"
+                  aria-checked={active}
+                  onClick={() => toggleNativeCat(c)}
+                  className={cn(
+                    'flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-2 py-2 text-xs transition',
+                    active ? 'bg-teal-500/15 text-teal-700' : 'text-slate-600 hover:bg-white/30',
+                  )}
+                >
+                  <span className="font-medium">{t(`proxyApi.cat.${c}`)}</span>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.45rem] border transition-all duration-200',
+                      active
+                        ? 'kk-glow border-teal-400/80 bg-teal-500 text-white shadow-sm'
+                        : 'border-white/40 bg-white/20',
+                    )}
+                  >
+                    <Check
+                      className={cn(
+                        'h-3.5 w-3.5 transition-all duration-200',
+                        active ? 'scale-100 opacity-100' : 'scale-50 opacity-0',
+                      )}
+                    />
+                  </span>
+                </div>
+              );
+            })}
+            <DropdownMenuSeparator />
             <p className="px-2 py-1.5 text-[11px] leading-relaxed text-slate-400">{t('proxyApi.filterHint')}</p>
+            <p className="px-2 pb-1.5 text-[11px] leading-relaxed text-slate-400">{t('proxyApi.nativeFilterHint')}</p>
           </DropdownMenuContent>
         </DropdownMenu>
         <button
@@ -344,18 +482,21 @@ export default function ProxyApiPage() {
         </button>
       </>
     ),
-  }), [load, protocols, t]);
+  }), [load, protocols, nativeCats, t]);
 
   const openDetail = (name: string) => {
     setSelected(name);
     setTab('overview');
   };
 
+  const currentIsNative = current ? isNative(current) : false;
+  const nativeCurrent = currentIsNative ? current as NativeEntryView : null;
+  const proxyCurrent = current && !currentIsNative ? current as ProxyApiEntryView : null;
   const detailTabs: { key: DetailTab; label: string; visible: boolean }[] = [
     { key: 'overview', label: t('proxyApi.tabOverview'), visible: true },
-    { key: 'impl', label: t('proxyApi.tabImpl'), visible: !!current?.impl },
+    { key: 'impl', label: t('proxyApi.tabImpl'), visible: !!current && !currentIsNative && !!current.impl },
     { key: 'params', label: t('proxyApi.tabParams'), visible: true },
-    { key: 'examples', label: t('proxyApi.tabExamples'), visible: true },
+    { key: 'examples', label: t('proxyApi.tabExamples'), visible: !!current && !currentIsNative },
   ];
 
   // 与商城完全同构的页面骨架：页面级滚动，搜索框 sticky top-12 吸在顶栏正下方
@@ -419,12 +560,24 @@ export default function ProxyApiPage() {
                       >
                         <span className="flex items-start justify-between gap-2">
                           <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-slate-800">{titleOf(e)}</span>
+                            <span className="block truncate text-sm font-medium text-slate-800">
+                              {isNative(e) ? textOf(e.title, lang) : titleOf(e)}
+                            </span>
                             <span className="block truncate font-mono text-[11px] text-slate-400">{e.name}</span>
                           </span>
-                          <ProtocolBadges support={e.support} />
+                          {isNative(e) ? (
+                            <MethodPathBadge method={e.method} path={e.path} />
+                          ) : (
+                            <ProtocolBadges support={e.support} />
+                          )}
                         </span>
-                        <RiskDot risk={e.risk} />
+                        {isNative(e) ? (
+                          <span className="truncate text-[11px] text-slate-500">
+                            {textOf(e.summary, lang)}
+                          </span>
+                        ) : (
+                          <RiskDot risk={e.risk} />
+                        )}
                       </button>
                     </li>
                   ))}
@@ -442,18 +595,32 @@ export default function ProxyApiPage() {
             <>
               <DialogHeader>
                 <div className="flex flex-wrap items-center gap-2 pr-8">
-                  <DialogTitle className="text-lg font-semibold text-slate-800">{titleOf(current)}</DialogTitle>
-                  <ProtocolBadges support={current.support} />
+                  <DialogTitle className="text-lg font-semibold text-slate-800">
+                    {currentIsNative ? textOf(current.title, lang) : titleOf(current)}
+                  </DialogTitle>
+                  {currentIsNative ? (
+                    <Badge variant="outline" className="text-[10px]">{t('proxyApi.nativeKind')}</Badge>
+                  ) : (
+                    <ProtocolBadges support={current.support} />
+                  )}
                 </div>
                 <code className="mt-1 block w-fit rounded-md bg-white/25 px-2 py-0.5 font-mono text-xs text-slate-600">
                   {current.name}
                 </code>
-                <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-                  <span>{t(`proxyApi.scope.${current.scope}`)}</span>
-                  <span>{t(`proxyApi.status.${current.status}`)}</span>
-                  <RiskDot risk={current.risk} />
-                  {current.readOnly ? <span>{t('proxyApi.readOnly')}</span> : null}
-                </div>
+                {currentIsNative ? (
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                    <span>{t(`proxyApi.cat.${current.category}`)}</span>
+                    <span>{current.method}</span>
+                    <code className="break-all font-mono text-slate-600">{current.path}</code>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                    <span>{t(`proxyApi.scope.${current.scope}`)}</span>
+                    <span>{t(`proxyApi.status.${current.status}`)}</span>
+                    <RiskDot risk={current.risk} />
+                    {current.readOnly ? <span>{t('proxyApi.readOnly')}</span> : null}
+                  </div>
+                )}
               </DialogHeader>
 
               {/* 子分类标签行 */}
@@ -479,62 +646,108 @@ export default function ProxyApiPage() {
 
               <div className="no-scrollbar -mx-1 max-h-[52dvh] overflow-y-auto px-1">
                 {tab === 'overview' ? (
-                  <div className="flex flex-col gap-3">
-                    <p className="text-sm leading-relaxed text-slate-600">{current.summary}</p>
-                    {current.notes ? (
-                      <p className="rounded-xl border border-amber-300/40 bg-amber-400/15 p-3 text-xs leading-relaxed text-amber-700">
-                        {t('proxyApi.notes')}：{current.notes}
-                      </p>
-                    ) : null}
-                    {current.alias && current.alias.length > 0 ? (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs text-slate-500">{t('proxyApi.aliases')}</span>
-                        {current.alias.map((a) => (
-                          <code key={a} className="rounded bg-white/25 px-1.5 py-0.5 font-mono text-[11px] text-slate-500">{a}</code>
-                        ))}
+                  nativeCurrent ? (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-xs leading-relaxed text-slate-400">{t('proxyApi.nativeDirectHint')}</p>
+                      <p className="text-sm leading-relaxed text-slate-600">{textOf(nativeCurrent.summary, lang)}</p>
+                      <div className="rounded-xl border border-white/30 bg-white/15 p-3">
+                        <div className="text-[11px] text-slate-400">{t('proxyApi.nativeAddress')}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="px-1.5 py-0 text-[10px]">{nativeCurrent.method}</Badge>
+                          <code className="break-all font-mono text-xs text-slate-700">{nativeCurrent.path}</code>
+                        </div>
                       </div>
-                    ) : null}
-                  </div>
+                      <div className="rounded-xl border border-white/30 bg-white/15 p-3">
+                        <div className="text-[11px] text-slate-400">{t('proxyApi.nativeAuth')}</div>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-600">{textOf(nativeCurrent.auth, lang)}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/30 bg-white/15 p-3">
+                        <div className="text-[11px] text-slate-400">{t('proxyApi.nativeGate')}</div>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-600">{textOf(nativeCurrent.gate, lang)}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/30 bg-white/15 p-3">
+                        <div className="text-[11px] text-slate-400">{t('proxyApi.nativeResponse')}</div>
+                        <code className="mt-1 block break-all font-mono text-[11px] leading-relaxed text-slate-600">
+                          {textOf(nativeCurrent.response, lang)}
+                        </code>
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {t('proxyApi.nativeSource')}：<code className="font-mono">{nativeCurrent.source}</code>
+                      </div>
+                      {nativeCurrent.notes ? (
+                        <p className="rounded-xl border border-amber-300/40 bg-amber-400/15 p-3 text-xs leading-relaxed text-amber-700">
+                          {t('proxyApi.notes')}：{textOf(nativeCurrent.notes, lang)}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : proxyCurrent ? (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-sm leading-relaxed text-slate-600">{proxyCurrent.summary}</p>
+                      {proxyCurrent.notes ? (
+                        <p className="rounded-xl border border-amber-300/40 bg-amber-400/15 p-3 text-xs leading-relaxed text-amber-700">
+                          {t('proxyApi.notes')}：{proxyCurrent.notes}
+                        </p>
+                      ) : null}
+                      {proxyCurrent.alias && proxyCurrent.alias.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs text-slate-500">{t('proxyApi.aliases')}</span>
+                          {proxyCurrent.alias.map((a) => (
+                            <code key={a} className="rounded bg-white/25 px-1.5 py-0.5 font-mono text-[11px] text-slate-500">{a}</code>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null
                 ) : null}
 
-                {tab === 'impl' && current ? (
+                {tab === 'impl' && proxyCurrent ? (
                   <div className="flex flex-col gap-2">
-                    {current.support.map((p) => (
-                      <ImplCard key={p} p={p} impl={current.impl?.[p]} t={t} />
+                    {proxyCurrent.support.map((p) => (
+                      <ImplCard key={p} p={p} impl={proxyCurrent.impl?.[p]} t={t} />
                     ))}
                   </div>
                 ) : null}
 
                 {tab === 'params' ? (
-                  !current.params || current.params.length === 0 ? (
+                  nativeCurrent ? (
+                    nativeCurrent.params.length === 0 ? (
+                      <p className="text-xs text-slate-400">{t('proxyApi.paramsEmpty')}</p>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {nativeCurrent.params.map((p) => (
+                          <NativeParamCard key={p.key} p={p} lang={lang} t={t} />
+                        ))}
+                      </div>
+                    )
+                  ) : !proxyCurrent?.params || proxyCurrent.params.length === 0 ? (
                     <p className="text-xs text-slate-400">{t('proxyApi.paramsEmpty')}</p>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {current.params.map((p) => (
+                      {proxyCurrent.params.map((p) => (
                         <ParamCard key={p.key} p={p} t={t} />
                       ))}
                     </div>
                   )
                 ) : null}
 
-                {tab === 'examples' ? (
+                {tab === 'examples' && proxyCurrent ? (
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-1.5">
                       <h3 className="text-sm font-semibold text-slate-700">{t('proxyApi.exRequest')}</h3>
-                      {current.examples?.request && Object.keys(current.examples.request).length > 0
-                        ? <JsonBlock value={current.examples.request} />
+                      {proxyCurrent.examples?.request && Object.keys(proxyCurrent.examples.request).length > 0
+                        ? <JsonBlock value={proxyCurrent.examples.request} />
                         : <p className="text-xs text-slate-400">{t('proxyApi.exEmpty')}</p>}
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <h3 className="text-sm font-semibold text-emerald-700">{t('proxyApi.exSuccess')}</h3>
-                      {current.examples?.success !== undefined
-                        ? <JsonBlock value={current.examples.success} />
+                      {proxyCurrent.examples?.success !== undefined
+                        ? <JsonBlock value={proxyCurrent.examples.success} />
                         : <p className="text-xs text-slate-400">{t('proxyApi.exEmpty')}</p>}
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <h3 className="text-sm font-semibold text-rose-700">{t('proxyApi.exError')}</h3>
-                      {current.examples?.error !== undefined
-                        ? <JsonBlock value={current.examples.error} />
+                      {proxyCurrent.examples?.error !== undefined
+                        ? <JsonBlock value={proxyCurrent.examples.error} />
                         : <p className="text-xs text-slate-400">{t('proxyApi.exEmpty')}</p>}
                     </div>
                   </div>

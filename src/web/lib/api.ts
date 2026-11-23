@@ -263,6 +263,8 @@ export type SharpInstallJob = {
   lines: string[];
   /** 已写入磁盘的引擎文件字节数 */
   downloadedBytes: number;
+  /** 预期落盘总量（后端未提供时用前端估算分母，只做进度换算） */
+  totalBytes?: number;
   /** 本次安装使用的 npm 依赖源 */
   registry: string;
 };
@@ -304,6 +306,91 @@ export type SharpEnvState = {
   npmRegistrySource: 'env' | 'mirror' | 'default';
   job: SharpInstallJob | null;
   updatedAt: string;
+};
+
+/* ============ 渲染工具：浏览器安装与进程管理 ============ */
+
+export type BrowserId = 'chrome' | 'edge' | 'chromium';
+export type BrowserMode = 'always' | 'plugin' | 'idle';
+
+export type BrowserSetting = {
+  mode: BrowserMode;
+  port: number;
+  idleGraceSec: number;
+  idleActiveSec: number;
+  headless: boolean;
+  extraArgs: string;
+};
+export type BrowserSettings = Record<BrowserId, BrowserSetting>;
+
+export type SystemBrowser = {
+  id: BrowserId;
+  label: string;
+  /** 固定路径 / PATH 命中了可执行文件（found 的语义保持兼容：只看磁盘） */
+  found: boolean;
+  executablePath: string;
+  /** 由咔咔珂安装（可卸载管理） */
+  managed: boolean;
+  version: string;
+  archiveBytes: number;
+  unpackedBytes: number;
+  homepage: string;
+  /** 已确认存在：路径命中或检测到运行中的进程；旧后端缺字段时回退 found */
+  verified?: boolean;
+  /** 检测到正在运行的浏览器进程（即便路径未命中也为 true） */
+  runningProcess?: boolean;
+  /** 发现途径：固定路径 / PATH 环境变量 / 仅进程 / 未发现 */
+  detectedVia?: 'path' | 'path-env' | 'process' | 'none';
+  /** 安装前置校验（status 合并进每条浏览器记录） */
+  installBlock?: InstallBlock;
+};
+
+/** 安装前置校验事实：四档由映射函数推导，禁止靠 reason 猜档位 */
+export type InstallBlock = {
+  downloadSourceOk: boolean;
+  platformSupported: boolean;
+  reason: string;
+  /** 源降级/不确定（响应慢或尝试其他镜像）：安装按钮仍可用 */
+  degraded?: boolean;
+};
+export type InstallBlocks = Record<BrowserId, InstallBlock>;
+
+export type BrowserInstallJob = {
+  phase: 'idle' | 'resolving' | 'downloading' | 'extracting' | 'deps' | 'verifying' | 'done' | 'error';
+  percent: number;
+  message: string;
+  error: string;
+  browserId: BrowserId | '';
+  downloadedBytes: number;
+  totalBytes: number;
+  /** 后端按 500ms 采样的实时下行速度（字节/秒） */
+  bytesPerSec?: number;
+  /** cancelled=用户取消，timeout=安装超时 */
+  errorCode?: string;
+  startedAt: string;
+  finishedAt: string;
+};
+
+export type BrowserRuntime = {
+  id: BrowserId;
+  label: string;
+  setting: BrowserSetting;
+  running: boolean;
+  pid: number | null;
+  cdpUrl: string;
+  holders: string[];
+  startedAt: number;
+  idleRemainSec: number;
+};
+
+export type BrowserStatusResponse = {
+  ok: boolean;
+  browsers: SystemBrowser[];
+  /** 三浏览器安装前置校验事实 */
+  installBlocks?: InstallBlocks;
+  runtimes: BrowserRuntime[];
+  settings: BrowserSettings;
+  job: BrowserInstallJob;
 };
 
 /**
@@ -495,6 +582,8 @@ export const api = {
         processRssBytes: number;
         processHeapUsedBytes: number;
         nodeRssBytes?: number;
+        nodeProcessCount?: number;
+        nodeSelfRssBytes?: number;
         nodePercent?: number;
         nodeHeapUsedBytes?: number;
         systemUsedBytes: number;
@@ -531,6 +620,8 @@ export const api = {
         systemUsedBytes: number;
         systemTotalBytes: number;
         nodeRssBytes: number;
+        nodeProcessCount?: number;
+        nodeSelfRssBytes?: number;
         nodeHeapUsedBytes: number;
       };
     }>('/api/system/metrics/live'),
@@ -549,6 +640,51 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(mirrorId ? { mirrorId } : {}),
     }),
+
+  /** 渲染工具：浏览器安装 / 进程管理 */
+  browser: {
+    /** force=true 跳过服务端探测缓存（「重新检测」入口用） */
+    status: (force = false) =>
+      request<BrowserStatusResponse>(`/api/browser/status${force ? '?refresh=1' : ''}`),
+    config: () => request<{ ok: boolean; settings: BrowserSettings }>('/api/browser/config'),
+    saveConfig: (settings: BrowserSettings) =>
+      request<{ ok: boolean; settings: BrowserSettings }>('/api/browser/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      }),
+    install: (browserId: BrowserId) =>
+      request<{ ok: boolean; message?: string }>('/api/browser/install', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ browserId }),
+      }),
+    /** 取消下载/解析阶段的安装（真实 AbortController 中止） */
+    cancel: () =>
+      request<{ ok: boolean; message: string }>('/api/browser/cancel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      }),
+    uninstall: (browserId: BrowserId) =>
+      request<{ ok: boolean; message: string }>('/api/browser/uninstall', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ browserId }),
+      }),
+    start: (browserId: BrowserId) =>
+      request<{ ok: boolean; message?: string }>('/api/browser/start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ browserId }),
+      }),
+    stop: (browserId: BrowserId) =>
+      request<{ ok: boolean; message: string }>('/api/browser/stop', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ browserId }),
+      }),
+    restart: (browserId: BrowserId) =>
+      request<{ ok: boolean; message?: string }>('/api/browser/restart', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ browserId }),
+      }),
+  },
 
   settings: {
     get: () =>
@@ -1537,7 +1673,14 @@ export const api = {
    * 后端刻意不返回摘要——控制台要点开一条看请求参数与三种返回示例。
    */
   proxyApis: () =>
-    request<{ ok: true; count: number; items: Array<Record<string, unknown>> }>('/api/proxy/apis'),
+    request<{
+      ok: true;
+      count: number;
+      items: Array<Record<string, unknown>>;
+      /** 框架 / 对内 / 对外 三类非代理接口目录（只展示，不分发） */
+      endpoints: Array<Record<string, unknown>>;
+      endpointCount: number;
+    }>('/api/proxy/apis'),
 
   /**
    * 登录防护：状态与手动解除。

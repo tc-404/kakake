@@ -470,6 +470,4 @@ registerMessages({
   'tour.settingsLanguageBody1': { zh: '中英切换是**实例级**设置：改完所有在线会话一起变，刷新后保持。', en: 'The language is an **instance-level** setting: switching applies to every online session at once and survives a refresh.' },
   'tour.settingsLoginGuardTitle': { zh: '登录防护', en: 'Login Guard' },
   'tour.settingsLoginGuardBody1': { zh: '有人撞库时这里会亮**高压 / 全局冷却**状态；你自己被锁在门外时，可在已登录的会话里点「解除限制」自救。', en: 'During credential-stuffing bursts this shows a **pressure / cooldown** badge; if you get locked out, clear it here from an already signed-in session.' },
-  'tour.settingsSharpTitle': { zh: '图片引擎环境（sharp）', en: 'Image Engine (sharp)' },
-  'tour.settingsSharpBody1': { zh: '视频解析与图片工具箱依赖它。**一键安装**失败时，点「复制命令」到服务器手动装一份即可。', en: 'Video parsing and the image toolbox depend on it. If **one-click install** fails, hit "Copy command" and install it on the server manually.' },
 });

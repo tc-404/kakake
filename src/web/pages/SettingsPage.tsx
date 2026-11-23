@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { ExternalLink, Github, Loader2, Compass, Eye, EyeOff, Wrench, Copy, CheckCircle2, AlertTriangle, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExternalLink, Github, Loader2, Compass, Eye, EyeOff, CheckCircle2, AlertTriangle, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { api, setApiTimeoutMs, type SharpEnvState } from '@/lib/api';
+import { api, setApiTimeoutMs } from '@/lib/api';
 import { useT } from '@/lib/i18n';
-import { copyToClipboard } from '@/lib/clipboard';
 import type { KakakeConfig, LogLevel } from '@/lib/types';
-import { DEFAULT_AI_MAX_STEPS, DEFAULT_KAKAKE_CONFIG } from '@/lib/types';
+import { DEFAULT_KAKAKE_CONFIG } from '@/lib/types';
 import {
   APPEARANCE_RANGES,
   BACKGROUND_ORIENTATIONS,
@@ -76,6 +75,7 @@ function SettingsCard({
   className,
   tourId,
   extra,
+  compact = false,
 }: {
   title: string;
   description?: string;
@@ -84,29 +84,32 @@ function SettingsCard({
   tourId?: string;
   /** 显示在标题右侧的附加信息（如状态徽标 / 操作按钮），与标题同一行 */
   extra?: ReactNode;
+  /** 紧凑版：给字段少、希望与同排卡片等高的卡片用 */
+  compact?: boolean;
 }) {
   return (
     <section
       data-tour={tourId}
       className={cn(
-        'kk-glass flex h-full flex-col rounded-[1.25rem] p-5 sm:p-6',
+        'kk-glass flex h-full flex-col rounded-[1.25rem]',
+        compact ? 'p-4 sm:p-5' : 'p-5 sm:p-6',
         className,
       )}
     >
-      <header className="mb-5 shrink-0">
+      <header className={cn('shrink-0', compact ? 'mb-3' : 'mb-5')}>
         <div className="flex items-center justify-between gap-3">
           <h2 className="min-w-0 truncate text-lg font-semibold tracking-tight text-slate-800">
             {title}
           </h2>
           {extra ? (
-            <div className="flex min-w-0 shrink-0 items-center gap-2">{extra}</div>
+            <div className="flex min-w-0 items-center gap-2">{extra}</div>
           ) : null}
         </div>
         {description ? (
           <p className="mt-1 text-xs leading-relaxed text-slate-400">{description}</p>
         ) : null}
       </header>
-      <div className="min-w-0 flex-1 space-y-4">{children}</div>
+      <div className={cn('min-w-0 flex-1', compact ? 'space-y-3' : 'space-y-4')}>{children}</div>
     </section>
   );
 }
@@ -325,12 +328,10 @@ function RuntimeSection() {
   const [hostText, setHostText] = useState('0.0.0.0');
   const [portText, setPortText] = useState('8787');
   const [timeoutText, setTimeoutText] = useState('120');
-  const [stepsText, setStepsText] = useState(String(DEFAULT_AI_MAX_STEPS));
   const [loading, setLoading] = useState(true);
   const [hostTouched, setHostTouched] = useState(false);
   const [portTouched, setPortTouched] = useState(false);
   const [timeoutTouched, setTimeoutTouched] = useState(false);
-  const [stepsTouched, setStepsTouched] = useState(false);
   /** 拉到服务端配置后才允许自动保存，避免把加载值又原样写回 */
   const [configReady, setConfigReady] = useState(false);
 
@@ -338,8 +339,6 @@ function RuntimeSection() {
   const lastGoodPort = useRef<number>(8787);
   /** 超时的同一条兜底（此前超时非法会拦下整份配置的自动保存） */
   const lastGoodTimeout = useRef<number>(120);
-  /** AI 步数的同一条兜底 */
-  const lastGoodSteps = useRef<number>(DEFAULT_AI_MAX_STEPS);
 
   useEffect(() => {
     api.settings
@@ -353,9 +352,6 @@ function RuntimeSection() {
         setApiTimeoutMs(timeoutSec * 1000);
         lastGoodTimeout.current = timeoutSec;
         setTimeoutText(String(timeoutSec));
-        const steps = r.config.aiMaxSteps ?? DEFAULT_AI_MAX_STEPS;
-        lastGoodSteps.current = steps;
-        setStepsText(String(steps));
         setHostText(r.config.host || '0.0.0.0');
         setConfigReady(true);
       })
@@ -379,8 +375,6 @@ function RuntimeSection() {
     const timeoutOk =
       /^\d+$/.test(timeoutText.trim()) && Number(timeoutText) >= 5 && Number(timeoutText) <= 600;
     const timeoutToSave = timeoutOk ? Number(timeoutText) : lastGoodTimeout.current;
-    const stepsOk = /^\d+$/.test(stepsText.trim()) && Number(stepsText) >= 10 && Number(stepsText) <= 200;
-    const stepsToSave = stepsOk ? Math.floor(Number(stepsText)) : lastGoodSteps.current;
     if (configSaveTimer.current) clearTimeout(configSaveTimer.current);
     configSaveTimer.current = setTimeout(() => {
       api.settings
@@ -390,17 +384,15 @@ function RuntimeSection() {
           token: '',
           port: portToSave,
           apiTimeoutMs: timeoutToSave * 1000,
-          aiMaxSteps: stepsToSave,
         })
         .then(() => {
           if (portValid) lastGoodPort.current = portToSave;
           if (timeoutOk) lastGoodTimeout.current = timeoutToSave;
-          if (stepsOk) lastGoodSteps.current = stepsToSave;
           setApiTimeoutMs(timeoutToSave * 1000);
         })
         .catch(() => toast.error(t('settings.autoSaveFailed')));
     }, 500);
-  }, [config, portText, timeoutText, stepsText, configReady, t]);
+  }, [config, portText, timeoutText, configReady, t]);
 
   // 卸载时清掉未触发的自动保存计时器
   useEffect(
@@ -438,15 +430,10 @@ function RuntimeSection() {
     return '';
   }, [timeoutText, timeoutTouched, t]);
 
-  const stepsError = useMemo(() => {
-    if (!stepsTouched) return '';
-    if (!/^\d+$/.test(stepsText.trim())) return t('settings.enterValidNumber');
-    const n = Number(stepsText);
-    if (n < 10 || n > 200) return t('settings.aiStepsRangeError');
-    return '';
-  }, [stepsText, stepsTouched, t]);
-
   const restartHint = t('settings.restartHint');
+  /** 输入与当前运行值一致时没必要吓唬用户「重启生效」——这行提示只在真要改时才出现 */
+  const hostChanged = (hostText.trim() || '0.0.0.0') !== (config.host?.trim() || '0.0.0.0');
+  const portChanged = portText.trim() !== String(config.port ?? 8787);
 
   if (loading) {
     return (
@@ -463,13 +450,14 @@ function RuntimeSection() {
         className="kk-stagger-item kk-stagger-slow-2"
         title={t('settings.listenAddress')}
         tourId="settings-listen"
+        compact
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           <FormRow
             label={t('settings.listenAddress')}
             htmlFor="host"
             tourId="row-host"
-            hint={restartHint}
+            hint={hostChanged ? restartHint : undefined}
             error={hostError || undefined}
           >
             <Input
@@ -491,7 +479,7 @@ function RuntimeSection() {
             label={t('settings.backendPort')}
             htmlFor="port"
             tourId="row-port"
-            hint={restartHint}
+            hint={portChanged ? restartHint : undefined}
             error={portError || undefined}
           >
             <Input
@@ -515,8 +503,9 @@ function RuntimeSection() {
         className="kk-stagger-item kk-stagger-slow-3"
         title={t('settings.runtimeParams')}
         tourId="settings-runtime"
+        compact
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           <FormRow label={t('settings.logLevel')} htmlFor="logLevel" tourId="row-loglevel">
             <Select
               value={config.logLevel}
@@ -552,32 +541,6 @@ function RuntimeSection() {
               }}
               onBlur={() => setTimeoutTouched(true)}
               placeholder="120"
-            />
-          </FormRow>
-          <FormRow
-            label={t('settings.aiMaxSteps')}
-            htmlFor="aiMaxSteps"
-            hint={t('settings.aiStepsHint')}
-            error={stepsError || undefined}
-          >
-            <Input
-              id="aiMaxSteps"
-              inputMode="numeric"
-              autoComplete="off"
-              value={stepsText}
-              aria-invalid={stepsError ? true : undefined}
-              onChange={(e) => {
-                setStepsText(e.target.value);
-                setStepsTouched(true);
-              }}
-              onBlur={() => {
-                // 失焦取整收口：空串/越界回退最近合法值，行内报错只做提示
-                const n = Math.floor(Number(stepsText.trim()));
-                if (!Number.isFinite(n) || n < 10 || n > 200) setStepsText(String(lastGoodSteps.current));
-                else setStepsText(String(n));
-                setStepsTouched(true);
-              }}
-              placeholder={String(DEFAULT_AI_MAX_STEPS)}
             />
           </FormRow>
         </div>
@@ -643,9 +606,10 @@ function LoginGuardCard() {
 
   return (
     <SettingsCard
-      className="kk-stagger-item kk-stagger-slow-7 lg:col-span-2"
+      className="kk-stagger-item kk-stagger-slow-7"
       title={t('settings.loginGuard')}
       tourId="settings-login-guard"
+      compact
       extra={
         loginGuard ? (
           <span
@@ -674,26 +638,28 @@ function LoginGuardCard() {
         <p className="text-xs leading-relaxed text-muted-foreground">
           {t('settings.loginGuardDesc')}
         </p>
-        {loginGuard ? (
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
-            <span>
-              {t('settings.loginGuardFails')}{' '}
-              <span className="font-semibold">{loginGuard.failsInWindow}</span>
-            </span>
-            <span>
-              {t('settings.loginGuardSources')}{' '}
-              <span className="font-semibold">{loginGuard.distinctSources}</span>
-            </span>
-            <span>
-              {t('settings.loginGuardTrusted')}{' '}
-              <span className="font-semibold">{loginGuard.trustedSources}</span>
-            </span>
-          </div>
-        ) : null}
-        <div className="flex justify-end">
+        {/* 解除限制按钮与统计项同一行：不再独占一行留下大片空白，窄屏才换行 */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {loginGuard ? (
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
+              <span>
+                {t('settings.loginGuardFails')}{' '}
+                <span className="font-semibold">{loginGuard.failsInWindow}</span>
+              </span>
+              <span>
+                {t('settings.loginGuardSources')}{' '}
+                <span className="font-semibold">{loginGuard.distinctSources}</span>
+              </span>
+              <span>
+                {t('settings.loginGuardTrusted')}{' '}
+                <span className="font-semibold">{loginGuard.trustedSources}</span>
+              </span>
+            </div>
+          ) : null}
           <Button
             size="sm"
             variant="outline"
+            className="shrink-0"
             onClick={() => {
               api.loginGuard
                 .clear()
@@ -1277,6 +1243,11 @@ function StoreOriginCard() {
       className="kk-stagger-item kk-stagger-slow-6"
       title={t('settings.storeOrigin')}
       tourId="settings-store-origin"
+      extra={
+        <span className="text-xs font-normal leading-tight text-slate-400">
+          {t('settings.customUrlHint')}
+        </span>
+      }
     >
       <div className="space-y-3">
         <div
@@ -1334,7 +1305,6 @@ function StoreOriginCard() {
               auditStatus === 'invalid' && 'kk-audit-invalid',
             )}
           />
-          <p className="text-xs leading-relaxed text-slate-400">{t('settings.customUrlHint')}</p>
         </div>
       </div>
     </SettingsCard>
@@ -1693,257 +1663,10 @@ function StoreSection() {
 
 /* ══════════════════════ 分区四：环境与帮助 ══════════════════════ */
 
-/**
- * 图片引擎环境卡：状态探测 + 手动安装 + 运行中 1s 轮询。
- * 自成组件：轮询 setState 只重渲染这一张卡。
- */
-const UPDATE_MIRROR_KEY = 'kakake_update_mirror';
-
-function currentUpdateMirror(): string {
-  try {
-    return localStorage.getItem(UPDATE_MIRROR_KEY) || '';
-  } catch {
-    return '';
-  }
-}
-
-function SharpEnvCard() {
-  const t = useT();
-  const [sharpEnv, setSharpEnv] = useState<SharpEnvState | null>(null);
-  const [sharpLoading, setSharpLoading] = useState(true);
-  const [sharpStarting, setSharpStarting] = useState(false);
-  const [redetecting, setRedetecting] = useState(false);
-  const [logOpen, setLogOpen] = useState(false);
-  const sharpPhaseRef = useRef<string>('');
-
-  const refreshSharpEnv = useCallback(async (): Promise<SharpEnvState | null> => {
-    try {
-      const s = await api.systemSharp(currentUpdateMirror());
-      const prev = sharpPhaseRef.current;
-      const now = s.job?.phase || '';
-      // 轮询期间任务收尾 → 给一次提示（失败原因在卡片里也能看到）
-      if (prev === 'running' && now && now !== 'running') {
-        if (now === 'done') toast.success(t('settings.sharpInstallDone'));
-        else toast.error(svcText(s.job?.error) || svcText(s.job?.message) || t('settings.installFailed'));
-      }
-      sharpPhaseRef.current = now;
-      setSharpEnv(s);
-      return s;
-    } catch {
-      /* 网络/会话问题：保持上一次的值，不打断用户 */
-      return null;
-    } finally {
-      setSharpLoading(false);
-    }
-  }, [t]);
-
-  /** 首次进入设置页读一次环境状态 */
-  useEffect(() => {
-    void refreshSharpEnv();
-  }, [refreshSharpEnv]);
-
-  /** 仅在安装进行中轮询（1s），任务结束即停，不留常驻定时器 */
-  useEffect(() => {
-    if (sharpEnv?.job?.phase !== 'running') return;
-    const timer = setInterval(() => { void refreshSharpEnv(); }, 1000);
-    return () => clearInterval(timer);
-  }, [sharpEnv?.job?.phase, refreshSharpEnv]);
-
-  const installSharp = () => {
-    if (sharpStarting || sharpEnv?.job?.phase === 'running') return;
-    setLogOpen(false);
-    setSharpStarting(true);
-    api.systemSharpInstall(currentUpdateMirror())
-      .then((s) => {
-        setSharpEnv(s);
-        sharpPhaseRef.current = s.job?.phase || '';
-        toast.success(t('settings.installStarted'));
-      })
-      .catch((e) => {
-        void refreshSharpEnv();
-        toast.error(errText(e) || t('settings.cannotStartInstall'));
-      })
-      .finally(() => setSharpStarting(false));
-  };
-
-  const redetectSharp = async () => {
-    if (redetecting) return;
-    setRedetecting(true);
-    try {
-      const s = await refreshSharpEnv();
-      if (!s) {
-        toast.error(t('settings.redetectFailed'));
-        return;
-      }
-      if (s.loadable) toast.success(t('settings.redetectOk'));
-      else toast.warning(t('settings.redetectIncomplete'));
-    } finally {
-      setRedetecting(false);
-    }
-  };
-
-  return (
-    <SettingsCard
-      className="kk-stagger-item kk-stagger-slow-6"
-      title={t('settings.sharpEnv')}
-      tourId="settings-sharp"
-      extra={
-        sharpLoading && !sharpEnv ? (
-          <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {t('settings.detectingEnv')}
-          </span>
-        ) : sharpEnv ? (
-          <>
-            {sharpEnv.loadable ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-teal-500/10 px-2.5 py-1 text-xs font-medium text-teal-700">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {t('settings.ready')}
-              </span>
-            ) : (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                {sharpEnv.packagePresent ? t('settings.depsIncomplete') : t('settings.notInstalled')}
-              </span>
-            )}
-            {/* 版本号较长，只在 sm 以上显示，手机端只留状态徽标 */}
-            {sharpEnv.loadable ? (
-              <span className="hidden truncate font-mono text-[11px] text-slate-500 sm:inline">
-                sharp {sharpEnv.version} · libvips {sharpEnv.vips}
-              </span>
-            ) : null}
-          </>
-        ) : null
-      }
-    >
-      {sharpEnv ? (
-        <>
-          {/* 手机上三枚按钮收成 2+1：前两枚并排，重检测整行铺满，不再靠 truncate 硬挤 */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <Button
-              type="button"
-              className="h-9 w-full min-w-0 gap-1 px-1 text-xs sm:px-3 sm:text-sm"
-              disabled={!sharpEnv.canInstall || sharpStarting}
-              onClick={installSharp}
-            >
-              {sharpStarting || sharpEnv.job?.phase === 'running' ? (
-                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-              ) : (
-                <Wrench className="h-3.5 w-3.5 shrink-0" />
-              )}
-              <span className="truncate">
-                {sharpEnv.job?.phase === 'running'
-                  ? t('settings.installing')
-                  : sharpEnv.loadable
-                    ? t('settings.reinstall')
-                    : t('settings.install')}
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 w-full min-w-0 gap-1 px-1 text-xs sm:px-3 sm:text-sm"
-              onClick={() => {
-                // 装到共享目录（data/runtime-deps）：与 MKbot 插件共用同一份 sharp
-                void copyToClipboard(
-                  `cd "${sharpEnv.installDir}"\nnpm install --omit=dev --include=optional --no-audit --no-fund`,
-                );
-                toast.success(t('settings.commandCopied'));
-              }}
-            >
-              <Copy className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{t('settings.copyCommand')}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="col-span-2 h-9 w-full min-w-0 gap-1 px-1 text-xs sm:col-span-1 sm:px-3 sm:text-sm"
-              disabled={sharpEnv.job?.phase === 'running' || redetecting}
-              onClick={() => { void redetectSharp(); }}
-            >
-              {redetecting ? (
-                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-              ) : (
-                <Compass className="h-3.5 w-3.5 shrink-0" />
-              )}
-              <span className="truncate">
-                {redetecting ? t('settings.detecting') : t('settings.redetect')}
-              </span>
-            </Button>
-          </div>
-
-          <p className="break-all font-mono text-[11px] text-slate-500">
-            {t('settings.sharpRegistry', { registry: sharpEnv.npmRegistry })}
-          </p>
-
-          {!sharpEnv.loadable && (sharpEnv.error || !sharpEnv.platformPackageInstalled) ? (
-            <div className="space-y-1 rounded-lg bg-amber-500/10 px-3 py-2">
-              {!sharpEnv.platformPackageInstalled ? (
-                <p className="break-all text-xs leading-relaxed text-amber-800">
-                  {t('settings.sharpMissingPackage', { pkg: sharpEnv.platformPackage })}
-                </p>
-              ) : null}
-              {sharpEnv.error ? (
-                <p className="break-all font-mono text-[11px] leading-relaxed text-amber-800">
-                  {sharpEnv.error}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {sharpEnv.job ? (
-            <div className="space-y-1.5">
-              {sharpEnv.job.phase === 'running' ? (
-                <p className="font-mono text-xs text-slate-600">
-                  {t('settings.sharpDownloaded', {
-                    size: (Math.max(0, sharpEnv.job.downloadedBytes || 0) / 1048576).toFixed(2),
-                  })}
-                </p>
-              ) : null}
-              <p
-                className={cn(
-                  'text-xs',
-                  sharpEnv.job.phase === 'error'
-                    ? 'text-amber-700'
-                    : sharpEnv.job.phase === 'done'
-                      ? 'text-teal-700'
-                      : 'text-slate-500',
-                )}
-              >
-                {sharpEnv.job.message}
-                {sharpEnv.job.error ? `：${sharpEnv.job.error}` : ''}
-              </p>
-              <button
-                type="button"
-                onClick={() => setLogOpen((v) => !v)}
-                className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition-colors hover:text-slate-700"
-              >
-                {logOpen ? (
-                  <ChevronUp className="h-3.5 w-3.5 shrink-0" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-                )}
-                {t('settings.sharpLogToggle', { n: sharpEnv.job.lines.length })}
-              </button>
-              {logOpen ? (
-                <pre className="kk-field no-scrollbar max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg p-3 font-mono text-[11px] leading-relaxed text-slate-500">
-                  {sharpEnv.job.lines.join('\n')}
-                </pre>
-              ) : null}
-            </div>
-          ) : null}
-        </>
-      ) : null}
-    </SettingsCard>
-  );
-}
-
 function SystemSection() {
   const t = useT();
   return (
     <SettingsSection id="kk-sec-system" labelKey="settings.sectionSystem">
-      <SharpEnvCard />
-
       <SettingsCard
         className="kk-stagger-item kk-stagger-slow-6"
         title={t('settings.tour')}

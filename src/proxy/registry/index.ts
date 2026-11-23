@@ -12,6 +12,7 @@ import { officialEntries } from './entries/official.js';
 import { official2026Entries } from './entries/official-2026.js';
 import { wildEntries } from './entries/wild.js';
 import { nativeEntries } from './entries/native.js';
+import { browserEntries } from './entries/browser.js';
 
 export const PROXY_ENTRIES: ProxyApiEntry[] = [
   ...messageEntries,
@@ -26,6 +27,7 @@ export const PROXY_ENTRIES: ProxyApiEntry[] = [
   ...official2026Entries,
   ...wildEntries,
   ...nativeEntries,
+  ...browserEntries,
 ];
 
 /** 短名索引，调用时的热路径 */

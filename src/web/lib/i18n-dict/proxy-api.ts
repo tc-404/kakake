@@ -13,8 +13,13 @@ const proxyApiMessages = {
   'nav.short.proxyApi': { zh: '代理', en: 'Proxy' },
 
   // ───────── 列表 / 筛选 ─────────
-  'proxyApi.searchPh': { zh: '搜索短名 / 中文名 / 别名', en: 'Search by name / title / alias' },
+  'proxyApi.searchPh': { zh: '搜索短名 / 中文名 / 地址 / 别名', en: 'Search by name / title / path / alias' },
   'proxyApi.protocolFilter': { zh: '协议', en: 'Protocol' },
+  'proxyApi.nativeFilter': { zh: '目录', en: 'Directory' },
+  'proxyApi.nativeFilterHint': {
+    zh: '框架 / 对内 / 对外：这三类是真实地址的直调接口，不经协议代理；勾选后只看对应目录',
+    en: 'Framework / Internal / External: direct endpoints with real paths, not protocol-proxied; check to show only those directories',
+  },
   'proxyApi.filterHint': {
     zh: '勾选后仅显示同时支持所有所选协议的接口；全不选 = 不过滤',
     en: 'When checked, only APIs supporting ALL selected protocols are shown; none checked = no filter',
@@ -92,6 +97,23 @@ const proxyApiMessages = {
   'proxyApi.cat.interaction': { zh: '交互', en: 'Interaction' },
   'proxyApi.cat.wild-only': { zh: '野生专属', en: 'Wild only' },
   'proxyApi.cat.native': { zh: '原生直通', en: 'Native' },
+  'proxyApi.cat.framework': { zh: '框架', en: 'Framework' },
+  'proxyApi.cat.internal': { zh: '对内', en: 'Internal' },
+  'proxyApi.cat.external': { zh: '对外', en: 'External' },
+
+  // ───────── 非代理接口（框架 / 对内 / 对外） ─────────
+  'proxyApi.nativeKind': { zh: '直调接口 · 不经协议代理', en: 'Direct endpoint · no protocol proxy' },
+  'proxyApi.nativeAddress': { zh: '调用地址', en: 'Endpoint' },
+  'proxyApi.nativeMethod': { zh: '方法', en: 'Method' },
+  'proxyApi.nativeAuth': { zh: '鉴权方式', en: 'Authentication' },
+  'proxyApi.nativeGate': { zh: '放行条件', en: 'Access conditions' },
+  'proxyApi.nativeResponse': { zh: '返回形态', en: 'Response' },
+  'proxyApi.nativeSource': { zh: '源码位置', en: 'Source' },
+  'proxyApi.nativeParamIn': { zh: '位置', en: 'In' },
+  'proxyApi.nativeDirectHint': {
+    zh: '这里显示的是原本的调用方式：地址、方法、参数与鉴权都按源码如实填写，不会经过 kakake_api 翻译。',
+    en: 'Shown exactly as implemented: address, method, parameters and authentication come from the source, with no kakake_api translation.',
+  },
 } as const;
 
 registerMessages(proxyApiMessages);

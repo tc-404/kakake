@@ -269,6 +269,12 @@ registerMessages({
   'ai.builtinPersona': { zh: '内置人设', en: 'built-in persona' },
   'ai.freeMode': { zh: '其他（自由模式）', en: 'Other (free mode)' },
 
+  // ───────── 单轮最大步数（全局配置，编辑界面内维护）─────────
+  'ai.globalSetting': { zh: '全局', en: 'Global' },
+  'ai.maxStepsApply': { zh: '保存步数', en: 'Save steps' },
+  'ai.maxStepsSaved': { zh: '最大步数已保存', en: 'Max steps saved' },
+  'ai.maxStepsSaveFailed': { zh: '最大步数保存失败', en: 'Failed to save max steps' },
+
   // ───────── 写入确认闸门（待应用改动面板）─────────
   'ai.pwTitle': { zh: '待应用改动', en: 'Pending changes' },
   'ai.pwHint': {

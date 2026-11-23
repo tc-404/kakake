@@ -83,6 +83,10 @@ const NAPCAT: ProxyTargetResult = {
   ok: true,
   target: { protocol: 'napcat', connectionId: 'c1', onebotImpl: 'napcat' },
 };
+const SNOWLUMA: ProxyTargetResult = {
+  ok: true,
+  target: { protocol: 'snowluma', connectionId: 'cs', onebotImpl: 'snowluma' },
+};
 const OFFICIAL: ProxyTargetResult = {
   ok: true,
   target: { protocol: 'official', connectionId: 'c2' },
@@ -145,6 +149,57 @@ test('协议不支持 → unsupported 信封，并列出该接口支持哪些协
   assert.equal(r.retcode, PROXY_RETCODE.unsupported);
   assert.ok(r.message.includes('NapCat'), '要说明当前连接是什么');
   assert.ok(r.message.includes('官方'), '要说明该接口支持什么');
+});
+
+test('force：同族协议可借实现，并在 _proxy.degraded 留痕', async () => {
+  const t = stubTransport([() => okEnv(null)]);
+  // get_robot_uin_range 只有 NapCat 实现，SnowLuma 同为 OneBot action 族
+  const r = await dispatch(makeDeps(t, SNOWLUMA), {
+    api: 'get_robot_uin_range', method: 'POST', params: {}, opts: { force: true },
+  });
+  assert.equal(r.status, 'ok');
+  assert.equal(r._proxy.degraded, 'unsupported');
+  assert.equal(r._proxy.protocol, 'snowluma', '元信息仍记录真实的目标协议');
+  assert.equal(t.calls.length, 1);
+  assert.equal(t.calls[0]?.action, 'get_robot_uin_range');
+});
+
+test('force：不传force时不支持仍然报错，没有请求发出', async () => {
+  const t = stubTransport([() => okEnv(null)]);
+  const r = await dispatch(makeDeps(t, SNOWLUMA), {
+    api: 'get_robot_uin_range', method: 'POST', params: {},
+  });
+  assert.equal(r._proxy.failure, 'unsupported');
+  assert.equal(r._proxy.degraded, undefined);
+  assert.equal(t.calls.length, 0);
+});
+
+test('force：跨传输族无效，官方连接拿不到 OneBot 实现', async () => {
+  const t = stubTransport([() => okEnv(null)]);
+  const r = await dispatch(makeDeps(t, OFFICIAL), {
+    api: 'get_robot_uin_range', method: 'POST', params: {}, opts: { force: true },
+  });
+  assert.equal(r._proxy.failure, 'unsupported');
+  assert.ok(r.message.includes('无法跨'), '要讲清楚 force 的边界');
+  assert.equal(t.calls.length, 0);
+});
+
+test('stub 默认拦截；force 才放行并标记 degraded=stub', async () => {
+  const t = stubTransport([() => okEnv(null)]);
+  const blocked = await dispatch(makeDeps(t, SNOWLUMA), {
+    api: 'restart_service', method: 'POST', params: {},
+  });
+  assert.equal(blocked._proxy.failure, 'unsupported');
+  assert.equal(blocked._proxy.degraded, 'stub');
+  assert.ok(blocked.message.includes('占位实现'));
+  assert.equal(t.calls.length, 0, 'stub 不该真的发到协议端');
+
+  const forced = await dispatch(makeDeps(t, SNOWLUMA), {
+    api: 'restart_service', method: 'POST', params: {}, opts: { force: true },
+  });
+  assert.equal(forced.status, 'ok');
+  assert.equal(forced._proxy.degraded, 'stub');
+  assert.equal(t.calls.length, 1);
 });
 
 test('缺 scene → missing-param（少传参数，不是协议不支持）', async () => {

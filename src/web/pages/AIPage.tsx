@@ -5,6 +5,8 @@ import {
   Square, Image as ImageIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
+import { DEFAULT_AI_MAX_STEPS } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -507,6 +509,9 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
   const [models, setModels] = useState<string[]>([]);
   const [modelsOpenSignal, setModelsOpenSignal] = useState(0);
   const [testStatus, setTestStatus] = useState<Record<string, TestStatus>>({});
+  /** AI 单轮最大步数：全局配置，从设置页迁到这里，属于「智能助手」而不是「运行参数」 */
+  const [stepsText, setStepsText] = useState(String(DEFAULT_AI_MAX_STEPS));
+  const [stepsSaving, setStepsSaving] = useState(false);
   /** 全局 token 计量：常态内嵌在「模型服务」弹窗里（不再用按钮展开），打开弹窗即自动加载 */
   const [metering, setMetering] = useState<Awaited<ReturnType<typeof aiApi.globalUsage>> | null>(null);
   const [meterCur, setMeterCur] = useState<'cny' | 'usd'>('cny');
@@ -527,10 +532,42 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
   }, []);
 
   useEffect(() => {
-    if (open) { reload(); void loadMetering(); setView('list'); setDraft({ ...EMPTY_PROFILE }); setTip(''); setModels([]); }
+    if (open) {
+      reload();
+      void loadMetering();
+      setView('list');
+      setDraft({ ...EMPTY_PROFILE });
+      setTip('');
+      setModels([]);
+      // 最大步数存在全局配置里，只在打开弹窗时读一次，不在模型档案之间共享草稿
+      void api.settings.get()
+        .then((r) => setStepsText(String(r.config.aiMaxSteps ?? DEFAULT_AI_MAX_STEPS)))
+        .catch(() => { /* 读不到就保留缺省值，不打断编辑模型 */ });
+    }
   }, [open, reload]);
 
   const patch = (p: Partial<AiProfile>) => setDraft((d) => ({ ...d, ...p }));
+
+  /** 最大步数是全局配置，单独保存，不跟模型档案的「保存」绑在一起 */
+  const saveMaxSteps = async () => {
+    const raw = stepsText.trim();
+    const n = Math.floor(Number(raw));
+    if (!/^\d+$/.test(raw) || !Number.isFinite(n) || n < 10 || n > 200) {
+      toast.error(t('settings.aiStepsRangeError'));
+      return;
+    }
+    setStepsSaving(true);
+    try {
+      await api.settings.save({ aiMaxSteps: n });
+      setStepsText(String(n));
+      toast.success(t('ai.maxStepsSaved'));
+    } catch (err) {
+      toast.error(errText(err) || t('ai.maxStepsSaveFailed'));
+    } finally {
+      setStepsSaving(false);
+    }
+  };
+
   /** 计费配置（兜底默认值，避免 undefined 下表单控件失控） */
   const pr: AiPricing = draft.pricing ?? DEFAULT_PRICING;
 
@@ -952,6 +989,32 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
                   </span>
                 </span>
               </label>
+              <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-2 sm:col-span-2">
+                <label className="min-w-0 flex-1 space-y-1 text-xs text-slate-500">
+                  <span>
+                    {t('settings.aiMaxSteps')}
+                    <span className="ml-1 text-[10px] text-slate-400">({t('ai.globalSetting')})</span>
+                  </span>
+                  <Input
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={stepsText}
+                    aria-label={t('settings.aiMaxSteps')}
+                    onChange={(e) => setStepsText(e.target.value)}
+                    onBlur={() => {
+                      const n = Math.floor(Number(stepsText.trim()));
+                      if (/^\d+$/.test(stepsText.trim()) && Number.isFinite(n) && n >= 10 && n <= 200) {
+                        setStepsText(String(n));
+                      }
+                    }}
+                    placeholder={String(DEFAULT_AI_MAX_STEPS)}
+                  />
+                  <span className="block text-[10px] leading-relaxed text-slate-400">{t('settings.aiStepsHint')}</span>
+                </label>
+                <Button variant="outline" size="sm" disabled={stepsSaving} onClick={() => { void saveMaxSteps(); }}>
+                  {t('ai.maxStepsApply')}
+                </Button>
+              </div>
             </div>
             {tip && <div className="rounded-md bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600">{tip}</div>}
             <div className="flex justify-end gap-2">

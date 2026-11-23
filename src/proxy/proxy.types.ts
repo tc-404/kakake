@@ -7,6 +7,7 @@
  *   1. 返回值透传：上游原样返回，元信息挂在并列的 `_proxy` 上，不污染原始字段。
  *   2. 永不空返回：一切失败都合成失败信封 resolve，绝不 reject / undefined。
  *   3. 协议不支持就是报错：野生调官方专属（或反向）按失败返回，除非显式 `force`。
+ *      force 仅在同传输族内借实现（NapCat ↔ SnowLuma），跨 OneBot / 官方无效。
  */
 
 /* ────────────────────────────── 协议与分类 ────────────────────────────── */
@@ -387,8 +388,11 @@ export interface ProxyCallOptions {
    */
   throwOnError?: boolean;
   /**
-   * 忽略「协议不支持」降级，强行发出请求。
-   * 用于探索性调用；即便如此 `_proxy.degraded` 依然会标记。
+   * 探索模式，默认关闭。两件事：
+   *  1. 当前协议没有 impl 时，从同传输族的另一协议借实现（NapCat ↔ SnowLuma）。
+   *     OneBot ↔ 官方跨族借不了：action 填不进 path，强行发只会被传输层拒绝。
+   *  2. 协议端标注 stub（未实现）的能力默认拦截，force 才放行。
+   * 两种放行都会写 `_proxy.degraded`（unsupported / stub），结果仍按上游原文透传。
    */
   force?: boolean;
 }

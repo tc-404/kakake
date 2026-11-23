@@ -421,7 +421,7 @@ Linux `mk` 脚本用法见 [`使用教程/MK工具教程.txt`](./使用教程/MK
 
 ## 版本
 
-- 当前 `package.json` 版本：`0.6.11-beta.5`
+- 当前 `package.json` 版本：`0.6.11-rc.1`
 - GitHub Release 资产附有 Ed25519 签名（`<资产>.sig`），由 CI 工作流在发版后自动生成
 - 文档随仓库更新；连接步骤以 `使用教程/连接教程.txt` 为准；Telegram Bot 以 `使用教程/Telegram Bot 接入教程.md` 为准；`mk` 脚本以 `使用教程/MK工具教程.txt` 为准
 

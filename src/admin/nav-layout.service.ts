@@ -18,6 +18,7 @@ export const NAV_HREFS: readonly string[] = [
   '/plugins',
   '/plugin-store',
   '/tools',
+  '/render-tools',
   '/open-platform',
   '/ai',
   '/simulate',
@@ -30,6 +31,7 @@ export const NAV_HREFS: readonly string[] = [
 /** 允许隐藏的入口：其余一律不可移除 */
 export const NAV_HIDABLE: readonly string[] = [
   '/tools',
+  '/render-tools',
   '/open-platform',
   '/ai',
   '/simulate',

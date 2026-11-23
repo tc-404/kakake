@@ -25,6 +25,7 @@ export const NAV_HREFS: readonly string[] = [
   '/plugins',
   '/plugin-store',
   '/tools',
+  '/render-tools',
   '/open-platform',
   '/ai',
   '/simulate',
@@ -34,9 +35,10 @@ export const NAV_HREFS: readonly string[] = [
   '/settings',
 ];
 
-/** 允许隐藏的入口：实用工具 / 开放平台 / 智能助手 / 模拟消息 / 接口代理，其余不可移除 */
+/** 允许隐藏的入口：实用工具 / 渲染工具 / 开放平台 / 智能助手 / 模拟消息 / 接口代理，其余不可移除 */
 export const NAV_HIDABLE: readonly string[] = [
   '/tools',
+  '/render-tools',
   '/open-platform',
   '/ai',
   '/simulate',

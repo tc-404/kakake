@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Cable, Puzzle, Store, Wrench, Rocket, Sparkles, ScrollText, Settings, LogOut, MessagesSquare, Github, Menu, X,
-  Pencil, Check, RotateCcw, Lock, Network, HeartHandshake,
+  Pencil, Check, RotateCcw, Lock, Network, HeartHandshake, Paintbrush,
 } from 'lucide-react';
 import { useEffect, useRef, useState, Suspense, lazy, useSyncExternalStore, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ import { useSessionActivity } from '@/lib/session-activity';
 import { setLanguageLocal } from '@/lib/language';
 import { useEventSource } from '@/lib/sse';
 import { pushContent } from '@/lib/content-push';
+import { mobileNavMode, pcNavMode, type NavMode } from '@/lib/nav-shape';
 import { toast } from 'sonner';
 import { useLiquidIndicator } from '@/hooks/use-liquid-indicator';
 import { useLiquidNavDrag } from '@/hooks/use-liquid-nav-drag';
@@ -70,6 +71,7 @@ const NAV = [
   { href: '/plugins', navKey: 'nav.plugins', shortKey: 'nav.short.plugins', icon: Puzzle },
   { href: '/plugin-store', navKey: 'nav.pluginStore', shortKey: 'nav.short.pluginStore', icon: Store },
   { href: '/tools', navKey: 'nav.tools', shortKey: 'nav.short.tools', icon: Wrench },
+  { href: '/render-tools', navKey: 'nav.renderTools', shortKey: 'nav.short.renderTools', icon: Paintbrush },
   { href: '/open-platform', navKey: 'nav.openPlatform', shortKey: 'nav.short.openPlatform', icon: Rocket },
   { href: '/ai', navKey: 'nav.ai', shortKey: 'nav.short.ai', icon: Sparkles },
   { href: '/simulate', navKey: 'nav.simulate', shortKey: 'nav.short.simulate', icon: MessagesSquare },
@@ -81,61 +83,17 @@ const NAV = [
   { href: '/settings', navKey: 'nav.settings', shortKey: 'nav.short.settings', icon: Settings },
 ];
 
-/**
- * 电脑侧栏「窄到只放得下两字」的阈值（px）：低于它导航项改用两字短名（概览/连接…），
- * 否则四字全称在窄栏会被挤成省略号。
- */
-const NAV_COMPACT_PX = 140;
-
-/**
- * 电脑侧栏「窄到放不下图标 + 文字」的阈值（px）：低于它，带文字按钮收图标只留文字——
- * 图标 16px + gap 10px 占 26px，收掉后两字短名正好放下。纯图标按钮（导航编辑/GitHub）
- * 本就没有文字可退，不受影响。
- */
-const NAV_NO_ICON_PX = 105;
-
-/**
- * 电脑侧栏「连文字都放不下」的阈值（px），档位兜底：低于它只留图标——50px 下限里两个汉字
- * 必然截断，与其显示「系…」不如图标居中。手机端同档阈值见 NAV_NO_TEXT_VW（按屏宽百分比）。
- */
-const NAV_NO_TEXT_PX = 80;
-
-/**
- * 手机侧栏阈值，单位是屏宽百分比（与「侧边栏宽度 · 手机」滑块同单位）：手机侧栏是覆盖式
- * 抽屉、宽度按屏宽走，不能复用电脑的 px 阈值。三档（下限 20%）：≥40% 图标+全称；
- * 25~39% 只留两字短名收图标；<25% 只留图标居中（放不下汉字）——与电脑最窄档只留文字不同。
- */
-const NAV_COMPACT_VW = 40;
-const NAV_NO_TEXT_VW = 25;
-
-/**
- * 侧栏一行四种形态：full=图标+全称；short=图标+两字短名；text=只留短名；icon=只留图标。
- */
-type NavMode = 'full' | 'short' | 'text' | 'icon';
-
-/** 电脑端（px）：≥ 140 全称、105 ~ 139 短名、80 ~ 104 只留文字、< 80 只留图标 */
-function pcNavMode(widthPx: number): NavMode {
-  if (widthPx >= NAV_COMPACT_PX) return 'full';
-  if (widthPx >= NAV_NO_ICON_PX) return 'short';
-  if (widthPx >= NAV_NO_TEXT_PX) return 'text';
-  return 'icon';
-}
-
-/** 手机端（屏宽百分比）：≥ 40 全称、25 ~ 39 只留文字、< 25 只留图标 */
-function mobileNavMode(widthVw: number): NavMode {
-  if (widthVw >= NAV_COMPACT_VW) return 'full';
-  if (widthVw >= NAV_NO_TEXT_VW) return 'text';
-  return 'icon';
-}
+/** 侧栏形态判定已抽到 lib/nav-shape.ts（编辑模式的额外宽度也在那里算），此处直接用。 */
 
 /**
  * 侧栏自适应形态：手机按屏宽百分比、电脑按像素分别判定，同一值可能一端窄一端不窄，
  * 所以每个结论给两份 display 类——不带前缀的管手机，md: 的管电脑。以下 class 直接给 JSX 用。
  */
-function useSidebarShape() {
+function useSidebarShape(editMode = false) {
   const appearance = useSyncExternalStore(subscribeAppearance, getAppearanceSnapshot, getAppearanceSnapshot);
-  const pc = pcNavMode(appearance.sidebarWidthPc);
-  const mobile = mobileNavMode(appearance.sidebarWidthMobile);
+  // 编辑模式多出一枚 24px 工具按钮，判定前先把它占的宽度扣掉，避免全称被砍半截
+  const pc = pcNavMode(appearance.sidebarWidthPc, editMode);
+  const mobile = mobileNavMode(appearance.sidebarWidthMobile, editMode);
   /** 只有文字、或只有图标时，那一个元素要居中摆——否则空出另一格，整排看着偏左 */
   const lone = (m: NavMode) => m === 'text' || m === 'icon';
   return {
@@ -234,7 +192,7 @@ function SidebarNav({
     iconClass: navIconClass,
     centerClass: navCenterClass,
     textWrapClass: navTextWrapClass,
-  } = useSidebarShape();
+  } = useSidebarShape(editMode);
   // 完整特效档才启用水的形态（gooey 融合 / 重力水滴 / 引力斜倾）；低配档回落到纯玻璃块
   const fullEffects = tier === 'normal';
 
@@ -673,6 +631,8 @@ function ConsoleShellInner({ children }: { children: ReactNode }) {
   const version = useFrameworkVersion();
   const brandTitle = useBrandTitle();
   const t = useT();
+  // 侧栏编辑态要先于形态判定拿到：编辑时多出的工具按钮会吃掉文字宽度
+  const [navEdit, setNavEdit] = useState(false);
   // 侧栏窄栏形态（两字短名 / 收掉图标）：底部这一行的按钮与导航项共用同一套判定
   const {
     fullClass: navFullClass,
@@ -684,7 +644,7 @@ function ConsoleShellInner({ children }: { children: ReactNode }) {
     iconRowClass,
     mobileCenter,
     pcCenter,
-  } = useSidebarShape();
+  } = useSidebarShape(navEdit);
   /**
    * 侧栏开合。初始值见 initialSidebarOpen()：电脑端还原上次状态（刷新不关）、
    * 手机端收起。展开后只由用户自己关（电脑点顶栏按钮，手机点侧栏外的空白或按 Esc）。
@@ -703,7 +663,6 @@ function ConsoleShellInner({ children }: { children: ReactNode }) {
   /* ─────────── 侧栏导航自定义（顺序 + 隐藏，存后端 data/nav-layout.json） ─────────── */
   const navLayout = useSyncExternalStore(subscribeNavLayout, getNavLayoutSnapshot, getNavLayoutSnapshot);
   /** 编辑中的草稿：改动先落在它身上，点「完成」才落库，中途放弃也不影响线上显示 */
-  const [navEdit, setNavEdit] = useState(false);
   const [navDraft, setNavDraft] = useState<NavLayout>(navLayout);
   const [navSaving, setNavSaving] = useState(false);
 

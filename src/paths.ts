@@ -131,4 +131,8 @@ export const PATHS = {
   tmp: path.join(DATA_DIR, 'tmp'),
   /** 技能包持久化目录：每个已安装技能一个子目录（含 SKILL.md 等），data/skills/<name>/ */
   skills: path.join(DATA_DIR, 'skills'),
+  /** 渲染工具：三浏览器各自的模式 / 端口 / 空闲参数配置（data/browsers.json） */
+  browsers: path.join(DATA_DIR, 'browsers.json'),
+  /** 渲染工具：kakake 安装的浏览器根目录（与 sharp 同在 data/runtime-deps 下） */
+  browsersDir: path.join(DATA_DIR, 'runtime-deps', 'browsers'),
 } as const;

@@ -35,7 +35,10 @@
 2. **永不空返回。** 超时、报错、协议不支持、参数缺失，一律合成失败信封 resolve 回来。
    绝不 reject、绝不返回 `undefined` / `null`。
 3. **协议不支持就是报错。** 野生机器人调官方专属能力（或反向），即便协议端可能「通」，
-   也返回失败信封——除非显式传 `force: true` 探索。
+   也返回失败信封——除非显式传 `force: true` 探索。force 的边界是**同传输族**：
+   NapCat ↔ SnowLuma 同为 OneBot action，可借用实现；OneBot ↔ QQ 官方的
+   action / path 互不兼容，force 也跨不过去。协议端自己标了 `stub`（文档注明未实现）
+   的能力默认同样拦截，force 才放行。两种情况都会在 `_proxy.degraded` 留痕。
 
 ---
 
@@ -102,6 +105,14 @@ else console.warn(res.message, res._proxy.failure);   // 失败也一定有值�
 
 ## 外放给外部调用
 
+> **风险声明（务必先读）**：开关一开，控制台 Bearer 密钥就等于**机器人的完整控制凭证**。
+> 外放层不区分 `risk: 'read' | 'write' | 'danger'`，注册表里全部 292 条短名都可通过
+> `/api/v1/<短名>` 调用——发消息、删消息、踢人、`get_client_key`、
+> `restart_kakake`、`browser_stop` / `browser_restart`（`browser_status` 还会返回 CDP 地址）
+> 全在里面。当前设计不做二次确认，也不按风险等级拆分权限。
+> 只把密钥给完全可信的调用方；泄露后的处置方式是立刻在设置页改密钥并关掉开关。
+> 只读概览请用另一个开关下的 `/api/public`，那边的 exposure 面小得多。
+
 设置页打开「接口代理外放 API」开关后：
 
 ```bash
@@ -120,6 +131,25 @@ curl -X POST -H "Authorization: Bearer <控制台密钥>"   -H "Content-Type: ap
 - HTTP 状态码的分工：代理层**受理**了请求就回 200，真实成败在 body 的信封里
   （那才是按原文档透传的产物）；401 密钥错 / 403 开关没开 / 404 没有这个短名 /
   429 限流，这些是 kakake 自己的边界，才用真实状态码。
+
+## 框架 / 对内 / 对外：非代理接口目录
+
+控制台「接口代理」页除了 292 条协议代理短名，还展示三类**不经代理**的直调接口。
+它们的数据源是 `src/proxy/catalog/native-endpoints.ts`，由 `GET /api/proxy/apis`
+的 `endpoints` 字段一起下发；**只展示，不参与分发、不进注册表门禁**。
+
+| 分类 | 含义 | 例子 |
+|---|---|---|
+| 框架 | 框架自身能力，控制台会话或 framework 动作 | 重载插件、写入插件配置、浏览器启停、重启框架 |
+| 对内 | 默认只给本机 / 内网用，无 token 时按来源 IP 判定 | `/api/local/connections`、OneBot 事件上报 / 取流 / 反向 WS |
+| 对外 | 面向公网入站或外部程序调用 | `/api/public`、`/api/v1/<短名>`、QQ 官方 / Telegram 回调、插件 noauth API |
+
+每条都写真实 HTTP 方法、路径模板、鉴权方式、放行条件、参数位置（path/query/body/header）、
+返回形态和源码出处；中英文由数据本身携带，切换界面语言即生效。
+**新增这类目录条目时只需改 `native-endpoints.ts`**，不要往 `registry/entries/` 里塞——
+那会破坏注册表与上游快照的一一对账。
+
+---
 
 ## 连接页的「协议端实现」
 

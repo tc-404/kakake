@@ -368,7 +368,7 @@ By using this project you confirm you have read and understood the agreement. If
 
 ## Version
 
-- Current `package.json` version: `0.6.11-beta.5`
+- Current `package.json` version: `0.6.11-rc.1`
 - GitHub Release assets ship with Ed25519 signatures (`<asset>.sig`), generated automatically by a CI workflow after each release
 - Docs update with the repo; for connection steps refer to `使用教程/连接教程.txt`; for the `mk` script refer to `使用教程/MK工具教程.txt` (both in Chinese)
 

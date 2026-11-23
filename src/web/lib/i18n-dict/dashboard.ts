@@ -44,8 +44,9 @@ registerMessages({
   'dashboard.window60s': { zh: '最近 60 秒', en: 'Last 60s' },
   'dashboard.collecting': { zh: '采集中…', en: 'Collecting…' },
   'dashboard.memTotalPrefix': { zh: '总', en: 'Total' },
-  'dashboard.memProcPrefix': { zh: '进程', en: 'Process' },
+  'dashboard.memProcPrefix': { zh: '进程树', en: 'Process tree' },
   'dashboard.memHeap': { zh: '（堆 {n}）', en: ' (heap {n})' },
+  'dashboard.memProcCount': { zh: '{n} 个进程', en: '{n} processes' },
 
   // —— 指标悬浮读数 ——
   'dashboard.metricNow': { zh: '此刻', en: 'Now' },

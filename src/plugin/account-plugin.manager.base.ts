@@ -550,6 +550,12 @@ export class AccountPluginManagerBase {
       }
     }
 
+    // 插件卸载 / 重载时归还它对渲染工具浏览器的持有，引用清零会自动关进程
+    try {
+      const { browserService } = await import('../admin/browser.service.js');
+      browserService.releaseByPlugin(pluginId);
+    } catch { /* ignore */ }
+
     router.clear();
     // 摘掉这个插件注册的全部接口代理钩子——否则插件卸载后它的 before/after 还会
     // 被后续调用触发，对着一个已经销毁的上下文继续跑

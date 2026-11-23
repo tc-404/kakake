@@ -71,6 +71,10 @@ import { getFrameworkVersion } from './admin/agreement.service.js';
 import { NODE_SAFE_BASELINE, printNodeSecurityNotice } from './core/node-version-guard.js';
 import { setFrameworkActionHandler } from './proxy/runtime/facade.js';
 import { requestRestart } from './admin/restart.service.js';
+import { browserService } from './admin/browser.service.js';
+import type { BrowserId } from './tools/browser-defs.js';
+import { syncPuppeteerBridge } from './tools/puppeteer-bridge.js';
+import { startProcessTreeMonitor } from './core/process-tree.js';
 
 function isFrameworkPassthroughPath(p: string): boolean {
   return (
@@ -286,17 +290,75 @@ function printTicketLogin(
   rootLogger.info(`${label}: ${url.replace(/([?&]ticket=)[^&]+/, '$1***')}`);
 }
 
+/** 渲染工具浏览器接口：framework 动作分发（kakake_api 与外放 API 共用入口） */
+async function handleBrowserAction(
+  name: string,
+  params: Record<string, unknown>,
+): Promise<{ ok: boolean; data?: unknown; message?: string }> {
+  const rawId = String(params?.browserId ?? 'chrome');
+  const id = (rawId === 'chrome' || rawId === 'edge' || rawId === 'chromium') ? rawId as BrowserId : 'chrome';
+  const pluginId = String(params?.pluginId ?? '');
+  switch (name) {
+    case 'browser_start': {
+      const r = await browserService.start(id, pluginId || 'manual');
+      return { ok: r.ok, data: r.ok ? { cdpUrl: r.cdpUrl, pid: r.pid, mode: r.mode } : undefined, message: r.ok ? '' : r.message };
+    }
+    case 'browser_acquire': {
+      const r = await browserService.acquire(id, pluginId);
+      return { ok: r.ok, data: r.ok ? { cdpUrl: r.cdpUrl, pid: r.pid, mode: r.mode } : undefined, message: r.ok ? '' : r.message };
+    }
+    case 'browser_release': {
+      const closed = browserService.release(id, pluginId);
+      return { ok: true, data: { closed } };
+    }
+    case 'browser_stop': {
+      const ok = browserService.stop(id);
+      return { ok: true, data: { stopped: ok } };
+    }
+    case 'browser_restart': {
+      const r = await browserService.restart(id);
+      return { ok: r.ok, data: r.ok ? { cdpUrl: r.cdpUrl, pid: r.pid } : undefined, message: r.ok ? '' : r.message };
+    }
+    case 'browser_touch': {
+      browserService.markActive(id);
+      return { ok: true, data: { touched: true } };
+    }
+    case 'browser_status': {
+      return { ok: true, data: browserService.getAllStatus() };
+    }
+    default:
+      return { ok: false, message: `未知的浏览器动作 ${name}` };
+  }
+}
+
 async function bootstrap() {
   setLogAccountResolver(resolveLogAccountFromPrefix);
   setLogLayoutResolver(resolveLogLayoutForAccount);
   initDataDirs();
 
-  // 框架本地动作接线：接口代理里的 restart_kakake（kakake_api / 外放 API 可调）
-  // 走这里转到 requestRestart——受管启动器（86 退出码循环）才会真正执行重启。
-  setFrameworkActionHandler(async () => {
-    const r = requestRestart();
-    return { ok: r.ok, data: r, message: r.message };
+  // 框架本地动作接线：restart_kakake + 渲染工具浏览器接口（kakake_api / 外放 API 可调）
+  setFrameworkActionHandler(async (name: string, params: Record<string, unknown>) => {
+    if (name === 'browser_start' || name === 'browser_acquire' || name === 'browser_stop'
+      || name === 'browser_restart' || name === 'browser_status'
+      || name === 'browser_touch' || name === 'browser_release') {
+      return handleBrowserAction(name, params);
+    }
+    if (name === 'restart_kakake') {
+      // 默认：重启咔咔珂进程（受管启动器才会真正执行）
+      const r = requestRestart();
+      return { ok: r.ok, data: r, message: r.message };
+    }
+    // 新增 framework: true 条目必须在这里显式接线。绝不设「兜底执行某个动作」的
+    // default 分支——以前把未知名字一律当重启，将来漏接线的查询接口会直接重启进程。
+    return { ok: false, message: `未知的框架本地动作 ${name}，请检查 main.ts 的接线` };
   });
+
+  // 常驻模式的浏览器跟随宿主启动拉起
+  try { browserService.initOnBoot(); } catch (e) { rootLogger.warn('[渲染工具] 启动自检失败:', e); }
+  // 刷新 Puppeteer 插件桥接：让已装浏览器（含旧版本装的）在系统重启后仍能被插件检测到
+  try { syncPuppeteerBridge(); } catch (e) { rootLogger.warn('[渲染工具] Puppeteer 桥接自检失败:', e); }
+  // 后台定时刷新进程树内存：HTTP 接口只读缓存，避免同步系统命令阻塞事件循环
+  try { startProcessTreeMonitor(); } catch (e) { rootLogger.warn('[进程树] 监控启动失败:', e); }
 
   const legacyToken = configService.getConfig().token?.trim();
   const auth = ensureAuthKey(legacyToken || undefined);
@@ -545,6 +607,7 @@ async function bootstrap() {
     const hardExit = setTimeout(() => process.exit(0), 8000);
     try { hardExit.unref?.(); } catch { /* ignore */ }
     try {
+      browserService.shutdown();
       connectionManager.stopAll();
       // 各类插件管理器统一收尾（内部调用各插件 plugin_cleanup 并自行捕获异常）
       Promise.allSettled([
@@ -568,6 +631,12 @@ async function bootstrap() {
   };
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGHUP', () => shutdown('SIGHUP'));
+  // 同步兜底：任何 process.exit() 路径（含启动失败 / 异常退出）都先关浏览器。
+  // SIGKILL / 断电等无法捕获的场景，由浏览器 watchdog 的 stdin EOF 机制回收。
+  process.on('exit', () => {
+    try { browserService.shutdown(); } catch { /* ignore */ }
+  });
 
   await app.init();
   try {

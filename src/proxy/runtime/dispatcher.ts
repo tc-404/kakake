@@ -121,6 +121,17 @@ function clampTimeout(ms: number | undefined, fallback: number): number {
   return Math.min(600_000, Math.max(5_000, Math.floor(v)));
 }
 
+/**
+ * 传输族：napcat / snowluma 同为 OneBot（发 action），official 走开放平台（发 path）。
+ *
+ * `force` 只能在同一族内借用另一协议的实现。跨族借用没有意义——OneBot 的 action
+ * 填不进官方的 path，反之亦然，发出去只会得到「缺少 action / 缺少 path」的内部错误，
+ * 比直接说清楚「借不了」更糟。
+ */
+function sameTransportFamily(a: ProxyProtocol, b: ProxyProtocol): boolean {
+  return (a === 'official') === (b === 'official');
+}
+
 export function resolveDefaultTimeout(source: number | (() => number)): number {
   return typeof source === 'function' ? source() : source;
 }
@@ -240,15 +251,30 @@ export async function dispatch(
   const target = resolved.target;
   const protocol = target.protocol;
 
-  /* 5. 选变体 */
-  const impl = entry.impl[protocol];
+  /* 5. 选变体。
+   *
+   * force 的精确语义（见 ProxyCallOptions.force）：
+   *  - 当前协议没有 impl 时，可从**同传输族**的另一协议借实现（NapCat ↔ SnowLuma
+   *    都是 OneBot action），标记 degraded='unsupported'；
+   *  - 协议端把能力标成 stub 时，默认合成失败信封，force 才放行并标记 degraded='stub'；
+   *  - OneBot ↔ 官方属于不同传输族，force 也借不过去——action 填不进 path。 */
+  let impl = entry.impl[protocol];
+  let forcedFallback: ProxyProtocol | undefined;
+  if (!impl && opts?.force) {
+    forcedFallback = entry.support.find(
+      (p) => p !== protocol && sameTransportFamily(p, protocol) && Boolean(entry.impl[p]),
+    );
+    if (forcedFallback) impl = entry.impl[forcedFallback];
+  }
   if (!impl) {
     const names = { napcat: 'NapCat', snowluma: 'SnowLuma', official: 'QQ 官方机器人' };
+    const forceHint = opts?.force
+      ? ' force 只能在同族协议（NapCat ↔ SnowLuma）之间借用实现，无法跨 OneBot / 官方两类传输。'
+      : '如需绕过限制强行发送，请传 opts.force（结果仍会标记为降级）。';
     return finishError(
       deps, entry, callParams, 'unsupported',
       `接口「${entry.title}」(${entry.name}) 不支持当前连接协议：${names[protocol]}。`
-      + `该接口支持：${entry.support.map((p) => names[p]).join(' / ')}。`
-      + '如需绕过限制强行发送，请传 opts.force（结果仍会标记为降级）。',
+      + `该接口支持：${entry.support.map((p) => names[p]).join(' / ')}。` + forceHint,
       { ...baseMeta(), protocol, connectionId: target.connectionId, native: '' },
       PROXY_RETCODE.unsupported, hookCtx,
     );
@@ -266,6 +292,19 @@ export async function dispatch(
   }
 
   const native = variant.action ?? (variant.path ? `${variant.verb ?? 'POST'} ${variant.path}` : '');
+  const stubbed = Boolean(impl.stub || variant.stub);
+  if (stubbed && !opts?.force) {
+    const reason = variant.stub
+      ? (variant.notes || '协议端源码/文档标注为未实现')
+      : (impl.notes || '协议端整体标注为未实现');
+    return finishError(
+      deps, entry, callParams, 'unsupported',
+      `接口「${entry.title}」(${entry.name}) 在当前协议下是占位实现（${reason}），已拦下，不会真的发出请求。`
+      + '如确认协议端实际可用，请传 opts.force 探索，结果会标记降级。',
+      { ...baseMeta(), protocol, connectionId: target.connectionId, native, degraded: 'stub' },
+      PROXY_RETCODE.unsupported, hookCtx,
+    );
+  }
 
   /* 6. ID 空间校验 */
   const idIssues = checkIdSpaces(entry, protocol, callParams);
@@ -308,6 +347,9 @@ export async function dispatch(
     native,
     variant: picked?.key ?? '*',
     httpMethod: (variant.verb ?? (protocol === 'official' ? 'POST' : method)) as ProxyMeta['httpMethod'],
+    // 探索性调用必须可追溯：借了别的协议的实现 / 强发了 stub，都在 _proxy 上留痕
+    ...(forcedFallback ? { degraded: 'unsupported' as const }
+      : stubbed ? { degraded: 'stub' as const } : {}),
   };
 
   /* 8. 前置步骤（官方富媒体：先上传拿 file_info，再发消息） */

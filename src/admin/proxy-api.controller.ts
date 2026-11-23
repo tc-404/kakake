@@ -3,6 +3,10 @@
  * 仅 proxyApiEnabled 开启时暴露，鉴权沿用控制台 Bearer 密钥，按「IP + 短名」独立限流。
  * GET/POST 均支持（GET 走 query、POST 走 body）；官方 DELETE/PATCH 由注册表 verb 决定。
  * 代理层受理的请求统一回 200（真实成败在信封里），kakake 自己的边界才用 401/403/404/429。
+ *
+ * 风险声明：这里不按注册表的 risk 等级做二次过滤。开关 + 密钥一旦泄露，调用方拿到的是
+ * 机器人完整控制权（含 danger 接口、重启进程、浏览器 CDP 地址）。这是刻意的设计取舍，
+ * 不是「只读外放」；设置页文案与 src/proxy/README.md 都写明了这一点。
  */
 import { All, Controller, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';

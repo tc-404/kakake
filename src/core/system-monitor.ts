@@ -11,6 +11,7 @@ import {
   getRuntimeKind,
   getRuntimeLabel,
 } from './runtime-env.js';
+import { collectProcessTreeMemory } from './process-tree.js';
 
 export type SystemMetrics = {
   time: number;
@@ -50,10 +51,14 @@ export type SystemMetrics = {
     processRssBytes: number;
     processHeapUsedBytes: number;
     /**
-     * 咔咔自身 Node.js 进程占用（即本进程；不含机器上其它 node）
-     * 与 processRss* 同源，供前端单独着色展示
+     * 咔咔珂「整个进程树」RSS（bootstrap 父 + main + watchdog + 插件子进程 + 浏览器进程）。
+     * 这是用户在任务管理器里看到的咔咔珂相关进程总和，前端主展示值。
      */
     nodeRssBytes: number;
+    /** 进程树里的进程数（含本进程） */
+    nodeProcessCount: number;
+    /** 仅 main.mjs 本进程 RSS（对照用，nodeRssBytes 通常大于它） */
+    nodeSelfRssBytes: number;
     nodePercent: number;
     nodeHeapUsedBytes: number;
     systemUsedBytes: number;
@@ -359,7 +364,10 @@ export type LiveMetrics = {
     nodePercent: number;
     systemUsedBytes: number;
     systemTotalBytes: number;
+    /** 咔咔珂整棵进程树 RSS（前端主展示值） */
     nodeRssBytes: number;
+    nodeProcessCount: number;
+    nodeSelfRssBytes: number;
     nodeHeapUsedBytes: number;
   };
 };
@@ -407,6 +415,7 @@ export function collectLiveMetrics(): LiveMetrics {
   liveLastAt = now;
 
   const mem = process.memoryUsage();
+  const tree = collectProcessTreeMemory();
   const total = os.totalmem();
   const free = getAvailableMemoryBytes();
   const systemUsed = Math.max(0, total - free);
@@ -419,10 +428,12 @@ export function collectLiveMetrics(): LiveMetrics {
     },
     memory: {
       systemPercent: total > 0 ? clampPercent((systemUsed / total) * 100) : 0,
-      nodePercent: total > 0 ? clampPercent((mem.rss / total) * 100) : 0,
+      nodePercent: total > 0 ? clampPercent((tree.totalRssBytes / total) * 100) : 0,
       systemUsedBytes: systemUsed,
       systemTotalBytes: total,
-      nodeRssBytes: mem.rss,
+      nodeRssBytes: tree.totalRssBytes,
+      nodeProcessCount: tree.processCount,
+      nodeSelfRssBytes: tree.selfRssBytes,
       nodeHeapUsedBytes: mem.heapUsed,
     },
   };
@@ -431,6 +442,7 @@ export function collectLiveMetrics(): LiveMetrics {
 /** 采集本进程 + 宿主卷指标（轻量，可频繁调用） */
 export async function collectSystemMetrics(): Promise<SystemMetrics> {
   const mem = process.memoryUsage();
+  const tree = collectProcessTreeMemory();
   const total = os.totalmem();
   const free = getAvailableMemoryBytes();
   const systemUsed = Math.max(0, total - free);
@@ -469,9 +481,11 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
       processPercent: total > 0 ? clampPercent((mem.rss / total) * 100) : 0,
       processRssBytes: mem.rss,
       processHeapUsedBytes: mem.heapUsed,
-      // 仅本咔咔 Node 进程，不汇总系统上其它 node
-      nodeRssBytes: mem.rss,
-      nodePercent: total > 0 ? clampPercent((mem.rss / total) * 100) : 0,
+      // 咔咔珂整棵进程树（bootstrap 父 + main + watchdog + 插件子进程 + 浏览器进程）
+      nodeRssBytes: tree.totalRssBytes,
+      nodeProcessCount: tree.processCount,
+      nodeSelfRssBytes: tree.selfRssBytes,
+      nodePercent: total > 0 ? clampPercent((tree.totalRssBytes / total) * 100) : 0,
       nodeHeapUsedBytes: mem.heapUsed,
       systemUsedBytes: systemUsed,
       systemTotalBytes: total,

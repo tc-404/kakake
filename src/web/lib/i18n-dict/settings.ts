@@ -244,8 +244,8 @@ registerMessages({
     en: 'Exposes read-only public endpoints (/api/public) that need no login — for status pages or external panels; when off, external access is rejected.',
   },
   'settings.proxyApiDesc': {
-    zh: '允许外部程序携密钥调用机器人转发 API（「代理 API」页的接入点），按来源独立限流；关闭后该入口整体下线。',
-    en: 'Lets external programs call the bot forwarding API with a key (the Proxy API endpoint), rate-limited per source; when off, the endpoint is shut down.',
+    zh: '允许外部程序携密钥调用全部机器人代理 API（含发消息、删消息、重启、浏览器控制等 danger 接口），按来源独立限流；密钥泄露等于交出机器人完整控制权，请只给可信调用方，用完及时关闭。',
+    en: 'Lets external programs use the console key to call every proxy API, including danger actions (send/delete messages, restart, browser control); a leaked key means full bot control. Trusted callers only — turn it off when done.',
   },
   'settings.inboundGuardDesc': {
     zh: '对入站请求做来源风控：全局冷却期间丢弃无密钥连接，拦下扫描与撞库流量；关闭后所有入站请求直接放行，仅在排查问题时临时关闭。',

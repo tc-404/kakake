@@ -19,6 +19,7 @@ import { OpenPlatformController } from './open-platform.controller.js';
 import { ProxyApiController } from './proxy-api.controller.js';
 import { ProxyRegistryController } from './proxy-registry.controller.js';
 import { SponsorsController } from './sponsors.controller.js';
+import { BrowserApiController } from './browser-api.controller.js';
 
 @Module({
   controllers: [
@@ -43,6 +44,7 @@ import { SponsorsController } from './sponsors.controller.js';
     ProxyRegistryController,
     ProxyApiController,
     SponsorsController,
+    BrowserApiController,
   ],
 })
 export class AdminModule {}

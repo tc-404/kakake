@@ -28,6 +28,7 @@ const PAGE_LOADERS = {
   pluginHost: () => import('@/pages/PluginHostPage'),
   pluginStore: () => import('@/pages/PluginStorePage'),
   tools: () => import('@/pages/ToolsPage'),
+  renderTools: () => import('@/pages/RenderToolsPage'),
   openPlatform: () => import('@/pages/OpenPlatformPage'),
   proxyApi: () => import('@/pages/ProxyApiPage'),
   ai: () => import('@/pages/AIPage'),
@@ -206,6 +207,7 @@ export function App() {
           <Route path="/plugin-store" element={<LazyPage><Page pageKey="pluginStore" /></LazyPage>} />
           <Route path="/tools" element={<LazyPage fixed><Page pageKey="tools" /></LazyPage>} />
           <Route path="/tools/:toolId" element={<LazyPage fixed><Page pageKey="tools" /></LazyPage>} />
+          <Route path="/render-tools" element={<LazyPage fixed><Page pageKey="renderTools" /></LazyPage>} />
           <Route path="/open-platform" element={<LazyPage fixed><Page pageKey="openPlatform" /></LazyPage>} />
           <Route path="/proxy-api" element={<LazyPage><Page pageKey="proxyApi" /></LazyPage>} />
           <Route path="/ai" element={<LazyPage fixed><Page pageKey="ai" /></LazyPage>} />

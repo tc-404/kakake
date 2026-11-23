@@ -374,7 +374,9 @@ export function SystemMonitorPanel({ className }: { className?: string }) {
                   </span>
                   <span className="mx-1">·</span>
                   <span>
-                    {t('dashboard.memProcPrefix')} {formatBytes(live.memory.nodeRssBytes)}{t('dashboard.memHeap', { n: formatBytes(live.memory.nodeHeapUsedBytes) })}
+                    {t('dashboard.memProcPrefix')} {formatBytes(live.memory.nodeRssBytes)}
+                    {live.memory.nodeProcessCount ? ` · ${t('dashboard.memProcCount', { n: live.memory.nodeProcessCount })}` : ''}
+                    {t('dashboard.memHeap', { n: formatBytes(live.memory.nodeHeapUsedBytes) })}
                   </span>
                 </>
               ) : (

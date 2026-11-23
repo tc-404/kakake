@@ -1571,15 +1571,6 @@ export const STEPS: TourStep[] = [
     ],
   },
   {
-    id: 'settings-sharp',
-    route: '/settings',
-    target: '[data-tour="settings-sharp"]',
-    title: 'tour.settingsSharpTitle',
-    body: [
-      'tour.settingsSharpBody1',
-    ],
-  },
-  {
     id: 'update-center',
     route: '/settings',
     target: '[data-tour="update-center"]',
