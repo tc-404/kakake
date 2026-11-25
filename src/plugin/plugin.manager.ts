@@ -495,7 +495,9 @@ export class PluginManager implements IPluginManager {
     if (!entry || entry.runtime.status === 'error') return false;
     const prep = this.prepareRuntimePaths(entry, accountKey);
     if (!prep.ok) {
-      entry.runtime = { status: 'error', error: '无法准备账号运行副本' };
+      const reason = '无法准备账号运行副本';
+      entry.runtime = { status: 'error', error: reason };
+      this.logger.error(`[PluginManager] ${reason} ${pluginId}@${accountKey}`);
       return false;
     }
     // 副本刚被刷新过：代次 +1 让整棵模块图失效，否则新副本会命中按 URL 的 ESM 旧缓存
@@ -503,7 +505,8 @@ export class PluginManager implements IPluginManager {
 
     const module = await this.loader.loadPluginModule(entry);
     if (!module) {
-      this.logger.error(`[PluginManager] 模块加载失败 ${pluginId}@${accountKey}`);
+      const detail = entry.runtime.error ?? '未知原因';
+      this.logger.error(`[PluginManager] 模块加载失败 ${pluginId}@${accountKey}: ${detail}`);
       return false;
     }
 

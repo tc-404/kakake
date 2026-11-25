@@ -1311,6 +1311,27 @@ function StoreOriginCard() {
   );
 }
 
+type GithubQuotaPair = {
+  core?: { remaining: number; limit: number };
+  search?: { remaining: number; limit: number };
+};
+
+function githubQuotasFromVerify(
+  v: { valid: boolean; remaining?: number; limit?: number; quotas?: GithubQuotaPair } | null | undefined,
+): GithubQuotaPair | null {
+  if (!v?.valid) return null;
+  if (v.quotas?.core || v.quotas?.search) return v.quotas;
+  // 后端兼容字段只有 core：旧响应也能显示，不至于空着
+  if (typeof v.remaining === 'number' && typeof v.limit === 'number') {
+    return { core: { remaining: v.remaining, limit: v.limit } };
+  }
+  return null;
+}
+
+function formatGithubQuota(q: { remaining: number; limit: number } | undefined): string {
+  return q ? `${q.remaining.toLocaleString()}/${q.limit.toLocaleString()}` : '-/-';
+}
+
 /** GitHub API Token 卡：填了提升商店限流额度，保存即校验并展示余量 */
 function GithubTokenCard() {
   const t = useT();
@@ -1318,7 +1339,7 @@ function GithubTokenCard() {
   const [ghTokenSaved, setGhTokenSaved] = useState('');
   const [ghTokenShow, setGhTokenShow] = useState(false);
   const [ghTokenSaving, setGhTokenSaving] = useState(false);
-  const [ghQuota, setGhQuota] = useState<{ remaining: number; limit: number } | null>(null);
+  const [ghQuota, setGhQuota] = useState<GithubQuotaPair | null>(null);
 
   useEffect(() => {
     api.settings
@@ -1327,6 +1348,7 @@ function GithubTokenCard() {
         if (r.ok) {
           setGhToken(r.token);
           setGhTokenSaved(r.token);
+          setGhQuota(r.configured ? githubQuotasFromVerify(r.verify) : null);
         }
       })
       .catch(() => { /* 保持空值 */ });
@@ -1350,15 +1372,10 @@ function GithubTokenCard() {
           return;
         }
         const v = r.verify;
+        setGhQuota(githubQuotasFromVerify(v));
         if (v?.valid) {
-          setGhQuota(
-            typeof v.remaining === 'number' && typeof v.limit === 'number'
-              ? { remaining: v.remaining, limit: v.limit }
-              : null,
-          );
           toast.success(t('settings.tokenSavedVerified'));
         } else {
-          setGhQuota(null);
           toast.error(resText(v) || t('settings.tokenVerifyFailed'));
         }
       })
@@ -1367,7 +1384,29 @@ function GithubTokenCard() {
   };
 
   return (
-    <SettingsCard className="kk-stagger-item kk-stagger-slow-6" title="GitHub API Token" tourId="settings-github">
+    <SettingsCard
+      className="kk-stagger-item kk-stagger-slow-6"
+      title="GitHub API Token"
+      tourId="settings-github"
+      extra={
+        <span
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-500/10 px-2.5 py-1 text-xs font-medium tabular-nums text-slate-600"
+          title={t('settings.ghQuotaTitle')}
+        >
+          {ghQuota ? (
+            <>
+              <span>{t('settings.ghQuotaCore')}</span>
+              <span>{formatGithubQuota(ghQuota.core)}</span>
+              <span className="text-slate-300">·</span>
+              <span>{t('settings.ghQuotaSearch')}</span>
+              <span>{formatGithubQuota(ghQuota.search)}</span>
+            </>
+          ) : (
+            '-/-'
+          )}
+        </span>
+      }
+    >
       <div className="flex items-center gap-2">
         <Input
           id="github-token"
@@ -1414,19 +1453,6 @@ function GithubTokenCard() {
         {' '}
         {t('settings.ghTokenNewSuffix')}
       </p>
-      {ghQuota ? (
-        <p className="text-xs text-teal-600">
-          {t('settings.ghQuotaPrefix')}
-          {' '}
-          {ghQuota.remaining}
-          {' '}
-          /
-          {' '}
-          {ghQuota.limit}
-          {' '}
-          {t('settings.ghQuotaSuffix')}
-        </p>
-      ) : null}
     </SettingsCard>
   );
 }

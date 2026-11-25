@@ -167,13 +167,16 @@ export class KzPluginManager implements IPluginManager {
   private async loadEntry(entry: PluginEntry): Promise<boolean> {
     if (entry.loaded) return true;
     if (!entry.entryPath) {
-      entry.runtime = { status: 'error', error: '无入口文件' };
+      const reason = '无入口文件';
+      entry.runtime = { status: 'error', error: reason };
+      this.logger.error(`[KzPluginManager] 模块加载失败 ${entry.id}: ${reason}`);
       return false;
     }
 
     const module = await this.loader.loadPluginModule(entry);
     if (!module) {
-      this.logger.error(`[KzPluginManager] 模块加载失败 ${entry.id}`);
+      const detail = entry.runtime.error ?? '未知原因';
+      this.logger.error(`[KzPluginManager] 模块加载失败 ${entry.id}: ${detail}`);
       return false;
     }
 

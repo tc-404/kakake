@@ -75,15 +75,27 @@ export function githubAuthHeaders(url: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
+export type GithubRateQuota = {
+  /** 剩余额度（次/小时） */
+  remaining: number;
+  /** 额度上限（匿名 60 / 带 Token 5000） */
+  limit: number;
+};
+
 export type GithubTokenVerify = {
   /** Token 可用（或匿名可用） */
   valid: boolean;
   /** HTTP 状态码；0 = 网络失败 */
   status: number;
-  /** 剩余额度（次/小时） */
+  /** 兼容旧调用方：等于 core.remaining */
   remaining?: number;
-  /** 额度上限（匿名 60 / 带 Token 5000） */
+  /** 兼容旧调用方：等于 core.limit */
   limit?: number;
+  /** GitHub 官方 /rate_limit 里的两类常用额度 */
+  quotas?: {
+    core?: GithubRateQuota;
+    search?: GithubRateQuota;
+  };
   message?: string;
 };
 
@@ -108,10 +120,27 @@ export async function verifyGithubToken(rawToken?: unknown): Promise<GithubToken
       return { valid: false, status: res.status, message: `GitHub 返回 HTTP ${res.status}` };
     }
     const data = (await res.json()) as {
-      resources?: { core?: { remaining?: number; limit?: number } };
+      resources?: {
+        core?: { remaining?: number; limit?: number };
+        search?: { remaining?: number; limit?: number };
+      };
     };
     const core = data.resources?.core;
-    return { valid: true, status: 200, remaining: core?.remaining, limit: core?.limit };
+    const search = data.resources?.search;
+    const quotas: NonNullable<GithubTokenVerify['quotas']> = {};
+    if (typeof core?.remaining === 'number' && typeof core.limit === 'number') {
+      quotas.core = { remaining: core.remaining, limit: core.limit };
+    }
+    if (typeof search?.remaining === 'number' && typeof search.limit === 'number') {
+      quotas.search = { remaining: search.remaining, limit: search.limit };
+    }
+    return {
+      valid: true,
+      status: 200,
+      remaining: quotas.core?.remaining,
+      limit: quotas.core?.limit,
+      ...(Object.keys(quotas).length ? { quotas } : {}),
+    };
   } catch (e) {
     return {
       valid: false,

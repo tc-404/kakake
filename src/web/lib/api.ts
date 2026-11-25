@@ -426,6 +426,16 @@ export interface TelegramConnectionConfig {
   telegramMode?: 'polling' | 'webhook';
 }
 
+type GithubQuota = { remaining: number; limit: number };
+type GithubTokenVerify = {
+  valid: boolean;
+  status: number;
+  remaining?: number;
+  limit?: number;
+  quotas?: { core?: GithubQuota; search?: GithubQuota };
+  message?: string;
+};
+
 export const api = {
   authState: () =>
     request<{
@@ -705,20 +715,19 @@ export const api = {
       }),
     /** GitHub API Token：直连官方接口时附带，提升匿名限流额度（可选） */
     githubToken: () =>
-      request<{ ok: boolean; token: string; configured: boolean }>('/api/settings/github-token'),
+      request<{
+        ok: boolean;
+        token: string;
+        configured: boolean;
+        verify?: GithubTokenVerify | null;
+      }>('/api/settings/github-token'),
     saveGithubToken: (token: string) =>
       request<{
         ok: boolean;
         message?: string;
         token: string;
         configured: boolean;
-        verify?: {
-          valid: boolean;
-          status: number;
-          remaining?: number;
-          limit?: number;
-          message?: string;
-        } | null;
+        verify?: GithubTokenVerify | null;
       }>('/api/settings/github-token', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

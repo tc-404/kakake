@@ -498,7 +498,9 @@ export class AccountPluginManagerBase {
     if (!entry || entry.runtime.status === 'error') return false;
     const prep = this.prepareRuntimePaths(entry, accountKey);
     if (!prep.ok) {
-      entry.runtime = { status: 'error', error: '无法准备账号运行副本' };
+      const reason = '无法准备账号运行副本';
+      entry.runtime = { status: 'error', error: reason };
+      this.logger.error(`[${this.opts.logLabel}] ${reason} ${pluginId}@${accountKey}`);
       return false;
     }
     // 副本刚被刷新过：代次 +1 让整棵模块图失效，否则新副本会命中按 URL 的 ESM 旧缓存
@@ -506,7 +508,8 @@ export class AccountPluginManagerBase {
 
     const module = await this.loader.loadPluginModule(entry);
     if (!module) {
-      this.logger.error(`[${this.opts.logLabel}] 模块加载失败 ${pluginId}@${accountKey}`);
+      const detail = entry.runtime.error ?? '未知原因';
+      this.logger.error(`[${this.opts.logLabel}] 模块加载失败 ${pluginId}@${accountKey}: ${detail}`);
       return false;
     }
 

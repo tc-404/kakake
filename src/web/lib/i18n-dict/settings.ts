@@ -75,8 +75,9 @@ registerMessages({
   'settings.showToken': { zh: '显示 Token', en: 'Show Token' },
   'settings.ghTokenNewPrefix': { zh: '去', en: 'Go to' },
   'settings.ghTokenNewSuffix': { zh: '新建 Token（需 public_repo / Read-only 权限）', en: 'to create a Token (requires public_repo / Read-only permission)' },
-  'settings.ghQuotaPrefix': { zh: '当前额度：剩余', en: 'Current quota: remaining' },
-  'settings.ghQuotaSuffix': { zh: '次/时', en: 'requests/hour' },
+  'settings.ghQuotaTitle': { zh: 'GitHub 核心 / 搜索接口剩余额度（剩余/上限）', en: 'GitHub core / search API quota remaining (remaining/limit)' },
+  'settings.ghQuotaCore': { zh: '核心', en: 'Core' },
+  'settings.ghQuotaSearch': { zh: '搜索', en: 'Search' },
 
   'settings.multiThread': { zh: '多线程下载', en: 'Multi-threaded Download' },
   'settings.multiThreadScope': { zh: '生效范围', en: 'Scope' },

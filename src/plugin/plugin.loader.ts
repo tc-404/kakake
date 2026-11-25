@@ -803,19 +803,26 @@ export class PluginLoader {
 
   async loadPluginModule(entry: PluginEntry): Promise<PluginModule | null> {
     if (!entry.entryPath) {
-      entry.runtime = { status: 'error', error: '无入口路径' };
+      const reason = '无入口路径';
+      entry.runtime = { status: 'error', error: reason };
+      this.logger.error(`[PluginLoader] 模块加载失败 ${entry.id}: ${reason}`);
       return null;
     }
 
     try {
       const module = await this.importModule(entry.entryPath, entry.pluginPath);
       if (!this.isValidPluginModule(module)) {
-        entry.runtime = { status: 'error', error: '缺少 plugin_init' };
+        const reason = '缺少 plugin_init';
+        entry.runtime = { status: 'error', error: reason };
+        this.logger.error(`[PluginLoader] 模块加载失败 ${entry.id}: ${reason}`);
         return null;
       }
       return module;
     } catch (error: unknown) {
-      entry.runtime = { status: 'error', error: describeModuleError(error) };
+      const detail = describeModuleError(error);
+      entry.runtime = { status: 'error', error: detail };
+      // 原始 Error 必须落盘：runtime.error 只给气泡看，堆栈只有这里拿得到
+      this.logger.error(`[PluginLoader] 模块加载失败 ${entry.id}: ${detail}`, error);
       return null;
     }
   }
@@ -889,7 +896,12 @@ export class PluginLoader {
   }
 
   rescanPlugin(dirname: string): PluginEntry | null {
-    return this.scanDirectoryPlugin(dirname, this.loadPluginStatusConfig());
+    const entry = this.scanDirectoryPlugin(dirname, this.loadPluginStatusConfig());
+    // 运行期重扫的报错以前只写进 runtime.error 给前端气泡，文件日志里一点痕迹都没有
+    if (entry?.runtime.status === 'error') {
+      this.logger.error(`[PluginLoader] 重新扫描 ${dirname} 失败: ${entry.runtime.error ?? '未知原因'}`);
+    }
+    return entry;
   }
 
   findPluginDirById(pluginId: string): string | null {

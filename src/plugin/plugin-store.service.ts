@@ -83,7 +83,7 @@ const REPO_DOWNLOADS_TTL_MS = 30 * 60_000;
 /** README 缓存 */
 const README_TTL_MS = 10 * 60_000;
 const COVER_MAX_BYTES = 12 * 1024 * 1024;
-const DOWNLOAD_MAX_BYTES = 64 * 1024 * 1024;
+const DOWNLOAD_MAX_BYTES = 128 * 1024 * 1024;
 
 /** 安装级并发闸：商城安装与链接导入共享；每个安装峰值可达数百 MB，不设上限就是 OOM 排队 */
 const INSTALL_MAX_CONCURRENT = 2;

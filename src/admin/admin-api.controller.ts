@@ -173,12 +173,15 @@ export class AdminApiController {
 
   /** GitHub API Token：仅内存 + data/github-auth.json，不走主配置。凭据回显双保险：内层再验一次会话 */
   @Get('settings/github-token')
-  githubToken(@Req() req: Request) {
+  async githubToken(@Req() req: Request) {
     if (!isRequestAuthed(req)) {
       return { ok: false, message: 'Unauthorized' };
     }
     const token = getGithubToken();
-    return { ok: true, token, configured: !!token };
+    // 没配 Token 就不打官方接口：前端直接显示 -/-
+    if (!token) return { ok: true, token: '', configured: false, verify: null };
+    const verify = await verifyGithubToken(token);
+    return { ok: true, token, configured: true, verify };
   }
 
   /**
